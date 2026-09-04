@@ -12,6 +12,7 @@ export interface ViewerState {
   /** Simulation time, refreshed a few times per second (not every frame). */
   simTime: Date | null;
   multiplier: number;
+  animating: boolean;
   attach(viewer: Viewer, imagery: ImageryResolved): void;
   detach(): void;
   setError(message: string): void;
@@ -30,6 +31,7 @@ export const useViewerStore = create<ViewerState>()((set, get) => {
     error: null,
     simTime: null,
     multiplier: 1,
+    animating: true,
 
     attach(viewer, imagery) {
       get().detach();
@@ -40,7 +42,11 @@ export const useViewerStore = create<ViewerState>()((set, get) => {
         const now = performance.now();
         if (now - lastPush < SIM_TIME_REFRESH_MS) return;
         lastPush = now;
-        set({ simTime: JulianDate.toDate(clock.currentTime), multiplier: clock.multiplier });
+        set({
+          simTime: JulianDate.toDate(clock.currentTime),
+          multiplier: clock.multiplier,
+          animating: clock.shouldAnimate,
+        });
       });
 
       removeRender = viewer.scene.postRender.addEventListener(() => {
@@ -57,7 +63,7 @@ export const useViewerStore = create<ViewerState>()((set, get) => {
       removeRender?.();
       removeTick = undefined;
       removeRender = undefined;
-      set({ viewer: null, imagery: null, ready: false, simTime: null, multiplier: 1 });
+      set({ viewer: null, imagery: null, ready: false, simTime: null, multiplier: 1, animating: true });
     },
 
     setError(message) {

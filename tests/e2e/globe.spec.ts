@@ -29,6 +29,14 @@ test('the globe renders and a satellite can be selected', async ({ page }) => {
   await page.screenshot({ path: 'test-results/globe-tracking.png' });
   await page.getByRole('button', { name: 'Track', exact: true }).click();
 
+  // Time controls: speed presets and pause are reflected in the clock read-out.
+  await page.getByLabel('Simulation speed').selectOption('60');
+  await expect(page.getByTestId('sim-time')).toContainText('60x');
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await expect(page.getByTestId('sim-time')).toContainText('paused');
+  await page.getByRole('button', { name: 'Play' }).click();
+  await expect(page.getByTestId('sim-time')).toContainText('60x');
+
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/globe.png' });
 

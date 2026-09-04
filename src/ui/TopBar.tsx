@@ -1,5 +1,5 @@
-import { jumpToNow } from '../viewer/createViewer';
 import { useViewerStore } from '../state/viewer';
+import { TimeControls } from './TimeControls';
 
 function formatUtc(date: Date): string {
   return date.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
@@ -12,9 +12,9 @@ function formatMultiplier(multiplier: number): string {
 }
 
 export function TopBar() {
-  const viewer = useViewerStore((s) => s.viewer);
   const simTime = useViewerStore((s) => s.simTime);
   const multiplier = useViewerStore((s) => s.multiplier);
+  const animating = useViewerStore((s) => s.animating);
   const imagery = useViewerStore((s) => s.imagery);
 
   return (
@@ -30,18 +30,10 @@ export function TopBar() {
       {simTime && (
         <span className="topbar__time" data-testid="sim-time">
           {formatUtc(simTime)}
-          <span className="topbar__dim"> · {formatMultiplier(multiplier)}</span>
+          <span className="topbar__dim"> · {animating ? formatMultiplier(multiplier) : 'paused'}</span>
         </span>
       )}
-      <button
-        type="button"
-        className="btn"
-        disabled={!viewer}
-        onClick={() => viewer && jumpToNow(viewer)}
-        title="Return to the current time at 1x"
-      >
-        Now
-      </button>
+      <TimeControls />
     </header>
   );
 }

@@ -247,8 +247,43 @@ body,
   cursor: pointer;
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
   background: rgba(92, 200, 255, 0.22);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn--icon {
+  min-width: 34px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.timectl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.select,
+.input {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  background: rgba(8, 12, 20, 0.8);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  color-scheme: dark;
+}
+
+.select:disabled,
+.input:disabled {
+  opacity: 0.5;
 }
 
 .error-panel {

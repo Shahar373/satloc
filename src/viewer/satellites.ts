@@ -226,12 +226,10 @@ export class SatelliteLayer {
     if (!cache || cache.id !== selected.set.noradId || Math.abs(nowMs - cache.sampledAtMs) > cache.periodMs / 2) {
       try {
         const periodMs = orbitalPeriodMinutes(selected.set.satrec) * 60_000;
-        this.orbitCache = {
-          id: selected.set.noradId,
-          sampledAtMs: nowMs,
-          periodMs,
-          teme: sampleOrbitTeme(selected.set.satrec, new Date(nowMs), ORBIT_SAMPLES),
-        };
+        const teme = sampleOrbitTeme(selected.set.satrec, new Date(nowMs), ORBIT_SAMPLES);
+        // Perturbations leave a small gap after one revolution; close the loop visually.
+        teme[teme.length - 1] = teme[0]!;
+        this.orbitCache = { id: selected.set.noradId, sampledAtMs: nowMs, periodMs, teme };
       } catch {
         this.orbitCache = null;
         return [];
