@@ -1,0 +1,14 @@
+node_modules/
+dist/
+public/cesium/
+test-results/
+playwright-report/
+.env
+.env.*
+*.log
+.DS_Store
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/schemas/
+src-tauri/icon-source.png

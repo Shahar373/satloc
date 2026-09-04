@@ -1,0 +1,122 @@
+:root {
+  --bg: #05070d;
+  --panel: rgba(12, 17, 28, 0.85);
+  --panel-border: rgba(120, 150, 200, 0.18);
+  --text: #e6edf7;
+  --text-dim: #93a1b8;
+  --accent: #5cc8ff;
+  --warn: #ffcf5a;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --topbar-h: 44px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  overflow: hidden;
+}
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: var(--topbar-h) 1fr;
+}
+
+.globe {
+  position: relative;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.globe > .cesium-viewer {
+  position: absolute;
+  inset: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-border);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.topbar__brand {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.topbar__spacer {
+  flex: 1;
+}
+
+.topbar__time {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.topbar__dim {
+  color: var(--text-dim);
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+}
+
+.badge--warn {
+  color: var(--warn);
+  border-color: rgba(255, 207, 90, 0.4);
+}
+
+.btn {
+  font: inherit;
+  color: var(--text);
+  background: rgba(92, 200, 255, 0.12);
+  border: 1px solid rgba(92, 200, 255, 0.35);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: rgba(92, 200, 255, 0.22);
+}
+
+.error-panel {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  color: var(--text);
+}
+
+.error-panel code {
+  display: block;
+  margin-top: 12px;
+  font-family: var(--mono);
+  color: var(--warn);
+  white-space: pre-wrap;
+}
