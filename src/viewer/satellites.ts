@@ -15,6 +15,9 @@ import {
   type Viewer,
 } from 'cesium';
 import type { EciVec3 } from 'satellite.js';
+import { presetSatellite } from '../core/catalog/presets';
+import { EARTH_MEAN_RADIUS_M, footprintCentralAngle } from '../core/geometry/footprint';
+import { circlePoints, stripEdges, type LatLon } from '../core/geometry/geodesy';
 import {
   gmstAt,
   orbitalPeriodMinutes,
@@ -22,15 +25,20 @@ import {
   sampleGroundTrack,
   sampleOrbitTeme,
   temeToEcf,
+  temeToGroundPoint,
 } from '../core/propagation/sgp4';
 import type { ElementSet } from '../core/tle/omm';
+import type { CameraMode } from '../state/selection';
 
 const MARKER_COLOR = Color.fromCssColorString('#5cc8ff');
 const SELECTED_COLOR = Color.fromCssColorString('#ffcf5a');
 const ORBIT_COLOR = Color.fromCssColorString('#5cc8ff').withAlpha(0.85);
 const TRACK_FUTURE_COLOR = Color.fromCssColorString('#ffcf5a').withAlpha(0.9);
 const TRACK_PAST_COLOR = Color.fromCssColorString('#ffcf5a').withAlpha(0.35);
+const FOOTPRINT_COLOR = Color.fromCssColorString('#5cc8ff').withAlpha(0.6);
+const SWATH_COLOR = Color.fromCssColorString('#ff8a5c').withAlpha(0.9);
 const ORBIT_SAMPLES = 180;
+const FOOTPRINT_SEGMENTS = 96;
 const TRACK_STEP_S = 20;
 const TRACK_HEIGHT_M = 2_000;
 /** Recompute the ground track when the clock moved this far from the cached origin (sim seconds). */
@@ -40,7 +48,9 @@ export interface SelectionView {
   selectedId: number | null;
   showOrbit: boolean;
   showGroundTrack: boolean;
-  tracking: boolean;
+  showFootprint: boolean;
+  showSwath: boolean;
+  cameraMode: CameraMode;
 }
 
 interface Tracked {
@@ -74,10 +84,29 @@ export class SatelliteLayer {
   private readonly orbitEntity: Entity;
   private readonly trackFutureEntity: Entity;
   private readonly trackPastEntity: Entity;
-  private selection: SelectionView = { selectedId: null, showOrbit: true, showGroundTrack: true, tracking: false };
+  private readonly footprintEntity: Entity;
+  private readonly swathLeftEntity: Entity;
+  private readonly swathRightEntity: Entity;
+  private readonly removePreRender: () => void;
+  private selection: SelectionView = {
+    selectedId: null,
+    showOrbit: true,
+    showGroundTrack: true,
+    showFootprint: true,
+    showSwath: true,
+    cameraMode: 'free',
+  };
 
   private orbitCache: { id: number; sampledAtMs: number; periodMs: number; teme: EciVec3<number>[] } | null = null;
-  private trackCache: { id: number; fromMs: number; past: Cartesian3[]; future: Cartesian3[] } | null = null;
+  private trackCache: {
+    id: number;
+    fromMs: number;
+    past: Cartesian3[];
+    future: Cartesian3[];
+    swathLeft: Cartesian3[];
+    swathRight: Cartesian3[];
+  } | null = null;
+  private footprintCache: { id: number; atMs: number; ring: Cartesian3[] } | null = null;
 
   constructor(
     private readonly viewer: Viewer,
@@ -111,6 +140,36 @@ export class SatelliteLayer {
         material: TRACK_PAST_COLOR,
       },
     });
+
+    this.footprintEntity = viewer.entities.add({
+      id: 'satloc-footprint',
+      show: false,
+      polyline: {
+        positions: new CallbackProperty((time) => this.footprintPositions(time ?? viewer.clock.currentTime), false),
+        width: 1.5,
+        material: FOOTPRINT_COLOR,
+      },
+    });
+    this.swathLeftEntity = viewer.entities.add({
+      id: 'satloc-swath-left',
+      show: false,
+      polyline: {
+        positions: new CallbackProperty((time) => this.swathPositions(time ?? viewer.clock.currentTime, 'left'), false),
+        width: 1,
+        material: SWATH_COLOR,
+      },
+    });
+    this.swathRightEntity = viewer.entities.add({
+      id: 'satloc-swath-right',
+      show: false,
+      polyline: {
+        positions: new CallbackProperty((time) => this.swathPositions(time ?? viewer.clock.currentTime, 'right'), false),
+        width: 1,
+        material: SWATH_COLOR,
+      },
+    });
+
+    this.removePreRender = viewer.scene.preRender.addEventListener(() => this.updateNadirCamera());
 
     this.handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
     this.handler.setInputAction((event: ScreenSpaceEventHandler.PositionedEvent) => {
@@ -172,6 +231,7 @@ export class SatelliteLayer {
     }
     this.orbitCache = null;
     this.trackCache = null;
+    this.footprintCache = null;
     this.applySelection();
   }
 
@@ -182,13 +242,25 @@ export class SatelliteLayer {
 
   destroy(): void {
     this.handler.destroy();
+    this.removePreRender();
     if (this.viewer.isDestroyed()) return;
     if (this.viewer.trackedEntity && this.isOurs(this.viewer.trackedEntity)) this.viewer.trackedEntity = undefined;
     for (const t of this.tracked.values()) this.viewer.entities.remove(t.entity);
-    this.viewer.entities.remove(this.orbitEntity);
-    this.viewer.entities.remove(this.trackFutureEntity);
-    this.viewer.entities.remove(this.trackPastEntity);
+    for (const e of [
+      this.orbitEntity,
+      this.trackFutureEntity,
+      this.trackPastEntity,
+      this.footprintEntity,
+      this.swathLeftEntity,
+      this.swathRightEntity,
+    ]) {
+      this.viewer.entities.remove(e);
+    }
     this.tracked.clear();
+  }
+
+  private selectedTracked(): Tracked | undefined {
+    return this.selection.selectedId === null ? undefined : this.tracked.get(this.selection.selectedId);
   }
 
   private isOurs(entity: Entity): boolean {
@@ -197,8 +269,9 @@ export class SatelliteLayer {
   }
 
   private applySelection(): void {
-    const { selectedId, showOrbit, showGroundTrack, tracking } = this.selection;
+    const { selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, cameraMode } = this.selection;
     const selected = selectedId === null ? undefined : this.tracked.get(selectedId);
+    const hasSwath = selected ? presetSatellite(selected.set.noradId)?.sat.swathKm !== undefined : false;
 
     for (const [id, t] of this.tracked) {
       const isSelected = id === selectedId;
@@ -209,8 +282,11 @@ export class SatelliteLayer {
     this.orbitEntity.show = Boolean(selected && showOrbit);
     this.trackFutureEntity.show = Boolean(selected && showGroundTrack);
     this.trackPastEntity.show = Boolean(selected && showGroundTrack);
+    this.footprintEntity.show = Boolean(selected && showFootprint);
+    this.swathLeftEntity.show = Boolean(selected && showSwath && hasSwath);
+    this.swathRightEntity.show = Boolean(selected && showSwath && hasSwath);
 
-    const wantTracked = selected && tracking ? selected.entity : undefined;
+    const wantTracked = selected && cameraMode === 'track' ? selected.entity : undefined;
     const current = this.viewer.trackedEntity;
     if (wantTracked !== current && (wantTracked || (current && this.isOurs(current)))) {
       this.viewer.trackedEntity = wantTracked;
@@ -248,13 +324,17 @@ export class SatelliteLayer {
       try {
         const period = orbitalPeriodMinutes(selected.set.satrec);
         const samples = sampleGroundTrack(selected.set.satrec, new Date(nowMs), period / 2, period, TRACK_STEP_S);
-        const toCartesian = (s: (typeof samples)[number]) =>
-          Cartesian3.fromRadians(s.point.longitude, s.point.latitude, TRACK_HEIGHT_M);
+        const toCartesian = (p: LatLon) => Cartesian3.fromRadians(p.longitude, p.latitude, TRACK_HEIGHT_M);
+        const future = samples.filter((s) => s.time.getTime() >= nowMs).map((s) => s.point);
+        const swathKm = presetSatellite(selected.set.noradId)?.sat.swathKm;
+        const edges = swathKm ? stripEdges(future, (swathKm * 1000) / EARTH_MEAN_RADIUS_M) : { left: [], right: [] };
         this.trackCache = {
           id: selected.set.noradId,
           fromMs: nowMs,
-          past: samples.filter((s) => s.time.getTime() <= nowMs).map(toCartesian),
-          future: samples.filter((s) => s.time.getTime() >= nowMs).map(toCartesian),
+          past: samples.filter((s) => s.time.getTime() <= nowMs).map((s) => toCartesian(s.point)),
+          future: future.map(toCartesian),
+          swathLeft: edges.left.map(toCartesian),
+          swathRight: edges.right.map(toCartesian),
         };
       } catch {
         this.trackCache = null;
@@ -262,5 +342,47 @@ export class SatelliteLayer {
       }
     }
     return part === 'past' ? this.trackCache!.past : this.trackCache!.future;
+  }
+
+  private swathPositions(time: JulianDate, side: 'left' | 'right'): Cartesian3[] {
+    this.trackPositions(time, 'future'); // ensures the cache (and its swath edges) is current
+    if (!this.trackCache) return [];
+    return side === 'left' ? this.trackCache.swathLeft : this.trackCache.swathRight;
+  }
+
+  /** Horizon circle around the sub-satellite point, recomputed each simulated instant. */
+  private footprintPositions(time: JulianDate): Cartesian3[] {
+    const selected = this.selectedTracked();
+    if (!selected) return [];
+    const date = JulianDate.toDate(time);
+    const nowMs = date.getTime();
+    if (this.footprintCache && this.footprintCache.id === selected.set.noradId && this.footprintCache.atMs === nowMs) {
+      return this.footprintCache.ring;
+    }
+    try {
+      const state = propagateTeme(selected.set.satrec, date);
+      const ground = temeToGroundPoint(state.position, gmstAt(date));
+      const angle = footprintCentralAngle(ground.heightKm * 1000);
+      const ring = circlePoints(ground, angle, FOOTPRINT_SEGMENTS).map((p) =>
+        Cartesian3.fromRadians(p.longitude, p.latitude, TRACK_HEIGHT_M),
+      );
+      this.footprintCache = { id: selected.set.noradId, atMs: nowMs, ring };
+      return ring;
+    } catch {
+      return [];
+    }
+  }
+
+  /** In nadir mode the camera sits on the satellite and looks straight down, north up. */
+  private updateNadirCamera(): void {
+    if (this.selection.cameraMode !== 'nadir') return;
+    const selected = this.selectedTracked();
+    if (!selected) return;
+    const position = fixedPositionAt(selected.set, this.viewer.clock.currentTime);
+    if (!position) return;
+    this.viewer.camera.setView({
+      destination: position,
+      orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
+    });
   }
 }

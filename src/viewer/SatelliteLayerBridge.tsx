@@ -11,7 +11,9 @@ export function SatelliteLayerBridge() {
   const selectedId = useSelection((s) => s.selectedId);
   const showOrbit = useSelection((s) => s.showOrbit);
   const showGroundTrack = useSelection((s) => s.showGroundTrack);
-  const tracking = useSelection((s) => s.tracking);
+  const showFootprint = useSelection((s) => s.showFootprint);
+  const showSwath = useSelection((s) => s.showSwath);
+  const cameraMode = useSelection((s) => s.cameraMode);
   const layerRef = useRef<SatelliteLayer | null>(null);
 
   useEffect(() => {
@@ -29,8 +31,8 @@ export function SatelliteLayerBridge() {
   }, [viewer, sets]);
 
   useEffect(() => {
-    layerRef.current?.setSelection({ selectedId, showOrbit, showGroundTrack, tracking });
-  }, [viewer, sets, selectedId, showOrbit, showGroundTrack, tracking]);
+    layerRef.current?.setSelection({ selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, cameraMode });
+  }, [viewer, sets, selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, cameraMode]);
 
   return null;
 }

@@ -68,12 +68,17 @@ function SatelliteDetails({ set }: { set: ElementSet }) {
   const live = useLiveOrbit(set);
   const showOrbit = useSelection((s) => s.showOrbit);
   const showGroundTrack = useSelection((s) => s.showGroundTrack);
-  const tracking = useSelection((s) => s.tracking);
+  const showFootprint = useSelection((s) => s.showFootprint);
+  const showSwath = useSelection((s) => s.showSwath);
+  const cameraMode = useSelection((s) => s.cameraMode);
   const toggleOrbit = useSelection((s) => s.toggleOrbit);
   const toggleGroundTrack = useSelection((s) => s.toggleGroundTrack);
-  const setTracking = useSelection((s) => s.setTracking);
+  const toggleFootprint = useSelection((s) => s.toggleFootprint);
+  const toggleSwath = useSelection((s) => s.toggleSwath);
+  const setCameraMode = useSelection((s) => s.setCameraMode);
   const select = useSelection((s) => s.select);
   const preset = presetSatellite(set.noradId)?.sat;
+  const hasSwath = preset?.swathKm !== undefined;
   const stale = live ? Math.abs(live.elementAgeDays) > 7 : false;
 
   return (
@@ -84,16 +89,49 @@ function SatelliteDetails({ set }: { set: ElementSet }) {
           ×
         </button>
       </div>
-      <div className="toggles">
-        <button type="button" className={`btn${tracking ? ' btn--on' : ''}`} onClick={() => setTracking(!tracking)}>
+      <div className="toggles" aria-label="Camera">
+        <button
+          type="button"
+          className={`btn${cameraMode === 'track' ? ' btn--on' : ''}`}
+          title="Camera follows the satellite"
+          onClick={() => setCameraMode(cameraMode === 'track' ? 'free' : 'track')}
+        >
           Track
         </button>
+        <button
+          type="button"
+          className={`btn${cameraMode === 'nadir' ? ' btn--on' : ''}`}
+          title="Look straight down from the satellite"
+          onClick={() => setCameraMode(cameraMode === 'nadir' ? 'free' : 'nadir')}
+        >
+          Nadir
+        </button>
+      </div>
+      <div className="toggles" aria-label="Overlays">
         <button type="button" className={`btn${showOrbit ? ' btn--on' : ''}`} onClick={toggleOrbit}>
           Orbit
         </button>
         <button type="button" className={`btn${showGroundTrack ? ' btn--on' : ''}`} onClick={toggleGroundTrack}>
           Ground track
         </button>
+        <button
+          type="button"
+          className={`btn${showFootprint ? ' btn--on' : ''}`}
+          title="Where the satellite is above the horizon"
+          onClick={toggleFootprint}
+        >
+          Footprint
+        </button>
+        {hasSwath && (
+          <button
+            type="button"
+            className={`btn${showSwath ? ' btn--on' : ''}`}
+            title={`Imaging swath, ${preset?.swathKm} km wide, along the coming orbit`}
+            onClick={toggleSwath}
+          >
+            Swath
+          </button>
+        )}
       </div>
       {live?.error && <p className="panel__hint panel__hint--warn">Propagation failed: {live.error}</p>}
       <dl className="facts">

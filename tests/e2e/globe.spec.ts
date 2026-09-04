@@ -23,11 +23,18 @@ test('the globe renders and a satellite can be selected', async ({ page }) => {
   await expect(page.getByTestId('altitude')).toContainText(/\d{3}\.\d km/);
   await expect(page.getByRole('button', { name: 'Orbit' })).toHaveClass(/btn--on/);
 
-  // Camera tracking moves the camera; the app must keep running afterwards.
+  // Overlays: footprint on by default; the fixture has no swath entry so no Swath button.
+  await expect(page.getByRole('button', { name: 'Footprint' })).toHaveClass(/btn--on/);
+  await expect(page.getByRole('button', { name: 'Swath' })).toHaveCount(0);
+
+  // Camera modes move the camera; the app must keep running afterwards.
   await page.getByRole('button', { name: 'Track', exact: true }).click();
   await page.waitForTimeout(1500);
   await page.screenshot({ path: 'test-results/globe-tracking.png' });
-  await page.getByRole('button', { name: 'Track', exact: true }).click();
+  await page.getByRole('button', { name: 'Nadir' }).click();
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: 'test-results/globe-nadir.png' });
+  await page.getByRole('button', { name: 'Nadir' }).click();
 
   // Time controls: speed presets and pause are reflected in the clock read-out.
   await page.getByLabel('Simulation speed').selectOption('60');
