@@ -3,5 +3,11 @@
   "identifier": "default",
   "description": "Default capability for the main SatLoc window.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://celestrak.org/*" }]
+    }
+  ]
 }

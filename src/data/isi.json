@@ -1,0 +1,34 @@
+{
+  "id": "isi",
+  "name": "ImageSat International (ISI)",
+  "description": "Israeli commercial Earth-observation operator; EROS satellites built by IAI.",
+  "satellites": [
+    {
+      "noradId": 29079,
+      "name": "EROS-B",
+      "intlDesignator": "2006-014A",
+      "launched": "2006-04-25",
+      "swathKm": 7,
+      "resolutionM": 0.7,
+      "status": "active"
+    },
+    {
+      "noradId": 54880,
+      "name": "EROS-C3",
+      "intlDesignator": "2022-179A",
+      "launched": "2022-12-30",
+      "swathKm": 11.5,
+      "resolutionM": 0.3,
+      "status": "active"
+    }
+  ],
+  "historical": [
+    {
+      "noradId": 26631,
+      "name": "EROS-A",
+      "intlDesignator": "2000-079A",
+      "launched": "2000-12-05",
+      "decayed": "2016-07-07"
+    }
+  ]
+}

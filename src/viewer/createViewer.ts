@@ -58,9 +58,7 @@ export async function createViewer(
 
   clock.clockRange = ClockRange.UNBOUNDED;
   clock.multiplier = 1;
-  clock.currentTime = options.initialTime
-    ? JulianDate.fromDate(options.initialTime)
-    : JulianDate.now();
+  setSimulationTime(viewer, options.initialTime ? JulianDate.fromDate(options.initialTime) : JulianDate.now());
 
   viewer.camera.setView({
     destination: Cartesian3.fromDegrees(HOME_LON, HOME_LAT, HOME_HEIGHT_M),
@@ -69,9 +67,24 @@ export async function createViewer(
   return { viewer, imagery };
 }
 
+/** Timeline window shown around the current time: one hour back, three hours ahead. */
+const TIMELINE_BEFORE_S = 3600;
+const TIMELINE_AFTER_S = 3 * 3600;
+
+/** Move the simulation clock and re-centre the timeline widget on it. */
+export function setSimulationTime(viewer: Viewer, time: JulianDate): void {
+  const { clock } = viewer;
+  clock.currentTime = JulianDate.clone(time, clock.currentTime);
+  const start = JulianDate.addSeconds(time, -TIMELINE_BEFORE_S, new JulianDate());
+  const stop = JulianDate.addSeconds(time, TIMELINE_AFTER_S, new JulianDate());
+  clock.startTime = start;
+  clock.stopTime = stop;
+  viewer.timeline?.zoomTo(start, stop);
+}
+
 /** Reset the simulation clock to wall-clock time at 1x. */
 export function jumpToNow(viewer: Viewer): void {
-  viewer.clock.currentTime = JulianDate.now();
+  setSimulationTime(viewer, JulianDate.now());
   viewer.clock.multiplier = 1;
   viewer.clock.shouldAnimate = true;
 }

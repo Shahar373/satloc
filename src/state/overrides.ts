@@ -10,6 +10,8 @@ interface OverridesState {
   imagery?: ImagerySource;
   /** Initial simulation time (ISO 8601), e.g. `?time=2026-09-04T12:00:00Z`. */
   time?: Date;
+  /** `?catalog=fixture` loads a synthetic element set instead of real data (tests). */
+  catalogFixture?: boolean;
 }
 
 export const useOverrides = create<OverridesState>()(() => ({}));
@@ -19,6 +21,7 @@ export function applyUrlOverrides(params: URLSearchParams): void {
   if (imagery && (IMAGERY_SOURCES as readonly string[]).includes(imagery)) {
     useOverrides.setState({ imagery: imagery as ImagerySource });
   }
+  if (params.get('catalog') === 'fixture') useOverrides.setState({ catalogFixture: true });
   const time = params.get('time');
   if (time) {
     const parsed = new Date(time);

@@ -1,0 +1,105 @@
+import { json2satrec, twoline2satrec, type SatRec } from 'satellite.js';
+
+/**
+ * CelesTrak "GP" record in OMM JSON form (FORMAT=json). Field names follow the CCSDS OMM standard.
+ * Only the fields we read are typed; the raw object is kept for satellite.js.
+ */
+export interface OmmRecord {
+  OBJECT_NAME: string;
+  OBJECT_ID: string;
+  EPOCH: string;
+  MEAN_MOTION: number;
+  ECCENTRICITY: number;
+  INCLINATION: number;
+  RA_OF_ASC_NODE: number;
+  ARG_OF_PERICENTER: number;
+  MEAN_ANOMALY: number;
+  EPHEMERIS_TYPE: number;
+  CLASSIFICATION_TYPE: string;
+  NORAD_CAT_ID: number;
+  ELEMENT_SET_NO: number;
+  REV_AT_EPOCH: number;
+  BSTAR: number;
+  MEAN_MOTION_DOT: number;
+  MEAN_MOTION_DDOT: number;
+}
+
+/** One orbital element set ready for propagation, plus the metadata the UI shows. */
+export interface ElementSet {
+  noradId: number;
+  name: string;
+  intlDesignator: string;
+  /** Element set epoch. */
+  epoch: Date;
+  satrec: SatRec;
+  /** Degrees. */
+  inclinationDeg: number;
+  eccentricity: number;
+  /** Revolutions per day. */
+  meanMotion: number;
+}
+
+const MS_PER_DAY = 86_400_000;
+
+export function ommToElementSet(record: OmmRecord): ElementSet {
+  const satrec = json2satrec(record as unknown as Parameters<typeof json2satrec>[0]);
+  if (satrec.error !== 0) {
+    throw new Error(`SGP4 initialisation failed for ${record.OBJECT_NAME} (error ${satrec.error})`);
+  }
+  return {
+    noradId: record.NORAD_CAT_ID,
+    name: record.OBJECT_NAME.trim(),
+    intlDesignator: record.OBJECT_ID,
+    epoch: new Date(record.EPOCH.endsWith('Z') ? record.EPOCH : record.EPOCH + 'Z'),
+    satrec,
+    inclinationDeg: record.INCLINATION,
+    eccentricity: record.ECCENTRICITY,
+    meanMotion: record.MEAN_MOTION,
+  };
+}
+
+/** Classic two-line element set; `name` is the optional "line 0". */
+export function tleToElementSet(line1: string, line2: string, name?: string): ElementSet {
+  const satrec = twoline2satrec(line1, line2);
+  if (satrec.error !== 0) {
+    throw new Error(`SGP4 initialisation failed for TLE ${satrec.satnum} (error ${satrec.error})`);
+  }
+  const noradId = Number(satrec.satnum);
+  const intl = line1.slice(9, 17).trim();
+  return {
+    noradId,
+    name: (name ?? `NORAD ${noradId}`).trim(),
+    intlDesignator: intl ? expandIntlDesignator(intl) : '',
+    epoch: satrecEpochDate(satrec),
+    satrec,
+    inclinationDeg: (satrec.inclo * 180) / Math.PI,
+    eccentricity: satrec.ecco,
+    meanMotion: publishedMeanMotion(satrec),
+  };
+}
+
+/** Epoch from the satrec's Julian date. Unix epoch is JD 2440587.5. */
+export function satrecEpochDate(satrec: SatRec): Date {
+  return new Date((satrec.jdsatepoch - 2440587.5) * MS_PER_DAY);
+}
+
+/**
+ * Mean motion as published (Kozai), revolutions per day. satellite.js keeps the published value in
+ * `nokozai` and stores the Brouwer ("un-Kozai'd") value SGP4 works with in `no`.
+ */
+export function publishedMeanMotion(satrec: SatRec): number {
+  const radPerMin = satrec.nokozai;
+  return (radPerMin * 1440) / (2 * Math.PI);
+}
+
+/** Age of the element set at `at`, in days (negative if `at` is before the epoch). */
+export function elementSetAgeDays(set: Pick<ElementSet, 'epoch'>, at: Date): number {
+  return (at.getTime() - set.epoch.getTime()) / MS_PER_DAY;
+}
+
+/** "06014A" (TLE column form) -> "2006-014A". */
+function expandIntlDesignator(compact: string): string {
+  const yy = Number(compact.slice(0, 2));
+  const year = yy < 57 ? 2000 + yy : 1900 + yy;
+  return `${year}-${compact.slice(2)}`;
+}

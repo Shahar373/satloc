@@ -1,0 +1,39 @@
+name: Update ISI TLE snapshot
+
+# Keeps the bundled element sets fresh so a first launch without network still shows the
+# ISI satellites at roughly the right place. Commits only when CelesTrak published new data.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/update-snapshot.mjs
+      - src/data/isi.json
+      - .github/workflows/update-snapshot.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/update-snapshot.mjs
+      - name: Commit the refreshed snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/isi-snapshot.json
+          if git diff --cached --quiet; then
+            echo "Snapshot unchanged"
+          else
+            git commit -m "data: refresh ISI TLE snapshot [skip ci]"
+            git push
+          fi

@@ -16,6 +16,7 @@
     "icons": "node scripts/make-icon.mjs && tauri icon src-tauri/icon-source.png -o src-tauri/icons"
   },
   "dependencies": {
+    "@tauri-apps/plugin-http": "^2.6.0",
     "cesium": "^1.145.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
