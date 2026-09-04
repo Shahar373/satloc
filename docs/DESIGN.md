@@ -333,7 +333,7 @@ satloc/
 
 ## 10. בנייה, CI והפצה
 
-- **`ci.yml`** (על כל push/PR): `npm ci`, lint, typecheck, vitest, `vite build`. רץ על Ubuntu, מהיר.
+- **`ci.yml`** (על כל push/PR): typecheck, vitest, `vite build`, בדיקת Playwright עם צילום מסך, `cargo clippy` למעטפת על Ubuntu, ובנוסף **`tauri build` על Windows** שמעלה את קובץ ההתקנה (.exe/.msi) כ-artifact של הריצה. כך כל push מייצר קובץ התקנה להורדה מלשונית Actions, בלי לתייג גרסה.
 - **`release.yml`** (על תג `v*`): `tauri-apps/tauri-action` במטריצה:
   - `windows-latest` → `.msi` + `.exe` (NSIS)
   - `macos-latest` → `.dmg` (Apple Silicon + Intel)
