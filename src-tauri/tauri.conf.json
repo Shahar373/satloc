@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; img-src 'self' data: blob: https://server.arcgisonline.com https://gibs.earthdata.nasa.gov; connect-src 'self' ipc: http://ipc.localhost https://celestrak.org https://server.arcgisonline.com https://gibs.earthdata.nasa.gov; object-src 'none'"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; img-src 'self' data: blob: https://server.arcgisonline.com https://gibs.earthdata.nasa.gov; connect-src 'self' ipc: http://ipc.localhost https://celestrak.org https://tle.ivanstanojevic.me https://server.arcgisonline.com https://gibs.earthdata.nasa.gov; object-src 'none'"
     }
   },
   "bundle": {

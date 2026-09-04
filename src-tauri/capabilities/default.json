@@ -7,7 +7,7 @@
     "core:default",
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://celestrak.org/*" }]
+      "allow": [{ "url": "https://celestrak.org/*" }, { "url": "https://tle.ivanstanojevic.me/*" }]
     }
   ]
 }

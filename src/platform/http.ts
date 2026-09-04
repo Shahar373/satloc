@@ -5,6 +5,7 @@ export interface FetchTextOptions {
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000;
+const USER_AGENT = 'Mozilla/5.0 (compatible; SatLoc/0.1; +https://github.com/Shahar373/satloc)';
 
 /**
  * GET a URL and return its body as text.
@@ -16,8 +17,13 @@ export async function fetchText(url: string, options: FetchTextOptions = {}): Pr
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const doFetch = isTauri() ? (await import('@tauri-apps/plugin-http')).fetch : fetch;
-    const response = await doFetch(url, { method: 'GET', signal: controller.signal });
+    const tauri = isTauri();
+    const doFetch = tauri ? (await import('@tauri-apps/plugin-http')).fetch : fetch;
+    const response = await doFetch(url, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: tauri ? { 'User-Agent': USER_AGENT, Accept: 'application/json, text/plain' } : undefined,
+    });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status} ${response.statusText} for ${url}`);
     }
