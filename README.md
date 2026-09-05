@@ -7,9 +7,9 @@ Installable app: desktop first (Tauri 2), Android next. Built on CesiumJS + sate
 
 - Design document (Hebrew): [docs/DESIGN.md](docs/DESIGN.md)
 
-Status: milestones M0-M6 done (globe, ISI satellite in real time, time control,
-footprint/swath, pass prediction, full catalogue with worker propagation, settings).
-Next: verification on a Windows machine, then Android (M7).
+Status: milestones M0-M6, M8 (imaging opportunities over targets) and M9 (3D model,
+own timeline, shortcuts) done and verified on Windows. Next: auto-update (waiting for a
+signing key), Hebrew UI, Android (M7).
 
 ## Develop
 
