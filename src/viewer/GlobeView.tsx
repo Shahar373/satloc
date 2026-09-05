@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { Viewer } from 'cesium';
 import { useHover } from '../state/hover';
 import { useImagerySource, useOverrides } from '../state/overrides';
+import { useSettings } from '../state/settings';
 import { useViewerStore } from '../state/viewer';
 import { createViewer } from './createViewer';
 
@@ -9,6 +10,7 @@ export function GlobeView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const imagery = useImagerySource();
   const initialTime = useOverrides((s) => s.time);
+  const ionToken = useSettings((s) => s.ionToken);
   const ready = useViewerStore((s) => s.ready);
   const error = useViewerStore((s) => s.error);
   const hover = useHover((s) => s.hover);
@@ -21,7 +23,7 @@ export function GlobeView() {
     let viewer: Viewer | undefined;
     const store = useViewerStore.getState();
 
-    createViewer(container, { imagery, initialTime })
+    createViewer(container, { imagery, ionToken, initialTime })
       .then((created) => {
         if (cancelled) {
           created.viewer.destroy();
@@ -44,7 +46,7 @@ export function GlobeView() {
       useViewerStore.getState().detach();
       viewer?.destroy();
     };
-  }, [imagery, initialTime]);
+  }, [imagery, ionToken, initialTime]);
 
   return (
     <div

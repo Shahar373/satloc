@@ -1,5 +1,9 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_APP_VERSION?: string;
+}
+
 declare global {
   interface Window {
     CESIUM_BASE_URL?: string;

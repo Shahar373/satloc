@@ -121,7 +121,7 @@ function SatelliteDetails({ set }: { set: ElementSet }) {
               {isFavorite ? '★ pinned' : '☆ pin'}
             </button>
           )}{' '}
-          <button type="button" className="link" onClick={() => select(null)} title="Deselect">
+          <button type="button" className="link" onClick={() => select(null)} title="Deselect" aria-label="Deselect">
             ×
           </button>
         </span>

@@ -2,6 +2,7 @@ import {
   Credit,
   GeographicTilingScheme,
   ImageryLayer,
+  Ion,
   TileMapServiceImageryProvider,
   UrlTemplateImageryProvider,
   WebMapTileServiceImageryProvider,
@@ -9,7 +10,7 @@ import {
 } from 'cesium';
 
 /** What the user can choose in settings. */
-export const IMAGERY_SOURCES = ['auto', 'esri', 'gibs-bluemarble', 'offline'] as const;
+export const IMAGERY_SOURCES = ['auto', 'esri', 'gibs-bluemarble', 'ion', 'offline'] as const;
 export type ImagerySource = (typeof IMAGERY_SOURCES)[number];
 /** What actually ended up on the globe. */
 export type ImageryResolved = Exclude<ImagerySource, 'auto'>;
@@ -83,18 +84,35 @@ export function probeImage(url: string, timeoutMs = PROBE_TIMEOUT_MS): Promise<b
   });
 }
 
-export async function resolveImagerySource(source: ImagerySource): Promise<ImageryResolved> {
+/** Cesium Ion (Bing imagery + world terrain) needs a personal access token from cesium.com/ion. */
+export async function createIonLayer(token: string): Promise<ImageryLayer> {
+  Ion.defaultAccessToken = token;
+  return ImageryLayer.fromWorldImagery({});
+}
+
+export async function resolveImagerySource(source: ImagerySource, ionToken = ''): Promise<ImageryResolved> {
+  if (source === 'ion' && !ionToken) source = 'auto';
   if (source !== 'auto') return source;
   return (await probeImage(ESRI_PROBE_TILE)) ? 'esri' : 'offline';
 }
 
-export async function createImageryLayer(resolved: ImageryResolved): Promise<ImageryLayer> {
+export async function createImageryLayer(resolved: ImageryResolved, ionToken = ''): Promise<ImageryLayer> {
   switch (resolved) {
     case 'esri':
       return createEsriLayer();
     case 'gibs-bluemarble':
       return createGibsBlueMarbleLayer();
+    case 'ion':
+      return createIonLayer(ionToken);
     case 'offline':
       return createOfflineLayer();
   }
 }
+
+export const IMAGERY_LABELS: Record<ImagerySource, string> = {
+  auto: 'Automatic (Esri, offline fallback)',
+  esri: 'Esri World Imagery',
+  'gibs-bluemarble': 'NASA Blue Marble (GIBS)',
+  ion: 'Cesium Ion: Bing imagery + terrain (token)',
+  offline: 'Offline (bundled Natural Earth II)',
+};

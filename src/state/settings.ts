@@ -15,12 +15,15 @@ export interface Favorite {
 export interface SettingsState {
   /** Which base imagery to use. 'auto' probes the network and falls back to the bundled offline tiles. */
   imagery: ImagerySource;
+  /** Cesium Ion access token (optional; unlocks Bing imagery and world terrain). */
+  ionToken: string;
   /** Catalogue groups drawn as points. */
   displayedGroups: string[];
   /** Upper bound on catalogue points drawn at once (performance guard, lower on phones). */
   maxCatalogPoints: number;
   favorites: Favorite[];
   setImagery(imagery: ImagerySource): void;
+  setIonToken(token: string): void;
   setGroupDisplayed(groupId: string, displayed: boolean): void;
   setMaxCatalogPoints(n: number): void;
   addFavorite(favorite: Favorite): void;
@@ -31,10 +34,12 @@ export const useSettings = create<SettingsState>()(
   persist(
     (set) => ({
       imagery: 'auto',
+      ionToken: '',
       displayedGroups: [],
       maxCatalogPoints: 12_000,
       favorites: [],
       setImagery: (imagery) => set({ imagery }),
+      setIonToken: (ionToken) => set({ ionToken: ionToken.trim() }),
       setGroupDisplayed: (groupId, displayed) =>
         set((s) => ({
           displayedGroups: displayed

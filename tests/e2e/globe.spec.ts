@@ -61,6 +61,13 @@ test('the globe renders and a satellite can be selected', async ({ page }) => {
   await passes.first().click();
   await expect(page.getByTestId('sim-time')).toContainText(`2026-${aosMatch![1]!.slice(0, 5)}`);
 
+  // Settings dialog opens, shows the resolved imagery, and closes.
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await expect(page.getByTestId('settings')).toContainText('Currently showing: offline');
+  await page.getByTestId('settings').getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByTestId('settings')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Home view' }).click();
+
   // Time controls: speed presets and pause are reflected in the clock read-out.
   await page.getByLabel('Simulation speed').selectOption('60');
   await expect(page.getByTestId('sim-time')).toContainText('60x');

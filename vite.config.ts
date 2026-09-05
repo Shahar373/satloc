@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 // TAURI_DEV_HOST is set by `tauri dev` when targeting a physical device (Android).
 const host = process.env.TAURI_DEV_HOST;
@@ -7,6 +10,7 @@ const platform = process.env.TAURI_ENV_PLATFORM;
 
 export default defineConfig({
   plugins: [react()],
+  define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version) },
   // Relative base so the same bundle works under http://tauri.localhost (Windows),
   // tauri://localhost (macOS/Linux) and plain static hosting.
   base: './',

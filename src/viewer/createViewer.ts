@@ -1,8 +1,10 @@
-import { Cartesian3, ClockRange, Color, JulianDate, Viewer } from 'cesium';
+import { Cartesian3, ClockRange, Color, JulianDate, Terrain, Viewer } from 'cesium';
 import { createImageryLayer, resolveImagerySource, type ImageryResolved, type ImagerySource } from './imagery';
 
 export interface CreateViewerOptions {
   imagery: ImagerySource;
+  /** Cesium Ion access token; enables the 'ion' imagery source and world terrain. */
+  ionToken?: string;
   /** Simulation time to start at; defaults to now. */
   initialTime?: Date;
 }
@@ -21,11 +23,12 @@ export async function createViewer(
   container: HTMLElement,
   options: CreateViewerOptions,
 ): Promise<CreatedViewer> {
-  const imagery = await resolveImagerySource(options.imagery);
-  const baseLayer = await createImageryLayer(imagery);
+  const imagery = await resolveImagerySource(options.imagery, options.ionToken);
+  const baseLayer = await createImageryLayer(imagery, options.ionToken);
 
   const viewer = new Viewer(container, {
     baseLayer,
+    terrain: imagery === 'ion' ? Terrain.fromWorldTerrain() : undefined,
     // Built-in time controls for now (see docs/DESIGN.md §4.1); everything else is our own UI.
     animation: true,
     timeline: true,
@@ -65,6 +68,12 @@ export async function createViewer(
   });
 
   return { viewer, imagery };
+}
+
+/** Fly back to the whole-planet view. */
+export function flyHome(viewer: Viewer, duration = 1.5): void {
+  viewer.trackedEntity = undefined;
+  viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(HOME_LON, HOME_LAT, HOME_HEIGHT_M), duration });
 }
 
 /** Timeline window shown around the current time: one hour back, three hours ahead. */

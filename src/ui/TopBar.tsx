@@ -1,4 +1,7 @@
+import { useSelection } from '../state/selection';
+import { useUi } from '../state/ui';
 import { useViewerStore } from '../state/viewer';
+import { flyHome } from '../viewer/createViewer';
 import { TimeControls } from './TimeControls';
 
 function formatUtc(date: Date): string {
@@ -16,6 +19,9 @@ export function TopBar() {
   const multiplier = useViewerStore((s) => s.multiplier);
   const animating = useViewerStore((s) => s.animating);
   const imagery = useViewerStore((s) => s.imagery);
+  const viewer = useViewerStore((s) => s.viewer);
+  const settingsOpen = useUi((s) => s.settingsOpen);
+  const setSettingsOpen = useUi((s) => s.setSettingsOpen);
 
   return (
     <header className="topbar">
@@ -34,6 +40,29 @@ export function TopBar() {
         </span>
       )}
       <TimeControls />
+      <button
+        type="button"
+        className="btn btn--icon"
+        disabled={!viewer}
+        title="Whole-planet view"
+        aria-label="Home view"
+        onClick={() => {
+          if (!viewer) return;
+          useSelection.getState().setCameraMode('free');
+          flyHome(viewer);
+        }}
+      >
+        ⌂
+      </button>
+      <button
+        type="button"
+        className={`btn btn--icon${settingsOpen ? ' btn--on' : ''}`}
+        title="Settings"
+        aria-label="Settings"
+        onClick={() => setSettingsOpen(!settingsOpen)}
+      >
+        ⚙
+      </button>
     </header>
   );
 }
