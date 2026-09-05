@@ -1,7 +1,9 @@
 name: Release
 
-# Tag `vX.Y.Z` to publish a draft GitHub Release with installers.
+# Tag `vX.Y.Z` to publish a GitHub Release with installers, updater signatures and latest.json
+# (the installed app checks that file and offers the update).
 # Run manually (workflow_dispatch) to just build and download the installers as artifacts.
+# Needs the repository secrets TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
 on:
   push:
     tags: ['v*']
@@ -44,12 +46,15 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           releaseName: ${{ github.ref_type == 'tag' && format('SatLoc {0}', github.ref_name) || '' }}
-          releaseBody: 'Installers built by GitHub Actions. Windows: use the .exe (NSIS) installer.'
-          releaseDraft: true
+          releaseBody: 'Installers built by GitHub Actions. Windows: use the .exe (NSIS) installer. Installed copies update themselves from this release.'
+          releaseDraft: false
           prerelease: false
+          includeUpdaterJson: true
           args: ${{ matrix.args }}
       - uses: actions/upload-artifact@v4
         with:

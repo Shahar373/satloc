@@ -3,6 +3,7 @@ import { useUi } from '../state/ui';
 import { useViewerStore } from '../state/viewer';
 import { flyHome } from '../viewer/createViewer';
 import { TimeControls } from './TimeControls';
+import { UpdateBanner } from './UpdateBanner';
 
 function formatUtc(date: Date): string {
   return date.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
@@ -28,6 +29,7 @@ export function TopBar() {
       <span className="topbar__brand">SatLoc</span>
       <span className="topbar__dim topbar__tagline">Earth · real-time satellites</span>
       <span className="topbar__spacer" />
+      <UpdateBanner />
       {imagery === 'offline' && (
         <span className="badge badge--warn" title="Online imagery is unreachable; showing bundled low-resolution tiles.">
           Offline imagery

@@ -8,8 +8,15 @@ Installable app: desktop first (Tauri 2), Android next. Built on CesiumJS + sate
 - Design document (Hebrew): [docs/DESIGN.md](docs/DESIGN.md)
 
 Status: milestones M0-M6, M8 (imaging opportunities over targets) and M9 (3D model,
-own timeline, shortcuts) done and verified on Windows. Next: auto-update (waiting for a
-signing key), Hebrew UI, Android (M7).
+own timeline, shortcuts) done and verified on Windows. Installed copies update themselves from GitHub Releases.
+Next: Hebrew UI, Android (M7).
+
+## Releasing
+
+Push a tag `vX.Y.Z` (matching the version in `package.json`, `src-tauri/tauri.conf.json` and
+`src-tauri/Cargo.toml`). The Release workflow builds the installers, signs the updater artifacts
+with the repository secrets `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`,
+and publishes the release with `latest.json`, which running apps pick up.
 
 ## Develop
 

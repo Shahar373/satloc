@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { isTauri } from '../platform/env';
 import { useSettings } from '../state/settings';
 import { useUi } from '../state/ui';
+import { useUpdates } from '../state/updates';
 import { useViewerStore } from '../state/viewer';
 import { IMAGERY_LABELS, IMAGERY_SOURCES, type ImagerySource } from '../viewer/imagery';
 
@@ -17,6 +19,13 @@ export function SettingsPanel() {
   const setMaxCatalogPoints = useSettings((s) => s.setMaxCatalogPoints);
   const resolved = useViewerStore((s) => s.imagery);
   const [tokenDraft, setTokenDraft] = useState(ionToken);
+  const updateStatus = useUpdates((s) => s.status);
+  const update = useUpdates((s) => s.update);
+  const updateError = useUpdates((s) => s.error);
+  const updateProgress = useUpdates((s) => s.progress);
+  const checkedAt = useUpdates((s) => s.checkedAt);
+  const checkUpdates = useUpdates((s) => s.check);
+  const installUpdate = useUpdates((s) => s.install);
 
   if (!open) return null;
 
@@ -77,6 +86,34 @@ export function SettingsPanel() {
         />
         <span className="panel__hint">Lower this on slower machines or phones.</span>
       </label>
+
+      <section className="field" data-testid="updates">
+        <span className="field__label">Updates</span>
+        {!isTauri() && <span className="panel__hint">Updates apply to the installed app only.</span>}
+        {isTauri() && (
+          <>
+            <div className="toggles">
+              <button type="button" className="btn" disabled={updateStatus === 'checking' || updateStatus === 'installing'} onClick={() => void checkUpdates()}>
+                {updateStatus === 'checking' ? 'Checking…' : 'Check for updates'}
+              </button>
+              {updateStatus === 'available' && update && (
+                <button type="button" className="btn btn--on" onClick={() => void installUpdate()}>
+                  Install {update.version}
+                </button>
+              )}
+            </div>
+            <span className="panel__hint">
+              {updateStatus === 'upToDate' && `Up to date (${APP_VERSION}).`}
+              {updateStatus === 'available' && update && `Version ${update.version} is available; you have ${update.currentVersion}.`}
+              {updateStatus === 'installing' && `Downloading${updateProgress !== null ? ` ${Math.round(updateProgress * 100)}%` : '…'} The app restarts when done.`}
+              {updateStatus === 'error' && `Could not check: ${updateError}`}
+              {updateStatus === 'idle' && 'Checked automatically a few seconds after start-up and every 6 hours.'}
+              {checkedAt && updateStatus !== 'idle' && ` Last check ${checkedAt.toLocaleTimeString()}.`}
+            </span>
+            {updateStatus === 'available' && update?.notes && <pre className="notes">{update.notes}</pre>}
+          </>
+        )}
+      </section>
 
       <section className="field">
         <span className="field__label">About</span>

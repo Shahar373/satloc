@@ -549,3 +549,17 @@ body,
 .timeline__needle-head {
   fill: var(--accent);
 }
+
+.update-banner {
+  color: #7cfc9a;
+}
+
+.notes {
+  margin: 6px 0 0;
+  max-height: 120px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+}

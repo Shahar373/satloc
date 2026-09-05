@@ -2,12 +2,23 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capability for the main SatLoc window.",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://celestrak.org/*" }, { "url": "https://tle.ivanstanojevic.me/*" }]
-    }
+      "allow": [
+        {
+          "url": "https://celestrak.org/*"
+        },
+        {
+          "url": "https://tle.ivanstanojevic.me/*"
+        }
+      ]
+    },
+    "updater:default",
+    "process:default"
   ]
 }

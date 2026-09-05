@@ -65,7 +65,8 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
-      - run: npm run tauri build
+      # Updater artifacts need the signing key; the per-push build only produces installers.
+      - run: npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
       - uses: actions/upload-artifact@v4
         with:
           name: SatLoc-windows-installer
