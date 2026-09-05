@@ -78,6 +78,21 @@ test('the globe renders and a satellite can be selected', async ({ page }) => {
   await passes.first().click();
   await expect(page.getByTestId('sim-time')).toContainText(`2026-${aosMatch![1]!.slice(0, 5)}`);
 
+  // Our timeline is drawn (tick labels, pass markers) and clicking near its right edge moves the clock forward.
+  await expect(page.locator('.timeline__svg text').first()).toBeVisible();
+  await expect(page.locator('.timeline__pass').first()).toBeAttached();
+  const before = (await page.getByTestId('sim-time').textContent()) ?? '';
+  const box = await page.getByTestId('timeline').boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.width).toBeGreaterThan(600);
+  await page.mouse.click(box!.x + box!.width * 0.9, box!.y + box!.height / 2);
+  // The clock read-out refreshes a few times per second; wait for it to move.
+  await expect(page.getByTestId('sim-time')).not.toContainText(before.slice(0, 16));
+  const after = (await page.getByTestId('sim-time').textContent()) ?? '';
+  expect(new Date(after.slice(0, 19).replace(' ', 'T') + 'Z').getTime()).toBeGreaterThan(
+    new Date(before.slice(0, 19).replace(' ', 'T') + 'Z').getTime(),
+  );
+
   // Settings dialog opens, shows the resolved imagery, and closes.
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.getByTestId('settings')).toContainText('Currently showing: offline');

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Cartesian3, JulianDate } from 'cesium';
 import { compassPoint, predictPasses, type Pass } from '../core/passes/predict';
 import type { ElementSet } from '../core/tle/omm';
+import { useForecast } from '../state/forecast';
 import { formatLocation, useObserver } from '../state/observer';
 import { usePicking } from '../state/picking';
 import { useViewerStore } from '../state/viewer';
@@ -62,6 +63,10 @@ export function PassesPanel({ set }: { set: ElementSet | undefined }) {
       return [];
     }
   }, [set, windowStart, latitudeDeg, longitudeDeg, heightM, minElevationDeg]);
+
+  useEffect(() => {
+    useForecast.getState().setPasses(passes ?? []);
+  }, [passes]);
 
   const useDeviceLocation = () => {
     setGeoError(null);

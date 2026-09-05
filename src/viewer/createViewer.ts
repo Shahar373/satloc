@@ -29,9 +29,9 @@ export async function createViewer(
   const viewer = new Viewer(container, {
     baseLayer,
     terrain: imagery === 'ion' ? Terrain.fromWorldTerrain() : undefined,
-    // Built-in time controls for now (see docs/DESIGN.md §4.1); everything else is our own UI.
-    animation: true,
-    timeline: true,
+    // Time controls are our own (TopBar + Timeline); no Cesium widgets.
+    animation: false,
+    timeline: false,
     baseLayerPicker: false,
     geocoder: false,
     homeButton: false,
@@ -76,24 +76,14 @@ export function flyHome(viewer: Viewer, duration = 1.5): void {
   viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(HOME_LON, HOME_LAT, HOME_HEIGHT_M), duration });
 }
 
-/** Timeline window shown around the current time: one hour back, three hours ahead. */
-const TIMELINE_BEFORE_S = 3600;
-const TIMELINE_AFTER_S = 3 * 3600;
-
-/** Move the simulation clock and re-centre the timeline widget on it. */
-export function setSimulationTime(viewer: Viewer, time: JulianDate): void {
-  const { clock } = viewer;
-  clock.currentTime = JulianDate.clone(time, clock.currentTime);
-  const start = JulianDate.addSeconds(time, -TIMELINE_BEFORE_S, new JulianDate());
-  const stop = JulianDate.addSeconds(time, TIMELINE_AFTER_S, new JulianDate());
-  clock.startTime = start;
-  clock.stopTime = stop;
-  viewer.timeline?.zoomTo(start, stop);
-}
-
 /** Reset the simulation clock to wall-clock time at 1x. */
 export function jumpToNow(viewer: Viewer): void {
   setSimulationTime(viewer, JulianDate.now());
   viewer.clock.multiplier = 1;
   viewer.clock.shouldAnimate = true;
+}
+
+/** Set the simulation clock (the timeline follows it on its own). */
+export function setSimulationTime(viewer: Viewer, time: JulianDate): void {
+  viewer.clock.currentTime = JulianDate.clone(time);
 }

@@ -4,6 +4,7 @@ import { useHover } from '../state/hover';
 import { useImagerySource, useOverrides } from '../state/overrides';
 import { useSettings } from '../state/settings';
 import { useViewerStore } from '../state/viewer';
+import { Timeline } from '../ui/Timeline';
 import { createViewer } from './createViewer';
 
 export function GlobeView() {
@@ -55,6 +56,7 @@ export function GlobeView() {
       data-testid="globe"
       data-ready={ready ? 'true' : 'false'}
     >
+      <Timeline />
       {hover && (
         <div className="tooltip" style={{ left: hover.x + 12, top: hover.y + 12 }} data-testid="tooltip">
           {hover.name} <span className="topbar__dim">{hover.noradId}</span>

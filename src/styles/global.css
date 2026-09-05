@@ -494,3 +494,58 @@ body,
   color: #7cfc9a;
   border-color: rgba(124, 252, 154, 0.4);
 }
+
+.timeline {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 44px;
+  background: rgba(8, 12, 20, 0.85);
+  border-top: 1px solid var(--panel-border);
+  cursor: ew-resize;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+.timeline__svg {
+  display: block;
+}
+
+.timeline__tick {
+  stroke: rgba(147, 161, 184, 0.5);
+  stroke-width: 1;
+}
+
+.timeline__tick--major {
+  stroke: rgba(230, 237, 247, 0.8);
+}
+
+.timeline__label {
+  fill: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.timeline__pass {
+  fill: rgba(255, 207, 90, 0.85);
+}
+
+.timeline__opportunity {
+  fill: rgba(124, 252, 154, 0.9);
+}
+
+.timeline__opportunity--night {
+  fill: rgba(124, 252, 154, 0.35);
+}
+
+.timeline__needle {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.timeline__needle-head {
+  fill: var(--accent);
+}

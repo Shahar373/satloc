@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { JulianDate } from 'cesium';
 import { findImagingOpportunities, type ImagingOpportunity } from '../core/imaging/opportunities';
 import type { ElementSet } from '../core/tle/omm';
+import { useForecast } from '../state/forecast';
 import { usePicking } from '../state/picking';
 import { useSelection } from '../state/selection';
 import { formatLatLon, useTargets } from '../state/targets';
@@ -64,6 +65,10 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
       return [];
     }
   }, [set, target, windowStart, forecastDays, maxOffNadirDeg, minSunElevationDeg]);
+
+  useEffect(() => {
+    useForecast.getState().setOpportunities(opportunities ?? []);
+  }, [opportunities]);
 
   const addByCoordinates = () => {
     const m = /^\s*(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)\s*$/.exec(coords);

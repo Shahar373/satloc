@@ -1,43 +1,7 @@
-/* Restyle Cesium's built-in timeline/animation widgets to match the dark theme. */
-.cesium-viewer-bottom {
+/* Cesium chrome that remains: the credit line. Our own timeline sits above it. */
+.globe .cesium-viewer .cesium-viewer-bottom {
   font-family: var(--font);
-}
-
-.cesium-viewer-timelineContainer {
-  height: 28px;
-  border-top: 1px solid var(--panel-border);
-}
-
-.cesium-timeline-main {
-  border: none;
-  background: rgba(8, 12, 20, 0.9);
-}
-
-.cesium-timeline-bar {
-  background: linear-gradient(to bottom, rgba(30, 40, 60, 0.9), rgba(12, 17, 28, 0.9));
-}
-
-.cesium-timeline-trackContainer {
-  border-top: 1px solid var(--panel-border);
-}
-
-.cesium-timeline-ticLabel {
-  color: var(--text-dim);
-  font-family: var(--mono);
-  font-size: 10px;
-}
-
-.cesium-timeline-needle {
-  background: var(--accent);
-}
-
-.cesium-viewer-animationContainer {
-  bottom: 28px;
-}
-
-.cesium-animation-theme svg,
-.cesium-animation-svgText {
-  font-family: var(--mono);
+  bottom: 48px;
 }
 
 .cesium-widget-credits {
