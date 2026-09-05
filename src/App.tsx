@@ -1,6 +1,7 @@
 import { GlobeView } from './viewer/GlobeView';
 import { ObserverLayer } from './viewer/ObserverLayer';
 import { SatelliteLayerBridge } from './viewer/SatelliteLayerBridge';
+import { TargetLayer } from './viewer/TargetLayer';
 import { SettingsPanel } from './ui/SettingsPanel';
 import { Sidebar } from './ui/Sidebar';
 import { TopBar } from './ui/TopBar';
@@ -16,6 +17,7 @@ export function App() {
       </div>
       <SatelliteLayerBridge />
       <ObserverLayer />
+      <TargetLayer />
     </div>
   );
 }

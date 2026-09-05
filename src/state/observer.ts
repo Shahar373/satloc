@@ -12,11 +12,8 @@ export interface ObserverLocation {
 export interface ObserverState extends ObserverLocation {
   /** Minimum elevation for a pass to count, degrees. */
   minElevationDeg: number;
-  /** True while the next click on the globe sets the observer location. */
-  picking: boolean;
   setLocation(location: ObserverLocation): void;
   setMinElevation(deg: number): void;
-  setPicking(picking: boolean): void;
 }
 
 /** Default observer: Tel Aviv. */
@@ -32,10 +29,8 @@ export const useObserver = create<ObserverState>()(
     (set) => ({
       ...DEFAULT_OBSERVER,
       minElevationDeg: 10,
-      picking: false,
-      setLocation: (location) => set({ ...location, picking: false }),
+      setLocation: (location) => set({ ...location }),
       setMinElevation: (minElevationDeg) => set({ minElevationDeg }),
-      setPicking: (picking) => set({ picking }),
     }),
     {
       name: 'satloc.observer',

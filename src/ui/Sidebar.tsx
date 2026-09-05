@@ -4,6 +4,7 @@ import { useCatalog } from '../state/catalog';
 import { useSelection } from '../state/selection';
 import { useSettings } from '../state/settings';
 import { CatalogPanel } from './CatalogPanel';
+import { ImagingPanel } from './ImagingPanel';
 import { PassesPanel } from './PassesPanel';
 import { useLiveOrbit } from './useLiveOrbit';
 
@@ -70,6 +71,7 @@ export function Sidebar() {
 
       <CatalogPanel />
       {selected && <SatelliteDetails set={selected} />}
+      <ImagingPanel set={selected} />
       <PassesPanel set={selected} />
     </aside>
   );

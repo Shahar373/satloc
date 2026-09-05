@@ -52,6 +52,23 @@ test('the globe renders and a satellite can be selected', async ({ page }) => {
   await page.getByTestId('satlist').getByRole('button', { name: /EROS-LIKE/ }).click();
   await expect(page.getByTestId('details')).toContainText('EROS-LIKE');
 
+  // Imaging opportunities over the default target (Tel Aviv): add a second target by coordinates,
+  // list opportunities, jump to one (imaging camera looks at the target from the satellite).
+  await page.getByLabel('Target coordinates').fill('31.77, 35.21');
+  await page.getByTestId('imaging').getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.getByTestId('target-list')).toContainText('Target 2');
+  const opportunities = page.getByTestId('opportunity-list').getByRole('button');
+  await expect(opportunities.first()).toBeVisible();
+  await expect(opportunities.first()).toContainText(/roll \d+\.\d°/);
+  await opportunities.first().click();
+  await expect(page.getByRole('button', { name: 'Imaging view' })).toHaveClass(/btn--on/);
+  await page.waitForTimeout(1500);
+  await expect(page.locator('.cesium-widget-errorPanel')).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/globe-imaging.png' });
+  await page.getByRole('button', { name: 'Imaging view' }).click();
+  await page.getByRole('button', { name: /Remove Target 2/ }).click();
+  await expect(page.getByTestId('target-list')).not.toContainText('Target 2');
+
   // Pass prediction over the default observer (Tel Aviv); jumping to a pass moves the clock.
   const passes = page.getByTestId('pass-list').getByRole('button');
   await expect(passes.first()).toBeVisible();
@@ -79,5 +96,7 @@ test('the globe renders and a satellite can be selected', async ({ page }) => {
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/globe.png' });
 
+  // Cesium reports render errors in its own panel instead of throwing; make sure none appeared.
+  await expect(page.locator('.cesium-widget-errorPanel')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });

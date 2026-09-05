@@ -428,3 +428,53 @@ body,
   font-size: 12px;
   white-space: nowrap;
 }
+
+.satlist__dot--target {
+  background: #7cfc9a;
+}
+
+.target-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.target-row .satlist__item {
+  flex: 1;
+  min-width: 0;
+}
+
+.target-row .satlist__meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.coords {
+  display: flex;
+  gap: 4px;
+}
+
+.coords .input {
+  width: 110px;
+}
+
+.input--num {
+  width: 56px;
+}
+
+.pass--night {
+  opacity: 0.7;
+}
+
+.badge--inline {
+  margin-left: 8px;
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+.badge--ok {
+  color: #7cfc9a;
+  border-color: rgba(124, 252, 154, 0.4);
+}

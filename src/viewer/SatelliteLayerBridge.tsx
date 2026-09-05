@@ -3,8 +3,9 @@ import type { TleRecord } from '../core/catalog/tleapi';
 import type { ElementSet, OmmRecord } from '../core/tle/omm';
 import { favoriteToSet, useCatalog } from '../state/catalog';
 import { useHover } from '../state/hover';
-import { useObserver } from '../state/observer';
+import { usePicking } from '../state/picking';
 import { useSelection } from '../state/selection';
+import { useTargets } from '../state/targets';
 import { useSettings } from '../state/settings';
 import { useViewerStore } from '../state/viewer';
 import { CatalogLayer } from './catalogLayer';
@@ -27,7 +28,15 @@ export function SatelliteLayerBridge() {
   const showGroundTrack = useSelection((s) => s.showGroundTrack);
   const showFootprint = useSelection((s) => s.showFootprint);
   const showSwath = useSelection((s) => s.showSwath);
+  const showReach = useSelection((s) => s.showReach);
   const cameraMode = useSelection((s) => s.cameraMode);
+  const targets = useTargets((s) => s.targets);
+  const selectedTargetId = useTargets((s) => s.selectedTargetId);
+  const maxOffNadirDeg = useTargets((s) => s.maxOffNadirDeg);
+  const target = useMemo(() => {
+    const t = targets.find((x) => x.id === selectedTargetId);
+    return t ? { latitudeDeg: t.latitudeDeg, longitudeDeg: t.longitudeDeg } : null;
+  }, [targets, selectedTargetId]);
   const layerRef = useRef<SatelliteLayer | null>(null);
   const catalogRef = useRef<CatalogLayer | null>(null);
 
@@ -68,7 +77,7 @@ export function SatelliteLayerBridge() {
 
   useEffect(() => {
     if (!viewer) return;
-    const suspended = () => useObserver.getState().picking;
+    const suspended = () => usePicking.getState().mode !== null;
     const select = (id: number) => useSelection.getState().select(id);
     const layer = new SatelliteLayer(viewer, select, suspended);
     const catalog = new CatalogLayer(viewer, select, (info) => useHover.getState().setHover(info), suspended);
@@ -96,8 +105,18 @@ export function SatelliteLayerBridge() {
   }, [viewer, tier1]);
 
   useEffect(() => {
-    layerRef.current?.setSelection({ selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, cameraMode });
-  }, [viewer, tier1, selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, cameraMode]);
+    layerRef.current?.setSelection({
+      selectedId,
+      showOrbit,
+      showGroundTrack,
+      showFootprint,
+      showSwath,
+      showReach,
+      cameraMode,
+      target,
+      maxOffNadirDeg,
+    });
+  }, [viewer, tier1, selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, showReach, cameraMode, target, maxOffNadirDeg]);
 
   return null;
 }

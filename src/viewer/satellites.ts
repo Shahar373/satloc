@@ -5,6 +5,7 @@ import {
   Cartesian2,
   Cartesian3,
   Color,
+  ColorMaterialProperty,
   ConstantProperty,
   Entity,
   JulianDate,
@@ -18,6 +19,7 @@ import type { EciVec3 } from 'satellite.js';
 import { presetSatellite } from '../core/catalog/presets';
 import { EARTH_MEAN_RADIUS_M, footprintCentralAngle } from '../core/geometry/footprint';
 import { circlePoints, stripEdges, type LatLon } from '../core/geometry/geodesy';
+import { centralAngle, reachCentralAngle, targetEcfKm, vec } from '../core/imaging/geometry';
 import {
   gmstAt,
   orbitalPeriodMinutes,
@@ -37,6 +39,9 @@ const TRACK_FUTURE_COLOR = Color.fromCssColorString('#ffcf5a').withAlpha(0.9);
 const TRACK_PAST_COLOR = Color.fromCssColorString('#ffcf5a').withAlpha(0.35);
 const FOOTPRINT_COLOR = Color.fromCssColorString('#5cc8ff').withAlpha(0.6);
 const SWATH_COLOR = Color.fromCssColorString('#ff8a5c').withAlpha(0.9);
+const REACH_COLOR = Color.fromCssColorString('#7CFC9A').withAlpha(0.55);
+const LOS_COLOR = Color.fromCssColorString('#7CFC9A').withAlpha(0.9);
+const LOS_OUT_OF_REACH_COLOR = Color.fromCssColorString('#ff5c7a').withAlpha(0.5);
 const ORBIT_SAMPLES = 180;
 const FOOTPRINT_SEGMENTS = 96;
 const TRACK_STEP_S = 20;
@@ -50,7 +55,12 @@ export interface SelectionView {
   showGroundTrack: boolean;
   showFootprint: boolean;
   showSwath: boolean;
+  showReach: boolean;
   cameraMode: CameraMode;
+  /** Imaging target (degrees) for reach, line of sight and the imaging camera. */
+  target: { latitudeDeg: number; longitudeDeg: number } | null;
+  /** Roll limit used for the reach corridor, degrees. */
+  maxOffNadirDeg: number;
 }
 
 interface Tracked {
@@ -87,6 +97,9 @@ export class SatelliteLayer {
   private readonly footprintEntity: Entity;
   private readonly swathLeftEntity: Entity;
   private readonly swathRightEntity: Entity;
+  private readonly reachLeftEntity: Entity;
+  private readonly reachRightEntity: Entity;
+  private readonly losEntity: Entity;
   private readonly removePreRender: () => void;
   private selection: SelectionView = {
     selectedId: null,
@@ -94,7 +107,10 @@ export class SatelliteLayer {
     showGroundTrack: true,
     showFootprint: true,
     showSwath: true,
+    showReach: true,
     cameraMode: 'free',
+    target: null,
+    maxOffNadirDeg: 45,
   };
 
   private orbitCache: { id: number; sampledAtMs: number; periodMs: number; teme: EciVec3<number>[] } | null = null;
@@ -105,6 +121,9 @@ export class SatelliteLayer {
     future: Cartesian3[];
     swathLeft: Cartesian3[];
     swathRight: Cartesian3[];
+    reachLeft: Cartesian3[];
+    reachRight: Cartesian3[];
+    maxOffNadirDeg: number;
   } | null = null;
   private footprintCache: { id: number; atMs: number; ring: Cartesian3[] } | null = null;
 
@@ -171,7 +190,38 @@ export class SatelliteLayer {
       },
     });
 
-    this.removePreRender = viewer.scene.preRender.addEventListener(() => this.updateNadirCamera());
+    this.reachLeftEntity = viewer.entities.add({
+      id: 'satloc-reach-left',
+      show: false,
+      polyline: {
+        positions: new CallbackProperty((time) => this.reachPositions(time ?? viewer.clock.currentTime, 'left'), false),
+        width: 1,
+        material: REACH_COLOR,
+      },
+    });
+    this.reachRightEntity = viewer.entities.add({
+      id: 'satloc-reach-right',
+      show: false,
+      polyline: {
+        positions: new CallbackProperty((time) => this.reachPositions(time ?? viewer.clock.currentTime, 'right'), false),
+        width: 1,
+        material: REACH_COLOR,
+      },
+    });
+    this.losEntity = viewer.entities.add({
+      id: 'satloc-los',
+      show: false,
+      polyline: {
+        positions: new CallbackProperty((time) => this.lineOfSight(time ?? viewer.clock.currentTime), false),
+        width: 2,
+        material: new ColorMaterialProperty(
+          new CallbackProperty(() => (this.targetInReach ? LOS_COLOR : LOS_OUT_OF_REACH_COLOR), false),
+        ),
+        arcType: ArcType.NONE,
+      },
+    });
+
+    this.removePreRender = viewer.scene.preRender.addEventListener(() => this.updateCamera());
 
     this.handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
     this.handler.setInputAction((event: ScreenSpaceEventHandler.PositionedEvent) => {
@@ -256,6 +306,9 @@ export class SatelliteLayer {
       this.footprintEntity,
       this.swathLeftEntity,
       this.swathRightEntity,
+      this.reachLeftEntity,
+      this.reachRightEntity,
+      this.losEntity,
     ]) {
       this.viewer.entities.remove(e);
     }
@@ -272,7 +325,7 @@ export class SatelliteLayer {
   }
 
   private applySelection(): void {
-    const { selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, cameraMode } = this.selection;
+    const { selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, showReach, cameraMode, target } = this.selection;
     const selected = selectedId === null ? undefined : this.tracked.get(selectedId);
     const hasSwath = selected ? presetSatellite(selected.set.noradId)?.sat.swathKm !== undefined : false;
 
@@ -288,6 +341,10 @@ export class SatelliteLayer {
     this.footprintEntity.show = Boolean(selected && showFootprint);
     this.swathLeftEntity.show = Boolean(selected && showSwath && hasSwath);
     this.swathRightEntity.show = Boolean(selected && showSwath && hasSwath);
+    this.reachLeftEntity.show = Boolean(selected && showReach && target);
+    this.reachRightEntity.show = Boolean(selected && showReach && target);
+    this.losEntity.show = Boolean(selected && showReach && target);
+    if (this.trackCache && this.trackCache.maxOffNadirDeg !== this.selection.maxOffNadirDeg) this.trackCache = null;
 
     const wantTracked = selected && cameraMode === 'track' ? selected.entity : undefined;
     const current = this.viewer.trackedEntity;
@@ -331,6 +388,9 @@ export class SatelliteLayer {
         const future = samples.filter((s) => s.time.getTime() >= nowMs).map((s) => s.point);
         const swathKm = presetSatellite(selected.set.noradId)?.sat.swathKm;
         const edges = swathKm ? stripEdges(future, (swathKm * 1000) / EARTH_MEAN_RADIUS_M) : { left: [], right: [] };
+        const futureSamples = samples.filter((s) => s.time.getTime() >= nowMs);
+        const meanHeightM = (futureSamples.reduce((acc, s) => acc + s.point.heightKm, 0) / Math.max(1, futureSamples.length)) * 1000;
+        const reach = stripEdges(future, 2 * reachCentralAngle(meanHeightM, (this.selection.maxOffNadirDeg * Math.PI) / 180));
         this.trackCache = {
           id: selected.set.noradId,
           fromMs: nowMs,
@@ -338,6 +398,9 @@ export class SatelliteLayer {
           future: future.map(toCartesian),
           swathLeft: edges.left.map(toCartesian),
           swathRight: edges.right.map(toCartesian),
+          reachLeft: reach.left.map(toCartesian),
+          reachRight: reach.right.map(toCartesian),
+          maxOffNadirDeg: this.selection.maxOffNadirDeg,
         };
       } catch {
         this.trackCache = null;
@@ -345,6 +408,35 @@ export class SatelliteLayer {
       }
     }
     return part === 'past' ? this.trackCache!.past : this.trackCache!.future;
+  }
+
+  private reachPositions(time: JulianDate, side: 'left' | 'right'): Cartesian3[] {
+    this.trackPositions(time, 'future');
+    if (!this.trackCache) return [];
+    return side === 'left' ? this.trackCache.reachLeft : this.trackCache.reachRight;
+  }
+
+  private targetInReach = false;
+
+  /** Straight line from the satellite to the imaging target; colour says whether it is within the roll limit. */
+  private lineOfSight(time: JulianDate): Cartesian3[] {
+    const selected = this.selectedTracked();
+    const target = this.selection.target;
+    if (!selected || !target) return [];
+    const date = JulianDate.toDate(time);
+    try {
+      const state = propagateTeme(selected.set.satrec, date);
+      const satEcf = temeToEcf(state.position, gmstAt(date));
+      const tgtEcf = targetEcfKm({ latitude: (target.latitudeDeg * Math.PI) / 180, longitude: (target.longitudeDeg * Math.PI) / 180, heightKm: 0 });
+      const altitudeM = (vec.norm(satEcf) - EARTH_MEAN_RADIUS_M / 1000) * 1000;
+      const lambda = centralAngle(satEcf, tgtEcf);
+      this.targetInReach = lambda <= reachCentralAngle(altitudeM, (this.selection.maxOffNadirDeg * Math.PI) / 180);
+      // Hide the line when the target is beyond the horizon (it would pass through the Earth).
+      if (lambda > Math.acos((EARTH_MEAN_RADIUS_M / 1000) / vec.norm(satEcf))) return [];
+      return [kmToCartesian(satEcf), kmToCartesian(tgtEcf)];
+    } catch {
+      return [];
+    }
   }
 
   private swathPositions(time: JulianDate, side: 'left' | 'right'): Cartesian3[] {
@@ -376,16 +468,29 @@ export class SatelliteLayer {
     }
   }
 
-  /** In nadir mode the camera sits on the satellite and looks straight down, north up. */
-  private updateNadirCamera(): void {
-    if (this.selection.cameraMode !== 'nadir') return;
+  /** Nadir mode: camera on the satellite looking straight down. Imaging mode: looking at the target. */
+  private updateCamera(): void {
+    const mode = this.selection.cameraMode;
+    if (mode !== 'nadir' && mode !== 'imaging') return;
     const selected = this.selectedTracked();
     if (!selected) return;
     const position = fixedPositionAt(selected.set, this.viewer.clock.currentTime);
     if (!position) return;
-    this.viewer.camera.setView({
-      destination: position,
-      orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
-    });
+    const target = this.selection.target;
+    if (mode === 'nadir' || !target) {
+      this.viewer.camera.setView({ destination: position, orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 } });
+      return;
+    }
+    const targetPos = Cartesian3.fromDegrees(target.longitudeDeg, target.latitudeDeg, 0);
+    const direction = Cartesian3.normalize(Cartesian3.subtract(targetPos, position, new Cartesian3()), new Cartesian3());
+    // "Up" for the view: away from the Earth centre, made orthogonal to the viewing direction.
+    const outward = Cartesian3.normalize(position, new Cartesian3());
+    const up = Cartesian3.subtract(
+      outward,
+      Cartesian3.multiplyByScalar(direction, Cartesian3.dot(outward, direction), new Cartesian3()),
+      new Cartesian3(),
+    );
+    if (Cartesian3.magnitude(up) < 1e-6) return;
+    this.viewer.camera.setView({ destination: position, orientation: { direction, up: Cartesian3.normalize(up, up) } });
   }
 }

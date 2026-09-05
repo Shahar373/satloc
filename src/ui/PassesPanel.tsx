@@ -3,6 +3,7 @@ import { Cartesian3, JulianDate } from 'cesium';
 import { compassPoint, predictPasses, type Pass } from '../core/passes/predict';
 import type { ElementSet } from '../core/tle/omm';
 import { formatLocation, useObserver } from '../state/observer';
+import { usePicking } from '../state/picking';
 import { useViewerStore } from '../state/viewer';
 import { setSimulationTime } from '../viewer/createViewer';
 
@@ -33,8 +34,8 @@ export function PassesPanel({ set }: { set: ElementSet | undefined }) {
   const longitudeDeg = useObserver((s) => s.longitudeDeg);
   const heightM = useObserver((s) => s.heightM);
   const minElevationDeg = useObserver((s) => s.minElevationDeg);
-  const picking = useObserver((s) => s.picking);
-  const setPicking = useObserver((s) => s.setPicking);
+  const picking = usePicking((s) => s.mode) === 'observer';
+  const setPickingMode = usePicking((s) => s.setMode);
   const setLocation = useObserver((s) => s.setLocation);
   const setMinElevation = useObserver((s) => s.setMinElevation);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -100,7 +101,7 @@ export function PassesPanel({ set }: { set: ElementSet | undefined }) {
           type="button"
           className={`btn${picking ? ' btn--on' : ''}`}
           title="Click a point on the globe to set the observer"
-          onClick={() => setPicking(!picking)}
+          onClick={() => setPickingMode(picking ? null : 'observer')}
         >
           {picking ? 'Click the globe…' : 'Pick on globe'}
         </button>
