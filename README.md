@@ -13,10 +13,12 @@ Next: Hebrew UI, Android (M7).
 
 ## Releasing
 
-Push a tag `vX.Y.Z` (matching the version in `package.json`, `src-tauri/tauri.conf.json` and
-`src-tauri/Cargo.toml`). The Release workflow builds the installers, signs the updater artifacts
-with the repository secrets `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`,
-and publishes the release with `latest.json`, which running apps pick up.
+Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` and
+push. The Release workflow notices the new version in `tauri.conf.json`, builds the installers,
+signs the updater artifacts with the repository secrets `TAURI_SIGNING_PRIVATE_KEY` /
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and publishes release `vX.Y.Z` with `latest.json`, which
+running apps pick up. Pushing a `vX.Y.Z` tag or starting the workflow from the Actions tab does
+the same; a version that already has a release is skipped.
 
 ## Develop
 

@@ -1,19 +1,56 @@
 name: Release
 
-# Tag `vX.Y.Z` to publish a GitHub Release with installers, updater signatures and latest.json
-# (the installed app checks that file and offers the update).
-# Run manually (workflow_dispatch) to just build and download the installers as artifacts.
-# Needs the repository secrets TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
+# Publishes a GitHub Release with installers, updater signatures and latest.json (the installed
+# app checks that file and offers the update). Runs when:
+#   - a tag `vX.Y.Z` is pushed, or
+#   - the version in src-tauri/tauri.conf.json changes on a push (the release is named after it), or
+#   - it is started by hand from the Actions tab.
+# A version that already has a release is skipped. Needs the repository secrets
+# TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
 on:
   push:
     tags: ['v*']
+    branches: ['**']
+    paths:
+      - src-tauri/tauri.conf.json
+      - .github/workflows/release.yml
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  prepare:
+    name: Decide the release tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.decide.outputs.tag }}
+      publish: ${{ steps.decide.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
+               "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$tag" > /dev/null; then
+            echo "Release $tag already exists; nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Will publish $tag."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    name: Build and publish
+    needs: prepare
+    if: needs.prepare.outputs.publish == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -49,8 +86,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-          releaseName: ${{ github.ref_type == 'tag' && format('SatLoc {0}', github.ref_name) || '' }}
+          tagName: ${{ needs.prepare.outputs.tag }}
+          releaseName: SatLoc ${{ needs.prepare.outputs.tag }}
           releaseBody: 'Installers built by GitHub Actions. Windows: use the .exe (NSIS) installer. Installed copies update themselves from this release.'
           releaseDraft: false
           prerelease: false
