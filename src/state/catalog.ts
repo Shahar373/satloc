@@ -92,7 +92,8 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
 
   async load(options = {}) {
     if (options.fixture) {
-      set({ sets: toElementSets([EROS_LIKE_OMM]), source: 'fixture', fetchedAt: new Date(), status: 'ready', error: null });
+      // Synthetic element set for tests; bypasses the preset filter on purpose.
+      set({ sets: [ommToElementSet(EROS_LIKE_OMM)], source: 'fixture', fetchedAt: new Date(), status: 'ready', error: null });
       return;
     }
 
