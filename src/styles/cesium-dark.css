@@ -1,7 +1,8 @@
 /* Cesium chrome that remains: the credit line. Our own timeline sits above it. */
 .globe .cesium-viewer .cesium-viewer-bottom {
   font-family: var(--font);
-  bottom: 48px;
+  /* Cesium sets an inline bottom offset; keep the credit line above our timeline. */
+  bottom: 48px !important;
 }
 
 .cesium-widget-credits {
