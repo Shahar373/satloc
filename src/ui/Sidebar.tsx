@@ -2,6 +2,8 @@ import { ISI_PRESET, presetSatellite } from '../core/catalog/presets';
 import type { ElementSet } from '../core/tle/omm';
 import { useCatalog } from '../state/catalog';
 import { useSelection } from '../state/selection';
+import { useSettings } from '../state/settings';
+import { CatalogPanel } from './CatalogPanel';
 import { PassesPanel } from './PassesPanel';
 import { useLiveOrbit } from './useLiveOrbit';
 
@@ -24,7 +26,13 @@ export function Sidebar() {
   const refresh = useCatalog((s) => s.refresh);
   const selectedId = useSelection((s) => s.selectedId);
   const select = useSelection((s) => s.select);
-  const selected = sets.find((s) => s.noradId === selectedId);
+  const findSet = useCatalog((s) => s.findSet);
+  const groups = useCatalog((s) => s.groups);
+  const favorites = useSettings((s) => s.favorites);
+  // `groups`/`favorites` are dependencies because findSet reads them.
+  const selected = selectedId === null ? undefined : (sets.find((s) => s.noradId === selectedId) ?? findSet(selectedId));
+  void groups;
+  void favorites;
 
   return (
     <aside className="sidebar" data-testid="sidebar">
@@ -60,6 +68,7 @@ export function Sidebar() {
         {error && sets.length > 0 && <p className="panel__hint panel__hint--warn">Refresh failed: {error}</p>}
       </section>
 
+      <CatalogPanel />
       {selected && <SatelliteDetails set={selected} />}
       <PassesPanel set={selected} />
     </aside>
@@ -81,15 +90,41 @@ function SatelliteDetails({ set }: { set: ElementSet }) {
   const select = useSelection((s) => s.select);
   const preset = presetSatellite(set.noradId)?.sat;
   const hasSwath = preset?.swathKm !== undefined;
+  const favorites = useSettings((s) => s.favorites);
+  const addFavorite = useSettings((s) => s.addFavorite);
+  const removeFavorite = useSettings((s) => s.removeFavorite);
+  const isIsi = presetSatellite(set.noradId) !== undefined;
+  const isFavorite = favorites.some((f) => f.noradId === set.noradId);
+  const toggleFavorite = () => {
+    if (isFavorite) {
+      removeFavorite(set.noradId);
+      return;
+    }
+    const record = useCatalog.getState().findRecord(set.noradId);
+    if (record) addFavorite({ noradId: set.noradId, name: set.name, record });
+  };
   const stale = live ? Math.abs(live.elementAgeDays) > 7 : false;
 
   return (
     <section className="panel" data-testid="details">
       <div className="panel__header">
         <h2 className="panel__title">{set.name}</h2>
-        <button type="button" className="link" onClick={() => select(null)} title="Deselect">
-          ×
-        </button>
+        <span>
+          {!isIsi && (
+            <button
+              type="button"
+              className={`link${isFavorite ? ' link--on' : ''}`}
+              onClick={toggleFavorite}
+              title={isFavorite ? 'Remove from pinned satellites' : 'Pin: keep showing this satellite with its label'}
+              aria-pressed={isFavorite}
+            >
+              {isFavorite ? '★ pinned' : '☆ pin'}
+            </button>
+          )}{' '}
+          <button type="button" className="link" onClick={() => select(null)} title="Deselect">
+            ×
+          </button>
+        </span>
       </div>
       <div className="toggles" aria-label="Camera">
         <button

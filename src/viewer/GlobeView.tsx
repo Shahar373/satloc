@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Viewer } from 'cesium';
+import { useHover } from '../state/hover';
 import { useImagerySource, useOverrides } from '../state/overrides';
 import { useViewerStore } from '../state/viewer';
 import { createViewer } from './createViewer';
@@ -10,6 +11,7 @@ export function GlobeView() {
   const initialTime = useOverrides((s) => s.time);
   const ready = useViewerStore((s) => s.ready);
   const error = useViewerStore((s) => s.error);
+  const hover = useHover((s) => s.hover);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -51,6 +53,11 @@ export function GlobeView() {
       data-testid="globe"
       data-ready={ready ? 'true' : 'false'}
     >
+      {hover && (
+        <div className="tooltip" style={{ left: hover.x + 12, top: hover.y + 12 }} data-testid="tooltip">
+          {hover.name} <span className="topbar__dim">{hover.noradId}</span>
+        </div>
+      )}
       {error && (
         <div className="error-panel" role="alert">
           <div>

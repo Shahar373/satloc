@@ -343,3 +343,47 @@ body,
   font-size: 12px;
   color: var(--text-dim);
 }
+
+.input--wide {
+  width: 100%;
+  font-family: var(--font);
+  margin-bottom: 6px;
+}
+
+.link--on {
+  color: var(--warn);
+}
+
+.groups {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.groups__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.groups__label:hover {
+  background: rgba(92, 200, 255, 0.08);
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  font-size: 12px;
+  white-space: nowrap;
+}

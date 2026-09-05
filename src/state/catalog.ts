@@ -1,13 +1,16 @@
 import { create } from 'zustand';
 import { CELESTRAK_MIN_REFRESH_MS, CELESTRAK_ORIGIN, gpUrl, parseGpJson } from '../core/catalog/celestrak';
+import { CATALOG_GROUPS, matchesIsraelPreset, matchesQuery } from '../core/catalog/groups';
 import { ISI_PRESET } from '../core/catalog/presets';
 import { parseTleApiJson, tleApiUrl, type TleRecord } from '../core/catalog/tleapi';
-import { EROS_LIKE_OMM } from '../core/tle/fixtures';
+import { EROS_LIKE_OMM, syntheticConstellation } from '../core/tle/fixtures';
 import { ommToElementSet, tleToElementSet, type ElementSet, type OmmRecord } from '../core/tle/omm';
 import snapshot from '../data/isi-snapshot.json';
 import { isTauri } from '../platform/env';
 import { fetchText } from '../platform/http';
+import { getKeyValueStore } from '../platform/kv';
 import { getStorage } from '../platform/storage';
+import { useSettings, type Favorite } from './settings';
 
 export type CatalogSource = 'none' | 'fixture' | 'snapshot' | 'cache' | 'celestrak';
 
@@ -18,26 +21,49 @@ interface StoredCatalog {
   tles?: TleRecord[];
 }
 
+export interface GroupState {
+  id: string;
+  name: string;
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  error: string | null;
+  fetchedAt: Date | null;
+  records: OmmRecord[];
+  /** Built lazily from `records`; may be empty while status is not 'ready'. */
+  sets: ElementSet[];
+}
+
+/** Virtual group: Israeli satellites filtered out of the 'active' group by name. */
+export const ISRAEL_GROUP_ID = 'israel';
+
 export interface CatalogState {
-  /** Element sets in preset order. */
+  /** ISI element sets in preset order. */
   sets: ElementSet[];
   source: CatalogSource;
   fetchedAt: Date | null;
   status: 'idle' | 'loading' | 'ready' | 'error';
   /** Last refresh problem, kept even when older data is still shown. */
   error: string | null;
+  groups: Record<string, GroupState>;
   load(options?: { fixture?: boolean }): Promise<void>;
   refresh(): Promise<void>;
+  loadGroup(groupId: string): Promise<void>;
+  /** Find an element set anywhere: ISI, favourites, loaded groups. */
+  findSet(noradId: number): ElementSet | undefined;
+  /** Raw record for a catalogue satellite, for pinning it as a favourite. */
+  findRecord(noradId: number): Favorite['record'] | undefined;
+  /** Search ISI sets, favourites and loaded groups. */
+  search(query: string, limit?: number): ElementSet[];
 }
 
 const CACHE_KEY = 'satloc.catalog.isi';
+const GROUP_CACHE_PREFIX = 'satloc.group.';
 
 function celestrakOrigin(): string {
   // Browser dev mode goes through the Vite proxy; Tauri and production builds talk to CelesTrak.
   return !isTauri() && import.meta.env.DEV ? '/api/celestrak' : CELESTRAK_ORIGIN;
 }
 
-function toElementSets(records: OmmRecord[], tles: TleRecord[] = []): ElementSet[] {
+function recordsToSets(records: OmmRecord[], tles: TleRecord[] = []): Map<number, ElementSet> {
   const byId = new Map<number, ElementSet>();
   for (const record of records) {
     try {
@@ -55,6 +81,11 @@ function toElementSets(records: OmmRecord[], tles: TleRecord[] = []): ElementSet
       console.warn('Skipping TLE', tle.name, err);
     }
   }
+  return byId;
+}
+
+function toPresetSets(records: OmmRecord[], tles: TleRecord[] = []): ElementSet[] {
+  const byId = recordsToSets(records, tles);
   // Preset order; anything else (e.g. a decayed satellite still present in an old snapshot) is dropped.
   const ordered: ElementSet[] = [];
   for (const sat of ISI_PRESET.satellites) {
@@ -62,6 +93,16 @@ function toElementSets(records: OmmRecord[], tles: TleRecord[] = []): ElementSet
     if (set) ordered.push({ ...set, name: sat.name });
   }
   return ordered;
+}
+
+export function favoriteToSet(favorite: Favorite): ElementSet | undefined {
+  try {
+    return 'omm' in favorite.record
+      ? ommToElementSet(favorite.record.omm)
+      : tleToElementSet(favorite.record.tle.line1, favorite.record.tle.line2, favorite.record.tle.name);
+  } catch {
+    return undefined;
+  }
 }
 
 function readCache(): StoredCatalog | null {
@@ -83,17 +124,41 @@ function writeCache(cache: StoredCatalog): void {
   }
 }
 
+function groupMeta(groupId: string): { name: string } {
+  if (groupId === ISRAEL_GROUP_ID) return { name: 'Israeli satellites' };
+  return { name: CATALOG_GROUPS.find((g) => g.id === groupId)?.name ?? groupId };
+}
+
 export const useCatalog = create<CatalogState>()((set, get) => ({
   sets: [],
   source: 'none',
   fetchedAt: null,
   status: 'idle',
   error: null,
+  groups: {},
 
   async load(options = {}) {
     if (options.fixture) {
-      // Synthetic element set for tests; bypasses the preset filter on purpose.
-      set({ sets: [ommToElementSet(EROS_LIKE_OMM)], source: 'fixture', fetchedAt: new Date(), status: 'ready', error: null });
+      // Synthetic element sets for tests; bypass the preset filter on purpose.
+      const records = syntheticConstellation(300);
+      set({
+        sets: [ommToElementSet(EROS_LIKE_OMM)],
+        source: 'fixture',
+        fetchedAt: new Date(),
+        status: 'ready',
+        error: null,
+        groups: {
+          fixture: {
+            id: 'fixture',
+            name: 'Fixture constellation',
+            status: 'ready',
+            error: null,
+            fetchedAt: new Date(),
+            records,
+            sets: [...recordsToSets(records).values()],
+          },
+        },
+      });
       return;
     }
 
@@ -109,10 +174,13 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
       fetchedAt = new Date(cache.fetchedAt);
     }
 
-    const sets = toElementSets(stored.records, stored.tles ?? []);
+    const sets = toPresetSets(stored.records, stored.tles ?? []);
     set({ sets, source, fetchedAt, status: sets.length > 0 ? 'ready' : 'loading', error: null });
 
-    // 3. Refresh from CelesTrak unless the data is fresh enough.
+    // 3. Groups the user left displayed last time.
+    for (const groupId of useSettings.getState().displayedGroups) void get().loadGroup(groupId);
+
+    // 4. Refresh from CelesTrak unless the data is fresh enough.
     const age = fetchedAt ? Date.now() - fetchedAt.getTime() : Number.POSITIVE_INFINITY;
     if (age >= CELESTRAK_MIN_REFRESH_MS) await get().refresh();
   },
@@ -149,7 +217,7 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
       const fetchedAt = new Date();
       writeCache({ fetchedAt: fetchedAt.toISOString(), records, tles });
       set({
-        sets: toElementSets(records, tles),
+        sets: toPresetSets(records, tles),
         source: 'celestrak',
         fetchedAt,
         status: 'ready',
@@ -160,5 +228,109 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
       console.warn('CelesTrak refresh failed', err);
       set((state) => ({ error: message, status: state.sets.length > 0 ? 'ready' : 'error' }));
     }
+  },
+
+  async loadGroup(groupId) {
+    const existing = get().groups[groupId];
+    if (existing && (existing.status === 'loading' || existing.status === 'ready')) return;
+
+    // The Israel preset is a filter over the full active catalogue.
+    if (groupId === ISRAEL_GROUP_ID) {
+      set((s) => ({ groups: { ...s.groups, [groupId]: { id: groupId, ...groupMeta(groupId), status: 'loading', error: null, fetchedAt: null, records: [], sets: [] } } }));
+      await get().loadGroup('active');
+      const active = get().groups['active'];
+      const records = active?.records.filter((r) => matchesIsraelPreset(r.OBJECT_NAME)) ?? [];
+      set((s) => ({
+        groups: {
+          ...s.groups,
+          [groupId]: {
+            id: groupId,
+            ...groupMeta(groupId),
+            status: active?.status === 'ready' ? 'ready' : 'error',
+            error: active?.error ?? null,
+            fetchedAt: active?.fetchedAt ?? null,
+            records,
+            sets: [...recordsToSets(records).values()],
+          },
+        },
+      }));
+      return;
+    }
+
+    const kv = getKeyValueStore();
+    const cacheKey = GROUP_CACHE_PREFIX + groupId;
+    const cached = await kv.get<StoredCatalog>(cacheKey).catch(() => undefined);
+    const cachedAt = cached?.fetchedAt ? new Date(cached.fetchedAt) : null;
+
+    const publish = (records: OmmRecord[], fetchedAt: Date | null, status: GroupState['status'], error: string | null) =>
+      set((s) => ({
+        groups: {
+          ...s.groups,
+          [groupId]: { id: groupId, ...groupMeta(groupId), status, error, fetchedAt, records, sets: [...recordsToSets(records).values()] },
+        },
+      }));
+
+    if (cached && cachedAt) publish(cached.records, cachedAt, 'ready', null);
+    else publish([], null, 'loading', null);
+
+    const age = cachedAt ? Date.now() - cachedAt.getTime() : Number.POSITIVE_INFINITY;
+    if (age < CELESTRAK_MIN_REFRESH_MS) return;
+
+    try {
+      const records = parseGpJson(await fetchText(gpUrl({ group: groupId }, celestrakOrigin()), { timeoutMs: 60_000 }));
+      const fetchedAt = new Date();
+      await kv.set(cacheKey, { fetchedAt: fetchedAt.toISOString(), records } satisfies StoredCatalog).catch(() => undefined);
+      publish(records, fetchedAt, 'ready', null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(`Group ${groupId} failed`, err);
+      if (cached && cachedAt) publish(cached.records, cachedAt, 'ready', message);
+      else publish([], null, 'error', message);
+    }
+  },
+
+  findSet(noradId) {
+    const state = get();
+    const isi = state.sets.find((s) => s.noradId === noradId);
+    if (isi) return isi;
+    const favorite = useSettings.getState().favorites.find((f) => f.noradId === noradId);
+    if (favorite) {
+      const set = favoriteToSet(favorite);
+      if (set) return set;
+    }
+    for (const group of Object.values(state.groups)) {
+      const found = group.sets.find((s) => s.noradId === noradId);
+      if (found) return found;
+    }
+    return undefined;
+  },
+
+  findRecord(noradId) {
+    for (const group of Object.values(get().groups)) {
+      const omm = group.records.find((r) => r.NORAD_CAT_ID === noradId);
+      if (omm) return { omm };
+    }
+    const favorite = useSettings.getState().favorites.find((f) => f.noradId === noradId);
+    return favorite?.record;
+  },
+
+  search(query, limit = 30) {
+    const state = get();
+    const seen = new Set<number>();
+    const results: ElementSet[] = [];
+    const consider = (s: ElementSet) => {
+      if (results.length >= limit || seen.has(s.noradId)) return;
+      if (matchesQuery(query, s.name, s.noradId)) {
+        seen.add(s.noradId);
+        results.push(s);
+      }
+    };
+    state.sets.forEach(consider);
+    for (const f of useSettings.getState().favorites) {
+      const set = favoriteToSet(f);
+      if (set) consider(set);
+    }
+    for (const group of Object.values(state.groups)) group.sets.forEach(consider);
+    return results;
   },
 }));

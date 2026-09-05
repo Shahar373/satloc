@@ -36,6 +36,22 @@ test('the globe renders and a satellite can be selected', async ({ page }) => {
   await page.screenshot({ path: 'test-results/globe-nadir.png' });
   await page.getByRole('button', { name: 'Nadir' }).click();
 
+  // Catalogue: display the fixture constellation as points, then find one by name and select it.
+  await page.getByTestId('catalog').getByRole('button', { name: 'groups' }).click();
+  await page.getByTestId('groups').getByLabel(/Fixture constellation/).check();
+  await expect(page.getByTestId('groups')).toContainText('300');
+  await page.getByLabel('Search satellites').fill('FIX-042');
+  await page.getByTestId('search-results').getByRole('button', { name: /FIX-042/ }).click();
+  await expect(page.getByTestId('details')).toContainText('FIX-042');
+  await expect(page.getByTestId('altitude')).toContainText(/\d{3,5}\.\d km/);
+  await page.getByRole('button', { name: /pin/ }).click();
+  await expect(page.getByRole('button', { name: /pinned/ })).toBeVisible();
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: 'test-results/globe-catalog.png' });
+  // Back to the fixture satellite for the rest of the checks.
+  await page.getByTestId('satlist').getByRole('button', { name: /EROS-LIKE/ }).click();
+  await expect(page.getByTestId('details')).toContainText('EROS-LIKE');
+
   // Pass prediction over the default observer (Tel Aviv); jumping to a pass moves the clock.
   const passes = page.getByTestId('pass-list').getByRole('button');
   await expect(passes.first()).toBeVisible();

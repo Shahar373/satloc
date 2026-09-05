@@ -1,14 +1,27 @@
-import { useEffect, useRef } from 'react';
-import { useCatalog } from '../state/catalog';
+import { useEffect, useMemo, useRef } from 'react';
+import type { TleRecord } from '../core/catalog/tleapi';
+import type { ElementSet, OmmRecord } from '../core/tle/omm';
+import { favoriteToSet, useCatalog } from '../state/catalog';
+import { useHover } from '../state/hover';
 import { useObserver } from '../state/observer';
 import { useSelection } from '../state/selection';
+import { useSettings } from '../state/settings';
 import { useViewerStore } from '../state/viewer';
+import { CatalogLayer } from './catalogLayer';
 import { SatelliteLayer } from './satellites';
 
-/** Keeps a SatelliteLayer alive for the current viewer and mirrors store state into it. */
+/**
+ * Keeps the satellite layers alive for the current viewer and mirrors store state into them.
+ * Tier 1 (entities with labels, orbit, footprint): ISI satellites, favourites, and whatever is
+ * selected. Tier 2 (points from the worker): every displayed catalogue group, minus tier 1.
+ */
 export function SatelliteLayerBridge() {
   const viewer = useViewerStore((s) => s.viewer);
-  const sets = useCatalog((s) => s.sets);
+  const isiSets = useCatalog((s) => s.sets);
+  const groups = useCatalog((s) => s.groups);
+  const favorites = useSettings((s) => s.favorites);
+  const displayedGroups = useSettings((s) => s.displayedGroups);
+  const maxCatalogPoints = useSettings((s) => s.maxCatalogPoints);
   const selectedId = useSelection((s) => s.selectedId);
   const showOrbit = useSelection((s) => s.showOrbit);
   const showGroundTrack = useSelection((s) => s.showGroundTrack);
@@ -16,28 +29,72 @@ export function SatelliteLayerBridge() {
   const showSwath = useSelection((s) => s.showSwath);
   const cameraMode = useSelection((s) => s.cameraMode);
   const layerRef = useRef<SatelliteLayer | null>(null);
+  const catalogRef = useRef<CatalogLayer | null>(null);
+
+  const tier1 = useMemo<ElementSet[]>(() => {
+    const out: ElementSet[] = [...isiSets];
+    const seen = new Set(out.map((s) => s.noradId));
+    for (const f of favorites) {
+      if (seen.has(f.noradId)) continue;
+      const set = favoriteToSet(f);
+      if (set) {
+        out.push(set);
+        seen.add(set.noradId);
+      }
+    }
+    if (selectedId !== null && !seen.has(selectedId)) {
+      const set = useCatalog.getState().findSet(selectedId);
+      if (set) out.push(set);
+    }
+    return out;
+  }, [isiSets, favorites, selectedId, groups]);
+
+  const tier2 = useMemo(() => {
+    const records: OmmRecord[] = [];
+    const tles: TleRecord[] = [];
+    const seen = new Set<number>();
+    for (const groupId of displayedGroups) {
+      const group = groups[groupId];
+      if (!group || group.status !== 'ready') continue;
+      for (const r of group.records) {
+        if (!seen.has(r.NORAD_CAT_ID)) {
+          seen.add(r.NORAD_CAT_ID);
+          records.push(r);
+        }
+      }
+    }
+    return { records, tles };
+  }, [groups, displayedGroups]);
 
   useEffect(() => {
     if (!viewer) return;
-    const layer = new SatelliteLayer(
-      viewer,
-      (id) => useSelection.getState().select(id),
-      () => useObserver.getState().picking,
-    );
+    const suspended = () => useObserver.getState().picking;
+    const select = (id: number) => useSelection.getState().select(id);
+    const layer = new SatelliteLayer(viewer, select, suspended);
+    const catalog = new CatalogLayer(viewer, select, (info) => useHover.getState().setHover(info), suspended);
     layerRef.current = layer;
+    catalogRef.current = catalog;
     return () => {
       layerRef.current = null;
+      catalogRef.current = null;
       layer.destroy();
+      catalog.destroy();
+      useHover.getState().setHover(null);
     };
   }, [viewer]);
 
   useEffect(() => {
-    layerRef.current?.setSatellites(sets);
-  }, [viewer, sets]);
+    layerRef.current?.setSatellites(tier1);
+  }, [viewer, tier1]);
+
+  useEffect(() => {
+    const exclude = new Set(tier1.map((s) => s.noradId));
+    void catalogRef.current?.setRecords(tier2.records, tier2.tles, exclude, maxCatalogPoints);
+  }, [viewer, tier1, tier2, maxCatalogPoints]);
 
   useEffect(() => {
     layerRef.current?.setSelection({ selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, cameraMode });
-  }, [viewer, sets, selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, cameraMode]);
+  }, [viewer, tier1, selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, cameraMode]);
 
   return null;
 }
