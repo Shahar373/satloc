@@ -335,7 +335,7 @@ satloc/
 ### 9.1 פרטים טכניים שכדאי לדעת מראש
 
 - **נכסי Cesium:** Cesium צריך את התיקיות `Workers`, `ThirdParty`, `Assets`, `Widgets` בזמן ריצה. מעתיקים אותן ל-`dist/cesium` ומגדירים `CESIUM_BASE_URL`. ב-Tauri הן מוגשות מהאפליקציה עצמה.
-- **CSP של Tauri:** צריך להתיר `connect-src` ו-`img-src` לשרתי התמונות ול-CelesTrak, `worker-src blob:` ל-workers של Cesium, ו-`data:`/`blob:` לתמונות. מכוונים ב-M0 ומתעדים.
+- **CSP של Tauri:** צריך להתיר `connect-src` ו-`img-src` לשרתי התמונות ול-CelesTrak, `worker-src blob:` ל-workers של Cesium, ו-`data:`/`blob:` לתמונות. **לקח מהשטח (0.1.1):** הווידג'טים המובנים של Cesium (Knockout) מריצים `eval` בטעינה ו-satellite.js 7 מאתחל WebAssembly בטעינה, ולכן `script-src` חייב לכלול `'unsafe-eval' 'wasm-unsafe-eval'`; בלעדיהם ה-bundle נכשל והחלון נשאר שחור. הבדיקה `tests/e2e/csp.spec.ts` מגישה את ה-build עם ה-CSP המדויק מהקובץ ומוודאת שהאפליקציה עולה. הדרך ל-CSP קפדני יותר: להחליף את ציר הזמן ושעון האנימציה של Cesium בווידג'טים משלנו ולעבור ל-`CesiumWidget`.
 - **Workers תחת פרוטוקול מותאם** (`tauri://` ב-macOS/Linux): Tauri 2 תומך; זה סעיף אימות מפורש ב-M0.
 - **תאורת יום/לילה:** Cesium מערבב את הצללת הלילה רק כשהמצלמה רחוקה מפני השטח (`lightingFadeOutDistance` / `lightingFadeInDistance`), כדי שמפות יישארו קריאות בלילה. אנחנו מסתכלים מהחלל, אז קובעים 0 ו-1 מטר: קו הטרמינטור מצויר בכל גובה. אומת בצילומי מסך ב-00:00, 06:00 ו-12:00 UTC מול מיקום השמש המחושב.
 - **הגדרות** נשמרות ב-`tauri-plugin-store` (קובץ JSON בתיקיית האפליקציה). הטוקן של Ion נשמר שם כטקסט; זה טוקן אישי בהיקף קריאה, מקובל.

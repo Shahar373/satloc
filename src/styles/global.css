@@ -29,6 +29,18 @@ body,
   overflow: hidden;
 }
 
+.boot {
+  padding: 40px;
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: pre-wrap;
+  color: var(--text-dim);
+}
+
+.boot--error {
+  color: var(--warn);
+}
+
 .app {
   height: 100%;
   display: grid;

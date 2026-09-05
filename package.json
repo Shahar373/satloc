@@ -1,7 +1,7 @@
 {
   "name": "satloc",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Google Earth-style globe with satellites in real time, focused on ImageSat International (ISI).",
   "type": "module",
   "scripts": {
