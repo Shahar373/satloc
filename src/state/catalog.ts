@@ -12,13 +12,15 @@ import { getKeyValueStore } from '../platform/kv';
 import { getStorage } from '../platform/storage';
 import { useSettings, type Favorite } from './settings';
 
-export type CatalogSource = 'none' | 'fixture' | 'snapshot' | 'cache' | 'celestrak';
+export type CatalogSource = 'none' | 'fixture' | 'snapshot' | 'cache' | 'celestrak' | 'mirror';
 
 /** Element sets as stored on disk: OMM records from CelesTrak and/or TLE lines from the mirror. */
 interface StoredCatalog {
   fetchedAt: string | null;
   records: OmmRecord[];
   tles?: TleRecord[];
+  /** 'celestrak' when every set came from CelesTrak, 'mirror' when the mirror supplied any. */
+  source?: 'celestrak' | 'mirror';
 }
 
 export interface GroupState {
@@ -43,8 +45,11 @@ export interface CatalogState {
   status: 'idle' | 'loading' | 'ready' | 'error';
   /** Last refresh problem, kept even when older data is still shown. */
   error: string | null;
+  /** Explanation when data arrived but not from the preferred source (shown quietly). */
+  notice: string | null;
   groups: Record<string, GroupState>;
   load(options?: { fixture?: boolean }): Promise<void>;
+  /** Refresh the ISI element sets. CelesTrak is asked at most once per 2 hours; otherwise the mirror. */
   refresh(): Promise<void>;
   loadGroup(groupId: string): Promise<void>;
   /** Find an element set anywhere: ISI, favourites, loaded groups. */
@@ -56,7 +61,34 @@ export interface CatalogState {
 }
 
 const CACHE_KEY = 'satloc.catalog.isi';
+const CELESTRAK_ATTEMPT_KEY = 'satloc.catalog.isi.celestrakAttempt';
 const GROUP_CACHE_PREFIX = 'satloc.group.';
+
+/** CelesTrak temporarily blocks clients that repeat a query within 2 hours; remember when we last asked. */
+export function celestrakAllowed(now = Date.now()): boolean {
+  try {
+    const last = Number(getStorage().getItem(CELESTRAK_ATTEMPT_KEY) ?? 0);
+    return !Number.isFinite(last) || now - last >= CELESTRAK_MIN_REFRESH_MS;
+  } catch {
+    return true;
+  }
+}
+
+function markCelestrakAttempt(now = Date.now()): void {
+  try {
+    getStorage().setItem(CELESTRAK_ATTEMPT_KEY, String(now));
+  } catch {
+    // Best effort.
+  }
+}
+
+/** Turn an HTTP failure into a sentence a user can act on. */
+export function describeCelestrakFailure(message: string): string {
+  if (/HTTP 403/.test(message)) return 'CelesTrak refused the request (HTTP 403, its temporary block for repeated queries)';
+  if (/HTTP 404/.test(message)) return 'CelesTrak had no record for this satellite (HTTP 404)';
+  if (/Failed to fetch|fetch failed|network|timeout/i.test(message)) return 'CelesTrak could not be reached';
+  return `CelesTrak failed (${message})`;
+}
 
 function celestrakOrigin(): string {
   // Browser dev mode goes through the Vite proxy; Tauri and production builds talk to CelesTrak.
@@ -135,6 +167,7 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
   fetchedAt: null,
   status: 'idle',
   error: null,
+  notice: null,
   groups: {},
 
   async load(options = {}) {
@@ -170,7 +203,7 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
     const cache = readCache();
     if (cache && cache.fetchedAt && (!fetchedAt || new Date(cache.fetchedAt) > fetchedAt)) {
       stored = cache;
-      source = 'cache';
+      source = cache.source ?? 'cache';
       fetchedAt = new Date(cache.fetchedAt);
     }
 
@@ -187,26 +220,32 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
 
   async refresh() {
     const origin = celestrakOrigin();
+    const askCelestrak = celestrakAllowed();
+    if (askCelestrak) markCelestrakAttempt();
     try {
       const records: OmmRecord[] = [];
       const tles: TleRecord[] = [];
       const problems: string[] = [];
+      let usedMirror = false;
       for (const sat of ISI_PRESET.satellites) {
-        try {
-          const found = parseGpJson(await fetchText(gpUrl({ catnr: sat.noradId }, origin))).find(
-            (r) => r.NORAD_CAT_ID === sat.noradId,
-          );
-          if (found) {
-            records.push(found);
-            continue;
+        if (askCelestrak) {
+          try {
+            const found = parseGpJson(await fetchText(gpUrl({ catnr: sat.noradId }, origin))).find(
+              (r) => r.NORAD_CAT_ID === sat.noradId,
+            );
+            if (found) {
+              records.push(found);
+              continue;
+            }
+            problems.push(`${sat.name}: not in the CelesTrak response`);
+          } catch (err) {
+            problems.push(`${sat.name}: ${describeCelestrakFailure(err instanceof Error ? err.message : String(err))}`);
           }
-          problems.push(`${sat.name}: not in CelesTrak response`);
-        } catch (err) {
-          problems.push(`${sat.name}: ${err instanceof Error ? err.message : String(err)}`);
         }
-        // Fallback: the TLE mirror.
+        // Fallback (or the only source inside CelesTrak's 2-hour window): the TLE mirror.
         try {
           tles.push(parseTleApiJson(await fetchText(tleApiUrl(sat.noradId)), sat.noradId));
+          usedMirror = true;
         } catch (err) {
           problems.push(`${sat.name} (mirror): ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -215,18 +254,18 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
         throw new Error(problems.join('; ') || 'no element sets returned');
       }
       const fetchedAt = new Date();
-      writeCache({ fetchedAt: fetchedAt.toISOString(), records, tles });
-      set({
-        sets: toPresetSets(records, tles),
-        source: 'celestrak',
-        fetchedAt,
-        status: 'ready',
-        error: problems.length > 0 ? problems.join('; ') : null,
-      });
+      const source: 'celestrak' | 'mirror' = usedMirror ? 'mirror' : 'celestrak';
+      writeCache({ fetchedAt: fetchedAt.toISOString(), records, tles, source });
+      const notice = !askCelestrak
+        ? 'CelesTrak is asked at most once every 2 hours; this refresh used the mirror.'
+        : problems.length > 0
+          ? `${problems.join('; ')}; using the mirror.`
+          : null;
+      set({ sets: toPresetSets(records, tles), source, fetchedAt, status: 'ready', error: null, notice });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.warn('CelesTrak refresh failed', err);
-      set((state) => ({ error: message, status: state.sets.length > 0 ? 'ready' : 'error' }));
+      console.warn('Element set refresh failed', err);
+      set((state) => ({ error: message, notice: null, status: state.sets.length > 0 ? 'ready' : 'error' }));
     }
   },
 

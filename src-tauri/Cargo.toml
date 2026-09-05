@@ -1,6 +1,6 @@
 [package]
 name = "satloc"
-version = "0.2.0"
+version = "0.2.1"
 description = "Earth from space with satellites in real time, focused on ImageSat International (ISI)."
 authors = ["Shahar"]
 edition = "2021"

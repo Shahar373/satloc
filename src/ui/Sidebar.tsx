@@ -18,12 +18,22 @@ function formatAge(days: number): string {
   return `${days.toFixed(1)} d`;
 }
 
+const SOURCE_LABELS: Record<string, string> = {
+  none: 'none',
+  fixture: 'test fixture',
+  snapshot: 'bundled snapshot',
+  cache: 'saved on this device',
+  celestrak: 'CelesTrak',
+  mirror: 'TLE mirror (tle.ivanstanojevic.me)',
+};
+
 export function Sidebar() {
   const sets = useCatalog((s) => s.sets);
   const status = useCatalog((s) => s.status);
   const source = useCatalog((s) => s.source);
   const fetchedAt = useCatalog((s) => s.fetchedAt);
   const error = useCatalog((s) => s.error);
+  const notice = useCatalog((s) => s.notice);
   const refresh = useCatalog((s) => s.refresh);
   const selectedId = useSelection((s) => s.selectedId);
   const select = useSelection((s) => s.select);
@@ -59,14 +69,20 @@ export function Sidebar() {
           ))}
         </ul>
         <p className="panel__hint">
-          Elements: {source === 'none' ? 'none' : source}
+          Elements: {SOURCE_LABELS[source]}
           {fetchedAt && ` · ${fetchedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC`}
           {' '}
-          <button type="button" className="link" onClick={() => void refresh()}>
+          <button
+            type="button"
+            className="link"
+            onClick={() => void refresh()}
+            title="Fetch the latest element sets (CelesTrak at most once every 2 hours, otherwise the mirror)"
+          >
             refresh
           </button>
         </p>
-        {error && sets.length > 0 && <p className="panel__hint panel__hint--warn">Refresh failed: {error}</p>}
+        {notice && <p className="panel__hint">{notice}</p>}
+        {error && sets.length > 0 && <p className="panel__hint panel__hint--warn">Refresh failed, showing the last known elements: {error}</p>}
       </section>
 
       <CatalogPanel />
