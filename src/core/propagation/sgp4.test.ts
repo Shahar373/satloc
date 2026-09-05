@@ -10,6 +10,7 @@ import {
   speedKmS,
   temeToEcf,
   temeToGroundPoint,
+  temeVelocityToEcf,
 } from './sgp4';
 
 const EARTH_RADIUS_KM = 6371;
@@ -70,6 +71,27 @@ describe('frame conversion', () => {
     const ground = temeToGroundPoint(state.position, gmst);
     expect(ground.heightKm).toBeCloseTo(norm(state.position) - EARTH_RADIUS_KM, -2);
     expect(Math.abs(ground.longitude)).toBeLessThanOrEqual(Math.PI);
+  });
+
+  it('a geostationary satellite is nearly at rest in the Earth-fixed frame', () => {
+    const geo = ommToElementSet({
+      ...EROS_LIKE_OMM,
+      OBJECT_NAME: 'GEO (TEST)',
+      NORAD_CAT_ID: 99998,
+      MEAN_MOTION: 1.0027,
+      INCLINATION: 0.05,
+      ECCENTRICITY: 0.0002,
+      BSTAR: 0,
+      MEAN_MOTION_DOT: 0,
+    });
+    const t = new Date('2026-09-03T00:00:00Z');
+    const state = propagateTeme(geo.satrec, t);
+    const v = temeVelocityToEcf(state, gmstAt(t));
+    expect(norm(v)).toBeLessThan(0.02);
+    // The LEO fixture keeps most of its 7.6 km/s: the rotating frame changes it by well under 10%.
+    const leo = ommToElementSet(EROS_LIKE_OMM);
+    const leoState = propagateTeme(leo.satrec, t);
+    expect(norm(temeVelocityToEcf(leoState, gmstAt(t)))).toBeGreaterThan(7.0);
   });
 
   it('GMST advances ~360.99 degrees per day', () => {

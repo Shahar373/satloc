@@ -26,7 +26,7 @@ export function TopBar() {
   return (
     <header className="topbar">
       <span className="topbar__brand">SatLoc</span>
-      <span className="topbar__dim">Earth · real-time satellites</span>
+      <span className="topbar__dim topbar__tagline">Earth · real-time satellites</span>
       <span className="topbar__spacer" />
       {imagery === 'offline' && (
         <span className="badge badge--warn" title="Online imagery is unreachable; showing bundled low-resolution tiles.">

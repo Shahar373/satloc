@@ -65,6 +65,19 @@ export function temeToEcf(position: EciVec3<number>, gmst: number): EciVec3<numb
   return { x: ecf.x, y: ecf.y, z: ecf.z };
 }
 
+/** Earth rotation rate, rad/s (WGS84). */
+export const EARTH_ROTATION_RATE = 7.2921159e-5;
+
+/**
+ * Velocity relative to the rotating Earth-fixed frame, km/s: rotate the inertial velocity into
+ * ECEF and remove the frame's own rotation (omega x r). A geostationary satellite comes out at ~0.
+ */
+export function temeVelocityToEcf(state: TemeState, gmst: number): EciVec3<number> {
+  const r = eciToEcf(state.position, gmst);
+  const v = eciToEcf(state.velocity, gmst);
+  return { x: v.x + EARTH_ROTATION_RATE * r.y, y: v.y - EARTH_ROTATION_RATE * r.x, z: v.z };
+}
+
 /** Sub-satellite point (geodetic) for a TEME position at a given GMST. */
 export function temeToGroundPoint(position: EciVec3<number>, gmst: number): GroundPoint {
   const geo = eciToGeodetic(position, gmst);

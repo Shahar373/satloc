@@ -7,9 +7,12 @@ import {
   Color,
   ColorMaterialProperty,
   ConstantProperty,
+  DistanceDisplayCondition,
   Entity,
   JulianDate,
   LabelStyle,
+  Matrix3,
+  Quaternion,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   VerticalOrigin,
@@ -28,6 +31,7 @@ import {
   sampleOrbitTeme,
   temeToEcf,
   temeToGroundPoint,
+  temeVelocityToEcf,
 } from '../core/propagation/sgp4';
 import type { ElementSet } from '../core/tle/omm';
 import type { CameraMode } from '../state/selection';
@@ -44,6 +48,9 @@ const LOS_COLOR = Color.fromCssColorString('#7CFC9A').withAlpha(0.9);
 const LOS_OUT_OF_REACH_COLOR = Color.fromCssColorString('#ff5c7a').withAlpha(0.5);
 const ORBIT_SAMPLES = 180;
 const FOOTPRINT_SEGMENTS = 96;
+/** Closer than this the 3D model is drawn, farther the point marker. */
+const MODEL_RANGE_M = 3_000_000;
+const MODEL_URL = new URL('./models/eros-c3.glb', document.baseURI).href;
 const TRACK_STEP_S = 20;
 const TRACK_HEIGHT_M = 2_000;
 /** Recompute the ground track when the clock moved this far from the cached origin (sim seconds). */
@@ -70,6 +77,33 @@ interface Tracked {
 
 function kmToCartesian(v: EciVec3<number>, out?: Cartesian3): Cartesian3 {
   return Cartesian3.fromElements(v.x * 1000, v.y * 1000, v.z * 1000, out);
+}
+
+/**
+ * Body orientation for a nadir-pointing imaging satellite: model +Z = away from Earth,
+ * model -Y = direction of flight, model X = across-track (solar wings). Returns undefined if
+ * the state cannot be computed.
+ */
+export function bodyOrientationAt(set: ElementSet, time: JulianDate, out?: Quaternion): Quaternion | undefined {
+  const date = JulianDate.toDate(time);
+  try {
+    const state = propagateTeme(set.satrec, date);
+    const gmst = gmstAt(date);
+    const r = temeToEcf(state.position, gmst);
+    const v = temeVelocityToEcf(state, gmst);
+    const up = Cartesian3.normalize(new Cartesian3(r.x, r.y, r.z), new Cartesian3());
+    const vel = Cartesian3.normalize(new Cartesian3(v.x, v.y, v.z), new Cartesian3());
+    const across = Cartesian3.normalize(Cartesian3.cross(up, vel, new Cartesian3()), new Cartesian3());
+    const back = Cartesian3.negate(vel, new Cartesian3());
+    const m = new Matrix3(
+      across.x, back.x, up.x,
+      across.y, back.y, up.y,
+      across.z, back.z, up.z,
+    );
+    return Quaternion.fromRotationMatrix(m, out);
+  } catch {
+    return undefined;
+  }
 }
 
 /** Earth-fixed position of a satellite at a simulation instant, or undefined if SGP4 fails. */
@@ -255,6 +289,7 @@ export class SatelliteLayer {
         continue;
       }
       const tracked: Tracked = { set, entity: undefined as unknown as Entity };
+      const hasModel = presetSatellite(set.noradId) !== undefined;
       tracked.entity = this.viewer.entities.add({
         id: `satloc-sat-${set.noradId}`,
         name: set.name,
@@ -262,11 +297,23 @@ export class SatelliteLayer {
           (time, result) => fixedPositionAt(tracked.set, time ?? this.viewer.clock.currentTime, result),
           false,
         ),
+        orientation: hasModel
+          ? new CallbackProperty((time, result) => bodyOrientationAt(tracked.set, time ?? this.viewer.clock.currentTime, result as Quaternion | undefined), false)
+          : undefined,
+        model: hasModel
+          ? {
+              uri: MODEL_URL,
+              minimumPixelSize: 48,
+              maximumScale: 60_000,
+              distanceDisplayCondition: new DistanceDisplayCondition(0, MODEL_RANGE_M),
+            }
+          : undefined,
         point: {
           pixelSize: 9,
           color: MARKER_COLOR,
           outlineColor: Color.BLACK,
           outlineWidth: 1,
+          distanceDisplayCondition: hasModel ? new DistanceDisplayCondition(MODEL_RANGE_M, Number.POSITIVE_INFINITY) : undefined,
         },
         label: {
           text: set.name,
@@ -345,6 +392,11 @@ export class SatelliteLayer {
     this.reachRightEntity.show = Boolean(selected && showReach && target);
     this.losEntity.show = Boolean(selected && showReach && target);
     if (this.trackCache && this.trackCache.maxOffNadirDeg !== this.selection.maxOffNadirDeg) this.trackCache = null;
+
+    const cameraOnSatellite = cameraMode === 'nadir' || cameraMode === 'imaging';
+    for (const [id, t] of this.tracked) {
+      if (t.entity.model) t.entity.model.show = new ConstantProperty(!(cameraOnSatellite && id === selectedId));
+    }
 
     const wantTracked = selected && cameraMode === 'track' ? selected.entity : undefined;
     const current = this.viewer.trackedEntity;

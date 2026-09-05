@@ -246,6 +246,22 @@ body,
   user-select: none;
 }
 
+.topbar > * {
+  white-space: nowrap;
+}
+
+.topbar__tagline {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .topbar__tagline {
+    display: none;
+  }
+}
+
 .topbar__brand {
   font-weight: 600;
   letter-spacing: 0.04em;
