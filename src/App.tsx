@@ -1,4 +1,5 @@
 import { GlobeView } from './viewer/GlobeView';
+import { ObserverLayer } from './viewer/ObserverLayer';
 import { SatelliteLayerBridge } from './viewer/SatelliteLayerBridge';
 import { Sidebar } from './ui/Sidebar';
 import { TopBar } from './ui/TopBar';
@@ -12,6 +13,7 @@ export function App() {
         <GlobeView />
       </div>
       <SatelliteLayerBridge />
+      <ObserverLayer />
     </div>
   );
 }

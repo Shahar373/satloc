@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useCatalog } from '../state/catalog';
+import { useObserver } from '../state/observer';
 import { useSelection } from '../state/selection';
 import { useViewerStore } from '../state/viewer';
 import { SatelliteLayer } from './satellites';
@@ -18,7 +19,11 @@ export function SatelliteLayerBridge() {
 
   useEffect(() => {
     if (!viewer) return;
-    const layer = new SatelliteLayer(viewer, (id) => useSelection.getState().select(id));
+    const layer = new SatelliteLayer(
+      viewer,
+      (id) => useSelection.getState().select(id),
+      () => useObserver.getState().picking,
+    );
     layerRef.current = layer;
     return () => {
       layerRef.current = null;

@@ -111,6 +111,8 @@ export class SatelliteLayer {
   constructor(
     private readonly viewer: Viewer,
     private readonly onPick: (noradId: number) => void,
+    /** When it returns true, clicks are left to other handlers (e.g. observer picking). */
+    private readonly clicksSuspended: () => boolean = () => false,
   ) {
     this.orbitEntity = viewer.entities.add({
       id: 'satloc-orbit',
@@ -173,6 +175,7 @@ export class SatelliteLayer {
 
     this.handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
     this.handler.setInputAction((event: ScreenSpaceEventHandler.PositionedEvent) => {
+      if (this.clicksSuspended()) return;
       const picked: unknown = viewer.scene.pick(event.position);
       const entity = (picked as { id?: unknown } | undefined)?.id;
       if (entity instanceof Entity) {

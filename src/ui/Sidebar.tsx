@@ -2,6 +2,7 @@ import { ISI_PRESET, presetSatellite } from '../core/catalog/presets';
 import type { ElementSet } from '../core/tle/omm';
 import { useCatalog } from '../state/catalog';
 import { useSelection } from '../state/selection';
+import { PassesPanel } from './PassesPanel';
 import { useLiveOrbit } from './useLiveOrbit';
 
 function formatDeg(value: number, posSuffix: string, negSuffix: string): string {
@@ -60,6 +61,7 @@ export function Sidebar() {
       </section>
 
       {selected && <SatelliteDetails set={selected} />}
+      <PassesPanel set={selected} />
     </aside>
   );
 }

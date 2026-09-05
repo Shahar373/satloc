@@ -55,15 +55,13 @@ function toElementSets(records: OmmRecord[], tles: TleRecord[] = []): ElementSet
       console.warn('Skipping TLE', tle.name, err);
     }
   }
+  // Preset order; anything else (e.g. a decayed satellite still present in an old snapshot) is dropped.
   const ordered: ElementSet[] = [];
   for (const sat of ISI_PRESET.satellites) {
     const set = byId.get(sat.noradId);
-    if (set) {
-      ordered.push({ ...set, name: sat.name });
-      byId.delete(sat.noradId);
-    }
+    if (set) ordered.push({ ...set, name: sat.name });
   }
-  return [...ordered, ...byId.values()];
+  return ordered;
 }
 
 function readCache(): StoredCatalog | null {

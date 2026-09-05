@@ -41,9 +41,12 @@ const SGP4_ERRORS: Record<number, string> = {
   6: 'satellite has decayed',
 };
 
-/** SGP4 at `date`. Throws PropagationError when the model cannot produce a state. */
+/**
+ * SGP4 at `date`. Throws PropagationError when the model cannot produce a state, including the
+ * satellite.js decay check that catches objects SGP4 would otherwise place at garbage positions.
+ */
 export function propagateTeme(satrec: SatRec, date: Date): TemeState {
-  const result = propagate(satrec, date);
+  const result = propagate(satrec, date, { communityDecayCheckEnabled: true });
   if (!result || typeof result.position !== 'object' || typeof result.velocity !== 'object') {
     const code = satrec.error;
     throw new PropagationError(code, SGP4_ERRORS[code] ?? `SGP4 error ${code}`);

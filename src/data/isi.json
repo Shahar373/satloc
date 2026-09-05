@@ -4,15 +4,6 @@
   "description": "Israeli commercial Earth-observation operator; EROS satellites built by IAI.",
   "satellites": [
     {
-      "noradId": 29079,
-      "name": "EROS-B",
-      "intlDesignator": "2006-014A",
-      "launched": "2006-04-25",
-      "swathKm": 7,
-      "resolutionM": 0.7,
-      "status": "active"
-    },
-    {
       "noradId": 54880,
       "name": "EROS-C3",
       "intlDesignator": "2022-179A",
@@ -23,6 +14,15 @@
     }
   ],
   "historical": [
+    {
+      "noradId": 29079,
+      "name": "EROS-B",
+      "intlDesignator": "2006-014A",
+      "launched": "2006-04-25",
+      "decayed": "2026-02-05",
+      "swathKm": 7,
+      "resolutionM": 0.7
+    },
     {
       "noradId": 26631,
       "name": "EROS-A",

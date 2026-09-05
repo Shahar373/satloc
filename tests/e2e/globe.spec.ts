@@ -36,6 +36,15 @@ test('the globe renders and a satellite can be selected', async ({ page }) => {
   await page.screenshot({ path: 'test-results/globe-nadir.png' });
   await page.getByRole('button', { name: 'Nadir' }).click();
 
+  // Pass prediction over the default observer (Tel Aviv); jumping to a pass moves the clock.
+  const passes = page.getByTestId('pass-list').getByRole('button');
+  await expect(passes.first()).toBeVisible();
+  const firstPassText = (await passes.first().textContent()) ?? '';
+  const aosMatch = /(\d{2}-\d{2} \d{2}:\d{2}) UTC/.exec(firstPassText);
+  expect(aosMatch).not.toBeNull();
+  await passes.first().click();
+  await expect(page.getByTestId('sim-time')).toContainText(`2026-${aosMatch![1]!.slice(0, 5)}`);
+
   // Time controls: speed presets and pause are reflected in the clock read-out.
   await page.getByLabel('Simulation speed').selectOption('60');
   await expect(page.getByTestId('sim-time')).toContainText('60x');
