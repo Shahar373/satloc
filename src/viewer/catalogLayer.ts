@@ -35,6 +35,7 @@ export class CatalogLayer {
   private readonly byId = new Map<number, PointPrimitive>();
   private readonly names = new Map<number, string>();
   private ids = new Int32Array(0);
+  private excluded = new Set<number>();
   private generation = 0;
   private lastTimeMs = Number.NaN;
   private readonly scratch = new Cartesian3();
@@ -62,11 +63,11 @@ export class CatalogLayer {
     }, ScreenSpaceEventType.MOUSE_MOVE);
   }
 
-  /** Replace the displayed catalogue. Satellites in `exclude` are drawn elsewhere (tier 1). */
-  async setRecords(records: OmmRecord[], tles: TleRecord[], exclude: Set<number>, maxPoints: number): Promise<void> {
+  /** Replace the displayed catalogue (loads the worker once; exclusions are applied separately). */
+  async setRecords(records: OmmRecord[], tles: TleRecord[], maxPoints: number): Promise<void> {
     const generation = ++this.generation;
-    const keptRecords = records.filter((r) => !exclude.has(r.NORAD_CAT_ID)).slice(0, maxPoints);
-    const keptTles = tles.filter((t) => !exclude.has(t.noradId)).slice(0, Math.max(0, maxPoints - keptRecords.length));
+    const keptRecords = records.slice(0, maxPoints);
+    const keptTles = tles.slice(0, Math.max(0, maxPoints - keptRecords.length));
 
     const { rejected } = await this.client.load(keptRecords, keptTles);
     if (generation !== this.generation || this.viewer.isDestroyed()) return;
@@ -75,16 +76,32 @@ export class CatalogLayer {
     this.points.removeAll();
     this.byId.clear();
     this.names.clear();
-    const ids: number[] = [];
     const add = (id: number, name: string) => {
       if (rejectedSet.has(id) || this.byId.has(id)) return;
       const point = this.points.add({ id, position: Cartesian3.ZERO, pixelSize: POINT_SIZE, color: POINT_COLOR, show: false });
       this.byId.set(id, point);
       this.names.set(id, name);
-      ids.push(id);
     };
     for (const r of keptRecords) add(r.NORAD_CAT_ID, r.OBJECT_NAME.trim());
     for (const t of keptTles) add(t.noradId, t.name);
+    this.applyExclusions();
+  }
+
+  /** Satellites drawn elsewhere (tier 1 entities) are hidden here and skipped by the worker. */
+  setExcluded(exclude: Set<number>): void {
+    this.excluded = exclude;
+    this.applyExclusions();
+  }
+
+  private applyExclusions(): void {
+    const ids: number[] = [];
+    for (const [id, point] of this.byId) {
+      if (this.excluded.has(id)) {
+        point.show = false;
+      } else {
+        ids.push(id);
+      }
+    }
     this.ids = Int32Array.from(ids);
     this.lastTimeMs = Number.NaN;
   }

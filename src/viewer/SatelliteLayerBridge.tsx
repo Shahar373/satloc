@@ -88,9 +88,12 @@ export function SatelliteLayerBridge() {
   }, [viewer, tier1]);
 
   useEffect(() => {
-    const exclude = new Set(tier1.map((s) => s.noradId));
-    void catalogRef.current?.setRecords(tier2.records, tier2.tles, exclude, maxCatalogPoints);
-  }, [viewer, tier1, tier2, maxCatalogPoints]);
+    void catalogRef.current?.setRecords(tier2.records, tier2.tles, maxCatalogPoints);
+  }, [viewer, tier2, maxCatalogPoints]);
+
+  useEffect(() => {
+    catalogRef.current?.setExcluded(new Set(tier1.map((s) => s.noradId)));
+  }, [viewer, tier1]);
 
   useEffect(() => {
     layerRef.current?.setSelection({ selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, cameraMode });
