@@ -1,12 +1,25 @@
 {
-  "fetchedAt": "2026-09-05T07:42:37.666Z",
-  "records": [],
-  "tles": [
+  "fetchedAt": "2026-09-06T07:56:23.932Z",
+  "records": [
     {
-      "noradId": 54880,
-      "name": "EROS C3",
-      "line1": "1 54880U 22179A   26247.59546138  .00001640  00000+0  81834-4 0  9996",
-      "line2": "2 54880 139.3355  98.6111 0007661 177.2752 182.8098 15.11358419204340"
+      "OBJECT_NAME": "EROS C3",
+      "OBJECT_ID": "2022-179A",
+      "EPOCH": "2026-09-05T14:04:46.965216",
+      "MEAN_MOTION": 15.11362249,
+      "ECCENTRICITY": 0.00078,
+      "INCLINATION": 139.3353,
+      "RA_OF_ASC_NODE": 104.2763,
+      "ARG_OF_PERICENTER": 184.2317,
+      "MEAN_ANOMALY": 175.8425,
+      "EPHEMERIS_TYPE": 0,
+      "CLASSIFICATION_TYPE": "U",
+      "NORAD_CAT_ID": 54880,
+      "ELEMENT_SET_NO": 999,
+      "REV_AT_EPOCH": 20449,
+      "BSTAR": 0.000086176,
+      "MEAN_MOTION_DOT": 0.00001715,
+      "MEAN_MOTION_DDOT": 0
     }
-  ]
+  ],
+  "tles": []
 }
