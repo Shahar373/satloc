@@ -8,20 +8,13 @@ import { useSelection } from '../state/selection';
 import { useViewerStore } from '../state/viewer';
 import { flyToLocation, jumpToInstant } from '../viewer/createViewer';
 import { Panel } from './Panel';
-import { formatLocalDateTime, formatUtcShort } from './format';
+import { formatDuration, formatLocalDateTime, formatUtcShort } from './format';
 import { useForecastWindow } from './useForecastWindow';
 
 const WINDOW_HOURS = 48;
 /** Recompute the pass list when the simulation time drifts this far from the window start. */
 const WINDOW_DRIFT_MS = 15 * 60 * 1000;
 const MIN_ELEVATIONS = [0, 10, 20, 30, 45];
-
-function formatDuration(seconds: number): string {
-  const total = Math.round(seconds);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${s.toString().padStart(2, '0')} min`;
-}
 
 export function PassesPanel({ set }: { set: ElementSet | undefined }) {
   const viewer = useViewerStore((s) => s.viewer);

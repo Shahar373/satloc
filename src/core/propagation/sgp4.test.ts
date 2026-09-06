@@ -38,6 +38,14 @@ describe('propagateTeme', () => {
     expect(norm({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z })).toBeLessThan(120);
   });
 
+  it('always samples the anchor instant, so past and future halves of a track meet', () => {
+    const from = new Date(set.epoch.getTime() + 1234);
+    const track = sampleGroundTrack(set.satrec, from, 47.3, 94.7, 20);
+    expect(track.some((s) => s.time.getTime() === from.getTime())).toBe(true);
+    expect(track[0]!.time.getTime()).toBeLessThanOrEqual(from.getTime() - 47.3 * 60_000);
+    expect(track[track.length - 1]!.time.getTime()).toBeGreaterThanOrEqual(from.getTime() + 94.7 * 60_000);
+  });
+
   it('keeps the sub-satellite latitude within the inclination band', () => {
     const track = sampleGroundTrack(set.satrec, set.epoch, 0, 100, 30);
     expect(track.length).toBeGreaterThan(150);

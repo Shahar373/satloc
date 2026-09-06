@@ -227,6 +227,10 @@ body,
 
 .satlist__name {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .satlist__meta {
@@ -356,6 +360,19 @@ body,
 .btn:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Keyboard users need to see where focus is; pointer users are not bothered by :focus-visible. */
+.btn:focus-visible,
+.link:focus-visible,
+.satlist__item:focus-visible,
+.pass:focus-visible,
+.panel__toggle:focus-visible,
+.groups__label:focus-within,
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .btn--icon {

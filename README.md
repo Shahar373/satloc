@@ -30,5 +30,15 @@ npm test             # unit tests
 npm run test:e2e     # Playwright smoke test with screenshots
 ```
 
-Installers are built by GitHub Actions on every push (Actions tab, "Windows installer" artifact)
-and published to a draft GitHub Release when a `v*` tag is pushed.
+Installers are built by GitHub Actions on every push (Actions tab, "SatLoc-windows-installer"
+artifact); releases are published as described above.
+
+## Beta notes
+
+- Windows 10/11 with WebView2 (preinstalled on Windows 11; the installer fetches it otherwise).
+- Orbital elements come from CelesTrak, which blocks repeated queries for two hours; the app then
+  uses a mirror and says so under the satellite list. Positions carry the usual SGP4 error of a
+  few kilometres and grow with the age of the element set (shown in the details panel).
+- Keyboard shortcuts are listed in Settings. Esc unwinds: field → settings → picking → camera lock → selection.
+- Problems: press Ctrl+Shift+I for the developer console and report the message, the SatLoc
+  version (Settings → About) and what you did at https://github.com/Shahar373/satloc/issues.

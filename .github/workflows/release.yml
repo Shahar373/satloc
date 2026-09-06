@@ -38,14 +38,19 @@ jobs:
             tag="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          if curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
-               "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$tag" > /dev/null; then
-            echo "Release $tag already exists; nothing to publish."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Will publish $tag."
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
+               "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$tag")
+          case "$code" in
+            200)
+              echo "Release $tag already exists; nothing to publish."
+              echo "publish=false" >> "$GITHUB_OUTPUT" ;;
+            404)
+              echo "Will publish $tag."
+              echo "publish=true" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "GitHub API returned HTTP $code while looking for release $tag; not publishing blindly."
+              exit 1 ;;
+          esac
 
   build:
     name: Build and publish

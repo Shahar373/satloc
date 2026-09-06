@@ -20,3 +20,11 @@ export function formatAgeSince(date: Date, now = new Date()): string {
   if (hours < 48) return `${Math.round(hours)} h ago`;
   return `${(hours / 24).toFixed(1)} d ago`;
 }
+
+/** "m:ss min" from seconds, rounding to whole seconds first so 5:59.6 reads 6:00 and never "5:60". */
+export function formatDuration(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, '0')} min`;
+}
