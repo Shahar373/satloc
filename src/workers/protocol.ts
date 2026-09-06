@@ -10,15 +10,26 @@ export interface LoadMessage {
   tles: TleRecord[];
 }
 
-/** Propagate every loaded satellite (or `ids` when given) to `timeMs` (Unix ms). */
+/**
+ * The ids to propagate from now on, in this order (sent once when exclusions change, not per
+ * frame). `version` is echoed with every positions reply so a stale reply can be recognised.
+ */
+export interface SetIdsMessage {
+  type: 'setIds';
+  version: number;
+  ids: Int32Array;
+}
+
+/** Propagate the current id list to `timeMs` (Unix ms). `recycle` is a buffer to reuse for the answer. */
 export interface PropagateMessage {
   type: 'propagate';
   requestId: number;
   timeMs: number;
-  ids?: Int32Array;
+  version: number;
+  recycle?: Float64Array;
 }
 
-export type WorkerRequest = LoadMessage | PropagateMessage;
+export type WorkerRequest = LoadMessage | SetIdsMessage | PropagateMessage;
 
 export interface LoadedMessage {
   type: 'loaded';
@@ -32,7 +43,9 @@ export interface PositionsMessage {
   type: 'positions';
   requestId: number;
   timeMs: number;
-  ids: Int32Array;
+  /** The id-list version these positions belong to (same order as that list). */
+  version: number;
+  count: number;
   /** Earth-fixed x, y, z in metres, three per id. NaN when propagation failed. */
   xyz: Float64Array;
 }

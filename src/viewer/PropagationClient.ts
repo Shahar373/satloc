@@ -14,8 +14,9 @@ export interface LoadResult {
 
 /**
  * Main-thread handle on the propagation worker: any number of loads (each resolves with its own
- * reply) and one outstanding propagate request at a time. A crashed worker rejects everything
- * pending and reports itself through `failure`, so callers stop asking instead of hanging.
+ * reply), an id list sent once per change, and one outstanding propagate request at a time whose
+ * answer buffer is handed back for reuse. A crashed worker rejects everything pending and reports
+ * itself through `failure`, so callers stop asking instead of hanging.
  */
 export class PropagationClient {
   private readonly worker: Worker;
@@ -23,6 +24,7 @@ export class PropagationClient {
   private pending: ({ id: number } & Deferred<PositionsMessage>) | null = null;
   private readonly loads = new Map<number, Deferred<LoadResult>>();
   private _failure: Error | null = null;
+  private spare: Float64Array | null = null;
 
   constructor() {
     this.worker = new Worker(new URL('../workers/propagation.worker.ts', import.meta.url), { type: 'module' });
@@ -61,15 +63,30 @@ export class PropagationClient {
     });
   }
 
+  /** Replace the id list (a copy is transferred, the caller keeps its own). */
+  setIds(version: number, ids: Int32Array): void {
+    if (this._failure) return;
+    const copy = Int32Array.from(ids);
+    this.worker.postMessage({ type: 'setIds', version, ids: copy } satisfies WorkerRequest, [copy.buffer]);
+  }
+
   /** Resolves with positions for `timeMs`; returns null if a request is already in flight. */
-  propagate(timeMs: number, ids?: Int32Array): Promise<PositionsMessage> | null {
+  propagate(timeMs: number, version: number): Promise<PositionsMessage> | null {
     if (this._failure) return Promise.reject(this._failure);
     if (this.pending) return null;
     const id = this.nextRequestId++;
+    const recycle = this.spare;
+    this.spare = null;
     return new Promise((resolve, reject) => {
       this.pending = { id, resolve, reject };
-      this.post({ type: 'propagate', requestId: id, timeMs, ids });
+      const message: WorkerRequest = { type: 'propagate', requestId: id, timeMs, version, recycle: recycle ?? undefined };
+      this.worker.postMessage(message, recycle ? [recycle.buffer] : []);
     });
+  }
+
+  /** Give an answer buffer back once it has been read; the next request reuses it. */
+  recycle(xyz: Float64Array): void {
+    this.spare = xyz;
   }
 
   get busy(): boolean {

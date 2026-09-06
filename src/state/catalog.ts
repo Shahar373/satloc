@@ -30,8 +30,6 @@ export interface GroupState {
   error: string | null;
   fetchedAt: Date | null;
   records: OmmRecord[];
-  /** Built lazily from `records`; may be empty while status is not 'ready'. */
-  sets: ElementSet[];
 }
 
 /** Virtual group: Israeli satellites filtered out of the 'active' group by name. */
@@ -205,23 +203,43 @@ function celestrakOrigin(): string {
   return !isTauri() && import.meta.env.DEV ? '/api/celestrak' : CELESTRAK_ORIGIN;
 }
 
+/**
+ * Element sets per catalogue record, built on first use and memoised per record object: a
+ * 12,000-record group costs nothing until something is looked up in it.
+ */
+const recordSets = new WeakMap<OmmRecord, ElementSet | null>();
+
+export function recordToSet(record: OmmRecord): ElementSet | undefined {
+  const cached = recordSets.get(record);
+  if (cached !== undefined) return cached ?? undefined;
+  let set: ElementSet | null;
+  try {
+    set = ommToElementSet(record);
+  } catch {
+    set = null;
+  }
+  recordSets.set(record, set);
+  return set ?? undefined;
+}
+
 function recordsToSets(records: OmmRecord[], tles: TleRecord[] = []): Map<number, ElementSet> {
   const byId = new Map<number, ElementSet>();
+  const skipped: string[] = [];
   for (const record of records) {
-    try {
-      const set = ommToElementSet(record);
-      byId.set(set.noradId, set);
-    } catch (err) {
-      console.warn('Skipping element set', record.OBJECT_NAME, err);
-    }
+    const set = recordToSet(record);
+    if (set) byId.set(set.noradId, set);
+    else skipped.push(record.OBJECT_NAME);
   }
   for (const tle of tles) {
     if (byId.has(tle.noradId)) continue;
     try {
       byId.set(tle.noradId, tleToElementSet(tle.line1, tle.line2, tle.name));
-    } catch (err) {
-      console.warn('Skipping TLE', tle.name, err);
+    } catch {
+      skipped.push(tle.name);
     }
+  }
+  if (skipped.length > 0) {
+    console.warn(`Skipped ${skipped.length} unusable element set(s): ${skipped.slice(0, 5).join(', ')}${skipped.length > 5 ? ', …' : ''}`);
   }
   return byId;
 }
@@ -328,8 +346,6 @@ async function loadGroupImpl(
           error,
           fetchedAt,
           records,
-          // Reuse the element sets when the records did not change (12,000 satrecs take ~100 ms to build).
-          sets: existing && records === existing.records ? existing.sets : [...recordsToSets(records).values()],
         },
       },
     }));
@@ -435,7 +451,6 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
             error: null,
             fetchedAt: new Date(),
             records,
-            sets: [...recordsToSets(records).values()],
           },
         },
       });
@@ -556,8 +571,11 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
     if (isi) return isi;
     // Loaded groups first: they are refreshed, a favourite is the copy taken when it was pinned.
     for (const group of Object.values(state.groups)) {
-      const found = group.sets.find((s) => s.noradId === noradId);
-      if (found) return found;
+      const record = group.records.find((r) => r.NORAD_CAT_ID === noradId);
+      if (record) {
+        const set = recordToSet(record);
+        if (set) return set;
+      }
     }
     const favorite = useSettings.getState().favorites.find((f) => f.noradId === noradId);
     return favorite ? favoriteToSet(favorite) : undefined;
@@ -584,7 +602,15 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
       }
     };
     state.sets.forEach(consider);
-    for (const group of Object.values(state.groups)) group.sets.forEach(consider);
+    // Match on the raw records (name and id) and build element sets only for the hits.
+    for (const group of Object.values(state.groups)) {
+      for (const r of group.records) {
+        if (results.length >= limit) break;
+        if (seen.has(r.NORAD_CAT_ID) || !matchesQuery(query, r.OBJECT_NAME, r.NORAD_CAT_ID)) continue;
+        const set = recordToSet(r);
+        if (set) consider(set);
+      }
+    }
     for (const f of useSettings.getState().favorites) {
       const set = favoriteToSet(f);
       if (set) consider(set);

@@ -55,6 +55,10 @@ const TRACK_STEP_S = 20;
 const TRACK_HEIGHT_M = 2_000;
 /** Recompute the ground track when the clock moved this far from the cached origin (sim seconds). */
 const TRACK_STALE_S = 60;
+/** ...but never more often than this in wall-clock time (at 1000x the sim threshold passes every few frames). */
+const TRACK_MIN_REBUILD_MS = 500;
+/** Reuse the footprint ring while the clock is within this of the cached instant (sim ms): the ring moves ~7 km/s. */
+const FOOTPRINT_STALE_MS = 1000;
 
 export interface SelectionView {
   selectedId: number | null;
@@ -79,6 +83,8 @@ interface Tracked {
 interface TrackCache {
   id: number;
   fromMs: number;
+  /** performance.now() when built. */
+  builtAt: number;
   past: Cartesian3[];
   future: Cartesian3[];
   swathLeft: Cartesian3[];
@@ -160,7 +166,14 @@ export class SatelliteLayer {
     maxOffNadirDeg: 45,
   };
 
-  private orbitCache: { id: number; sampledAtMs: number; periodMs: number; teme: EciVec3<number>[] } | null = null;
+  private orbitCache: {
+    id: number;
+    sampledAtMs: number;
+    periodMs: number;
+    teme: EciVec3<number>[];
+    /** Rotated into the Earth-fixed frame in place every frame; the same array is returned each time. */
+    fixed: Cartesian3[];
+  } | null = null;
   private trackCache: TrackCache | null = null;
   /** The cache object whose arrays the six track/swath/reach polylines currently hold. */
   private trackSynced: TrackCache | null = null;
@@ -283,6 +296,7 @@ export class SatelliteLayer {
 
   /** Replace the displayed satellites (diffing by NORAD id). */
   setSatellites(sets: ElementSet[]): void {
+    const selectedBefore = this.selectedTracked()?.set;
     const wanted = new Map(sets.map((s) => [s.noradId, s]));
     for (const [id, t] of this.tracked) {
       if (!wanted.has(id)) {
@@ -338,9 +352,13 @@ export class SatelliteLayer {
       });
       this.tracked.set(set.noradId, tracked);
     }
-    this.orbitCache = null;
-    this.trackCache = null;
-    this.footprintCache = null;
+    // Unrelated group updates arrive here too; only refreshed elements of the selected satellite
+    // invalidate the (expensive) orbit, track and footprint samples.
+    if (this.selectedTracked()?.set !== selectedBefore) {
+      this.orbitCache = null;
+      this.trackCache = null;
+      this.footprintCache = null;
+    }
     this.applySelection();
   }
 
@@ -426,14 +444,22 @@ export class SatelliteLayer {
         const teme = sampleOrbitTeme(selected.set.satrec, new Date(nowMs), ORBIT_SAMPLES);
         // Perturbations leave a small gap after one revolution; close the loop visually.
         teme[teme.length - 1] = teme[0]!;
-        this.orbitCache = { id: selected.set.noradId, sampledAtMs: nowMs, periodMs, teme };
+        this.orbitCache = { id: selected.set.noradId, sampledAtMs: nowMs, periodMs, teme, fixed: teme.map(() => new Cartesian3()) };
       } catch {
         this.orbitCache = null;
         return [];
       }
     }
+    // TEME -> Earth-fixed is a rotation about Z by GMST; do it in place, no per-frame allocations.
     const gmst = gmstAt(new Date(nowMs));
-    return this.orbitCache!.teme.map((p) => kmToCartesian(temeToEcf(p, gmst)));
+    const c = Math.cos(gmst);
+    const sn = Math.sin(gmst);
+    const { teme, fixed } = this.orbitCache!;
+    for (let i = 0; i < teme.length; i++) {
+      const p = teme[i]!;
+      Cartesian3.fromElements((p.x * c + p.y * sn) * 1000, (-p.x * sn + p.y * c) * 1000, p.z * 1000, fixed[i]);
+    }
+    return fixed;
   }
 
   /**
@@ -449,7 +475,13 @@ export class SatelliteLayer {
     }
     const nowMs = JulianDate.toDate(time).getTime();
     const cache = this.trackCache;
-    if (cache && cache.id === selected.set.noradId && Math.abs(nowMs - cache.fromMs) <= TRACK_STALE_S * 1000) return cache;
+    if (
+      cache &&
+      cache.id === selected.set.noradId &&
+      (Math.abs(nowMs - cache.fromMs) <= TRACK_STALE_S * 1000 || performance.now() - cache.builtAt < TRACK_MIN_REBUILD_MS)
+    ) {
+      return cache;
+    }
     try {
       const period = orbitalPeriodMinutes(selected.set.satrec);
       // The sampling grid is anchored on `nowMs`, so both halves share the point under the satellite.
@@ -464,6 +496,7 @@ export class SatelliteLayer {
       this.trackCache = {
         id: selected.set.noradId,
         fromMs: nowMs,
+        builtAt: performance.now(),
         past: samples.filter((s) => s.time.getTime() <= nowMs).map((s) => toCartesian(s.point)),
         future: future.map(toCartesian),
         swathLeft: edges.left.map(toCartesian),
@@ -526,7 +559,7 @@ export class SatelliteLayer {
     if (!selected) return [];
     const date = JulianDate.toDate(time);
     const nowMs = date.getTime();
-    if (this.footprintCache && this.footprintCache.id === selected.set.noradId && this.footprintCache.atMs === nowMs) {
+    if (this.footprintCache && this.footprintCache.id === selected.set.noradId && Math.abs(this.footprintCache.atMs - nowMs) < FOOTPRINT_STALE_MS) {
       return this.footprintCache.ring;
     }
     try {

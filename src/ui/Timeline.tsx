@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -30,7 +31,7 @@ interface Window {
  * pans), arrow keys to step; follows the clock when it leaves the visible window. Shows passes
  * (yellow) and imaging opportunities (green) of the selected satellite.
  */
-export function Timeline() {
+export const Timeline = memo(function Timeline() {
   const viewer = useViewerStore((s) => s.viewer);
   const simTime = useViewerStore((s) => s.simTime);
   const passes = useForecast((s) => s.passes);
@@ -39,6 +40,8 @@ export function Timeline() {
   const [width, setWidth] = useState(0);
   const [window, setWindow] = useState<Window | null>(null);
   const dragging = useRef(false);
+  // The store publishes simTime at 4 Hz; while dragging, the needle follows the pointer directly.
+  const [dragMs, setDragMs] = useState<number | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -80,7 +83,9 @@ export function Timeline() {
     const el = containerRef.current;
     if (!el || !viewer || !window) return;
     const x = Math.max(0, Math.min(width, clientX - el.getBoundingClientRect().left));
-    setTime(timeAt(x));
+    const ms = timeAt(x);
+    setDragMs(ms);
+    setTime(ms);
   };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -95,6 +100,7 @@ export function Timeline() {
   };
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     dragging.current = false;
+    setDragMs(null);
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
   const onWheel = (e: ReactWheelEvent<HTMLDivElement>) => {
@@ -142,7 +148,8 @@ export function Timeline() {
     e.preventDefault();
   };
 
-  const nowX = simTime ? xOf(simTime.getTime()) : null;
+  const shownMs = dragMs ?? (simTime ? simTime.getTime() : null);
+  const nowX = shownMs !== null ? xOf(shownMs) : null;
 
   return (
     <div
@@ -155,7 +162,7 @@ export function Timeline() {
       aria-valuetext={simTime ? simTime.toISOString() : ''}
       aria-valuemin={window ? Math.round(window.startMs / 1000) : undefined}
       aria-valuemax={window ? Math.round(window.endMs / 1000) : undefined}
-      aria-valuenow={simTime ? Math.round(simTime.getTime() / 1000) : undefined}
+      aria-valuenow={shownMs !== null ? Math.round(shownMs / 1000) : undefined}
       title="Timeline: click or drag to set the time · wheel to zoom · ← → step a minute (Shift: 10), PgUp/PgDn an hour, Home = now"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -225,4 +232,4 @@ export function Timeline() {
       )}
     </div>
   );
-}
+});

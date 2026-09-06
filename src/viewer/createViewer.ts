@@ -9,7 +9,15 @@ import {
   type ImageryLayer,
   type ImageryProvider,
 } from 'cesium';
-import { createImageryLayer, resolveImagerySource, type ImageryResolved, type ImagerySource } from './imagery';
+import {
+  ESRI_PROBE_TILE,
+  createEsriLayer,
+  createImageryLayer,
+  probeImage,
+  resolveImagerySource,
+  type ImageryResolved,
+  type ImagerySource,
+} from './imagery';
 
 /** Camera pose that can be captured from one viewer and restored on another. */
 export interface CameraView {
@@ -35,11 +43,15 @@ export interface CreateViewerOptions {
   restore?: { multiplier: number; animating: boolean; view: CameraView };
   /** Called at most once per distinct problem (imagery or terrain failing to load). */
   onProblem?: (problem: ViewerProblem) => void;
+  /** 'auto' starts with offline tiles and reports here once the online probe has decided. */
+  onImageryResolved?: (imagery: ImageryResolved) => void;
 }
 
 export interface CreatedViewer {
   viewer: Viewer;
   imagery: ImageryResolved;
+  /** True when `imagery` is provisional (offline) while the online probe is still running. */
+  imageryPending: boolean;
 }
 
 /** Initial camera: the whole planet with Israel near the centre of the disc. */
@@ -55,7 +67,10 @@ export async function createViewer(
   container: HTMLElement,
   options: CreateViewerOptions,
 ): Promise<CreatedViewer> {
-  const imagery = await resolveImagerySource(options.imagery, options.ionToken);
+  // 'auto' would wait up to 6 s for a network probe before anything is drawn. Start with the
+  // bundled tiles instead and add the online layer when the probe succeeds.
+  const probing = options.imagery === 'auto' || (options.imagery === 'ion' && !options.ionToken);
+  const imagery = probing ? 'offline' : await resolveImagerySource(options.imagery, options.ionToken);
   const baseLayer = await createImageryLayer(imagery, options.ionToken);
   const terrain = imagery === 'ion' ? Terrain.fromWorldTerrain() : undefined;
 
@@ -75,6 +90,8 @@ export async function createViewer(
     selectionIndicator: false,
     vrButton: false,
     shouldAnimate: true,
+    // Desktop displays run 120-165 Hz; the scene has nothing to show at that rate.
+    targetFrameRate: 60,
   });
 
   // Cesium's own click handlers select/track whatever entity is under the pointer, fighting the
@@ -113,7 +130,20 @@ export async function createViewer(
 
   if (options.onProblem) watchLoadProblems(baseLayer, terrain, options.onProblem);
 
-  return { viewer, imagery };
+  if (probing) {
+    void probeImage(ESRI_PROBE_TILE).then((online) => {
+      if (viewer.isDestroyed()) return;
+      if (online) {
+        // The offline layer stays underneath: tiles that fail online still show something.
+        const esri = createEsriLayer();
+        viewer.imageryLayers.add(esri);
+        if (options.onProblem) watchLoadProblems(esri, undefined, options.onProblem);
+      }
+      options.onImageryResolved?.(online ? 'esri' : 'offline');
+    });
+  }
+
+  return { viewer, imagery, imageryPending: probing };
 }
 
 /** Current camera pose, safe to keep after the viewer is destroyed. */

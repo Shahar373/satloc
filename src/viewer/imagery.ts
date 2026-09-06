@@ -18,7 +18,7 @@ export type ImageryResolved = Exclude<ImagerySource, 'auto'>;
 // Esri World Imagery, no key required at this endpoint. Attribution is mandatory.
 const ESRI_WORLD_IMAGERY =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-const ESRI_PROBE_TILE =
+export const ESRI_PROBE_TILE =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/0/0/0';
 
 // NASA GIBS, Blue Marble shaded relief with bathymetry (static layer, EPSG:4326, "500m" matrix set).

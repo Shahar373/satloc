@@ -23,6 +23,7 @@ export function TopBar() {
   const imagery = useViewerStore((s) => s.imagery);
   const viewer = useViewerStore((s) => s.viewer);
   const problems = useViewerStore((s) => s.problems);
+  const imageryPending = useViewerStore((s) => s.imageryPending);
   const chosenImagery = useImagerySource();
   const settingsOpen = useUi((s) => s.settingsOpen);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
@@ -38,7 +39,7 @@ export function TopBar() {
           {p.label}
         </span>
       ))}
-      {imagery === 'offline' && (
+      {imagery === 'offline' && !imageryPending && (
         <span
           className="badge badge--warn"
           title={

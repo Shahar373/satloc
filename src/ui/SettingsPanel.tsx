@@ -20,6 +20,7 @@ export function SettingsPanel() {
   const setIonToken = useSettings((s) => s.setIonToken);
   const setMaxCatalogPoints = useSettings((s) => s.setMaxCatalogPoints);
   const resolved = useViewerStore((s) => s.imagery);
+  const imageryPending = useViewerStore((s) => s.imageryPending);
   const problems = useViewerStore((s) => s.problems);
   const [tokenDraft, setTokenDraft] = useState(ionToken);
   const updateStatus = useUpdates((s) => s.status);
@@ -70,7 +71,10 @@ export function SettingsPanel() {
               </option>
             ))}
           </select>
-          <span className="panel__hint">Currently showing: {resolved ? IMAGERY_LABELS[resolved] : '…'}</span>
+          <span className="panel__hint">
+            Currently showing: {resolved ? IMAGERY_LABELS[resolved] : '…'}
+            {imageryPending && ' (checking whether online imagery is reachable…)'}
+          </span>
           {problems.map((p) => (
             <span key={p.label} className="panel__hint panel__hint--warn">
               {p.detail}

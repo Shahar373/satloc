@@ -60,14 +60,29 @@ export class CatalogLayer {
   private readonly byId = new Map<number, PointPrimitive>();
   private readonly names = new Map<number, string>();
   private ids = new Int32Array(0);
+  /** Bumped whenever `ids` changes; the worker echoes it so stale answers are recognised. */
+  private idsVersion = 0;
   private excluded = new Set<number>();
   private generation = 0;
   private lastTimeMs = Number.NaN;
   private hoveredId: number | null = null;
+  /** Latest pointer position awaiting a pick (picked at most once per rendered frame). */
+  private hoverPending: Cartesian2 | null = null;
+  private pointerDown = false;
   private lastRequested: { records: OmmRecord[]; tles: TleRecord[]; maxPoints: number } | null = null;
   private failed = false;
   private readonly scratch = new Cartesian3();
-  private readonly clearHover = () => this.setHovered(null);
+  private readonly clearHover = () => {
+    this.hoverPending = null;
+    this.setHovered(null);
+  };
+  private readonly onPointerDown = () => {
+    this.pointerDown = true;
+    this.hoverPending = null;
+  };
+  private readonly onPointerUp = () => {
+    this.pointerDown = false;
+  };
 
   constructor(
     private readonly viewer: Viewer,
@@ -84,11 +99,15 @@ export class CatalogLayer {
       if (id !== null) this.callbacks.onPick(id);
     }, ScreenSpaceEventType.LEFT_CLICK);
     this.handler.setInputAction((event: ScreenSpaceEventHandler.MotionEvent) => {
-      this.setHovered(this.pickId(event.endPosition), event.endPosition);
+      // scene.pick() is a GPU read-back; do it once per frame (in tick), never per pointer event.
+      if (this.pointerDown) return;
+      this.hoverPending = Cartesian2.clone(event.endPosition, this.hoverPending ?? new Cartesian2());
     }, ScreenSpaceEventType.MOUSE_MOVE);
     // Cesium reports no motion once the pointer has left the canvas, so the tooltip would stick.
     canvas.addEventListener('pointerleave', this.clearHover);
     canvas.addEventListener('pointercancel', this.clearHover);
+    canvas.addEventListener('pointerdown', this.onPointerDown);
+    window.addEventListener('pointerup', this.onPointerUp);
   }
 
   /**
@@ -159,6 +178,8 @@ export class CatalogLayer {
       }
     }
     this.ids = Int32Array.from(ids);
+    this.idsVersion += 1;
+    this.client.setIds(this.idsVersion, this.ids);
     this.lastTimeMs = Number.NaN;
     if (this.hoveredId !== null && !this.byId.get(this.hoveredId)?.show) this.setHovered(null);
   }
@@ -175,6 +196,8 @@ export class CatalogLayer {
     const canvas = this.viewer.scene.canvas;
     canvas.removeEventListener('pointerleave', this.clearHover);
     canvas.removeEventListener('pointercancel', this.clearHover);
+    canvas.removeEventListener('pointerdown', this.onPointerDown);
+    window.removeEventListener('pointerup', this.onPointerUp);
     this.viewer.scene.primitives.remove(this.points);
   }
 
@@ -209,11 +232,17 @@ export class CatalogLayer {
   }
 
   private tick(): void {
+    if (this.hoverPending) {
+      const at = this.hoverPending;
+      this.hoverPending = null;
+      this.setHovered(this.pickId(at), at);
+    }
     if (this.failed || this.ids.length === 0 || this.client.busy) return;
     const timeMs = JulianDate.toDate(this.viewer.clock.currentTime).getTime();
     if (timeMs === this.lastTimeMs) return;
+    const version = this.idsVersion;
     const requested = this.ids;
-    const request = this.client.propagate(timeMs, Int32Array.from(requested));
+    const request = this.client.propagate(timeMs, version);
     if (!request) return;
     const generation = this.generation;
     request.then(
@@ -221,9 +250,13 @@ export class CatalogLayer {
         if (generation !== this.generation || this.viewer.isDestroyed()) return;
         // Exclusions may have changed while the request was in flight; a stale answer must not
         // re-show a point that is now drawn as a tier-1 entity, nor mark the new id set as current.
+        if (msg.version !== version || msg.count !== requested.length) {
+          this.client.recycle(msg.xyz);
+          return;
+        }
         if (requested === this.ids) this.lastTimeMs = msg.timeMs;
-        for (let i = 0; i < msg.ids.length; i++) {
-          const id = msg.ids[i]!;
+        for (let i = 0; i < requested.length; i++) {
+          const id = requested[i]!;
           if (this.excluded.has(id)) continue;
           const point = this.byId.get(id);
           if (!point) continue;
@@ -238,6 +271,7 @@ export class CatalogLayer {
           point.position = this.scratch;
           point.show = true;
         }
+        this.client.recycle(msg.xyz);
         if (this.hoveredId !== null && !this.byId.get(this.hoveredId)?.show) this.setHovered(null);
         this.viewer.scene.requestRender();
       },

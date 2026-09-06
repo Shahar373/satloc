@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { JulianDate, type Viewer } from 'cesium';
 import { isTauri } from '../platform/env';
-import { useHover } from '../state/hover';
+import { HoverTooltip } from '../ui/HoverTooltip';
 import { useSelection } from '../state/selection';
 import { useImagerySource, useOverrides } from '../state/overrides';
 import { useSettings } from '../state/settings';
@@ -43,7 +43,6 @@ export function GlobeView() {
   const hasViewer = useViewerStore((s) => s.viewer !== null);
   const ready = useViewerStore((s) => s.ready);
   const error = useViewerStore((s) => s.error);
-  const hover = useHover((s) => s.hover);
   const cameraMode = useSelection((s) => s.cameraMode);
   const [hintExpired, setHintExpired] = useState(false);
 
@@ -65,6 +64,9 @@ export function GlobeView() {
       onProblem: (problem) => {
         if (!cancelled) useViewerStore.getState().addProblem(problem);
       },
+      onImageryResolved: (resolved) => {
+        if (!cancelled) useViewerStore.getState().setImagery(resolved, false);
+      },
     })
       .then((created) => {
         if (cancelled) {
@@ -74,6 +76,7 @@ export function GlobeView() {
         viewer = created.viewer;
         window.__satlocViewer = created.viewer;
         store.attach(created.viewer, created.imagery);
+        if (created.imageryPending) store.setImagery(created.imagery, true);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -115,11 +118,7 @@ export function GlobeView() {
       data-ready={ready ? 'true' : 'false'}
     >
       <Timeline />
-      {hover && (
-        <div className="tooltip" style={{ left: hover.x + 12, top: hover.y + 12 }} data-testid="tooltip">
-          {hover.name} <span className="topbar__dim">{hover.noradId}</span>
-        </div>
-      )}
+      <HoverTooltip />
       {showHint && (
         <div className="globe__loading" role="status" data-testid="globe-loading">
           <span className="globe__spinner" aria-hidden="true" />

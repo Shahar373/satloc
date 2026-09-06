@@ -20,10 +20,12 @@ export function SatelliteLayerBridge() {
   const viewer = useViewerStore((s) => s.viewer);
   const isiSets = useCatalog((s) => s.sets);
   const groups = useCatalog((s) => s.groups);
+  const selectedId = useSelection((s) => s.selectedId);
+  // Memoised per record, so this stays the same object while the selected satellite's data is unchanged.
+  const selectedSet = useCatalog((s) => (selectedId === null ? undefined : s.findSet(selectedId)));
   const favorites = useSettings((s) => s.favorites);
   const displayedGroups = useSettings((s) => s.displayedGroups);
   const maxCatalogPoints = useSettings((s) => s.maxCatalogPoints);
-  const selectedId = useSelection((s) => s.selectedId);
   const showOrbit = useSelection((s) => s.showOrbit);
   const showGroundTrack = useSelection((s) => s.showGroundTrack);
   const showFootprint = useSelection((s) => s.showFootprint);
@@ -51,12 +53,9 @@ export function SatelliteLayerBridge() {
         seen.add(set.noradId);
       }
     }
-    if (selectedId !== null && !seen.has(selectedId)) {
-      const set = useCatalog.getState().findSet(selectedId);
-      if (set) out.push(set);
-    }
+    if (selectedId !== null && !seen.has(selectedId) && selectedSet) out.push(selectedSet);
     return out;
-  }, [isiSets, favorites, selectedId, groups]);
+  }, [isiSets, favorites, selectedId, selectedSet]);
 
   const tier2 = useMemo(() => {
     const records: OmmRecord[] = [];
