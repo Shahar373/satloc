@@ -22,7 +22,7 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: globe-screenshot
@@ -68,7 +68,7 @@ jobs:
       - run: npm ci
       # Updater artifacts need the signing key; the per-push build only produces installers.
       - run: npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: SatLoc-windows-installer
           path: |
