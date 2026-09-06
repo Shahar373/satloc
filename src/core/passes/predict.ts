@@ -32,6 +32,8 @@ export interface Pass {
   durationS: number;
   /** True when the satellite was already above the threshold at the start of the search window. */
   inProgressAtStart: boolean;
+  /** True when the pass continues past the end of the search window (LOS is the window edge). */
+  continuesAfterEnd: boolean;
 }
 
 export interface PredictOptions {
@@ -76,32 +78,32 @@ export function predictPasses(
   const passes: Pass[] = [];
 
   let prevMs = startMs;
-  let prevEl: number;
-  try {
-    prevEl = elevationAt(prevMs);
-  } catch {
-    return passes; // decayed or invalid elements: nothing to predict
-  }
+  // A failure here (decayed or malformed elements) is the caller's to report; do not hide it as "no passes".
+  let prevEl = elevationAt(prevMs);
   let aosMs: number | null = prevEl >= minEl ? startMs : null;
   let inProgress = prevEl >= minEl;
 
-  for (let ms = startMs + stepMs; ms <= endMs + stepMs; ms += stepMs) {
+  for (let ms = startMs + stepMs; ms <= endMs; ms += stepMs) {
     let el: number;
     try {
       el = elevationAt(ms);
     } catch {
-      break;
+      break; // the satellite decays inside the window: stop scanning, keep what was found
     }
     if (aosMs === null && prevEl < minEl && el >= minEl) {
       aosMs = bisect(prevMs, ms, minEl, elevationAt, tolMs, true);
       inProgress = false;
     } else if (aosMs !== null && prevEl >= minEl && el < minEl) {
       const losMs = bisect(prevMs, ms, minEl, elevationAt, tolMs, false);
-      passes.push(buildPass(satrec, observer, aosMs, losMs, elevationAt, inProgress));
+      passes.push(buildPass(satrec, observer, aosMs, losMs, elevationAt, inProgress, false));
       aosMs = null;
     }
     prevMs = ms;
     prevEl = el;
+  }
+  // A pass still in progress at the end of the window is reported, truncated at the window edge.
+  if (aosMs !== null && prevMs > aosMs) {
+    passes.push(buildPass(satrec, observer, aosMs, Math.min(prevMs, endMs), elevationAt, inProgress, true));
   }
 
   return passes;
@@ -134,6 +136,7 @@ function buildPass(
   losMs: number,
   elevationAt: (ms: number) => number,
   inProgressAtStart: boolean,
+  continuesAfterEnd: boolean,
 ): Pass {
   // Golden-section search for the elevation maximum (unimodal within a single pass).
   const phi = (Math.sqrt(5) - 1) / 2;
@@ -172,6 +175,7 @@ function buildPass(
     losAzimuthDeg: (toDeg(losLook.azimuth) + 360) % 360,
     durationS: (losMs - aosMs) / 1000,
     inProgressAtStart,
+    continuesAfterEnd,
   };
 }
 

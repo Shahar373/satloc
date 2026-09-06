@@ -26,9 +26,21 @@ function run<T>(mode: IDBTransactionMode, op: (store: IDBObjectStore) => IDBRequ
       new Promise<T>((resolve, reject) => {
         const tx = db.transaction(STORE, mode);
         const request = op(tx.objectStore(STORE));
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
-        tx.oncomplete = () => db.close();
+        let result: T;
+        request.onsuccess = () => {
+          result = request.result;
+        };
+        // Resolve on commit (not on request success) and close the handle on every outcome.
+        tx.oncomplete = () => {
+          db.close();
+          resolve(result);
+        };
+        const fail = () => {
+          db.close();
+          reject(tx.error ?? request.error ?? new Error('IndexedDB transaction failed'));
+        };
+        tx.onerror = fail;
+        tx.onabort = fail;
       }),
   );
 }

@@ -58,6 +58,21 @@ describe('predictPasses', () => {
     expect(Math.abs(passes[0]!.los.getTime() - first.los.getTime())).toBeLessThan(2000);
   });
 
+  it('keeps a pass that is still in progress at the end of the window', () => {
+    const first = predictPasses(satrec, TEL_AVIV, epoch, 48, { minElevationDeg: 10 })[0]!;
+    const hours = (first.tca.getTime() - epoch.getTime()) / 3_600_000;
+    const passes = predictPasses(satrec, TEL_AVIV, epoch, hours, { minElevationDeg: 10 });
+    const last = passes[passes.length - 1]!;
+    expect(last.continuesAfterEnd).toBe(true);
+    expect(Math.abs(last.los.getTime() - (epoch.getTime() + hours * 3_600_000))).toBeLessThan(35_000);
+    expect(passes.slice(0, -1).every((p) => !p.continuesAfterEnd)).toBe(true);
+  });
+
+  it('throws for a satellite that cannot be propagated instead of reporting no passes', () => {
+    const decayed = ommToElementSet({ ...EROS_LIKE_OMM, EPOCH: '2000-01-01T00:00:00.000000', BSTAR: 0.5 });
+    expect(() => predictPasses(decayed.satrec, TEL_AVIV, new Date('2026-09-01T00:00:00Z'), 1)).toThrow();
+  });
+
   it('returns nothing for a window with no passes', () => {
     const first = predictPasses(satrec, TEL_AVIV, epoch, 48, { minElevationDeg: 10 })[0]!;
     // A window that ends before the first AOS.

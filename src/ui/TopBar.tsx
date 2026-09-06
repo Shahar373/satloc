@@ -21,6 +21,7 @@ export function TopBar() {
   const animating = useViewerStore((s) => s.animating);
   const imagery = useViewerStore((s) => s.imagery);
   const viewer = useViewerStore((s) => s.viewer);
+  const problems = useViewerStore((s) => s.problems);
   const settingsOpen = useUi((s) => s.settingsOpen);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
 
@@ -30,6 +31,11 @@ export function TopBar() {
       <span className="topbar__dim topbar__tagline">Earth · real-time satellites</span>
       <span className="topbar__spacer" />
       <UpdateBanner />
+      {problems.map((p) => (
+        <span key={p.label} className="badge badge--warn" title={p.detail} role="status" data-testid="viewer-problem">
+          {p.label}
+        </span>
+      ))}
       {imagery === 'offline' && (
         <span className="badge badge--warn" title="Online imagery is unreachable; showing bundled low-resolution tiles.">
           Offline imagery

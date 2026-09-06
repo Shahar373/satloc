@@ -34,6 +34,7 @@ export function Sidebar() {
   const fetchedAt = useCatalog((s) => s.fetchedAt);
   const error = useCatalog((s) => s.error);
   const notice = useCatalog((s) => s.notice);
+  const refreshing = useCatalog((s) => s.refreshing);
   const refresh = useCatalog((s) => s.refresh);
   const selectedId = useSelection((s) => s.selectedId);
   const select = useSelection((s) => s.select);
@@ -75,10 +76,11 @@ export function Sidebar() {
           <button
             type="button"
             className="link"
+            disabled={refreshing || source === 'fixture'}
             onClick={() => void refresh()}
             title="Fetch the latest element sets (CelesTrak at most once every 2 hours, otherwise the mirror)"
           >
-            refresh
+            {refreshing ? 'refreshing…' : 'refresh'}
           </button>
         </p>
         {notice && <p className="panel__hint">{notice}</p>}

@@ -3,7 +3,7 @@ import { EARTH_MEAN_RADIUS_M } from '../geometry/footprint';
 import { gmstAt, propagateTeme, temeToEcf, temeToGroundPoint } from '../propagation/sgp4';
 import { EROS_LIKE_OMM } from '../tle/fixtures';
 import { ommToElementSet } from '../tle/omm';
-import { offNadirAngle, reachCentralAngle, sunDirectionEcf, sunElevationAt, targetEcfKm } from './geometry';
+import { offNadirAngle, reachCentralAngle, sunDirectionEcf, sunElevationAt, targetEcfKm, targetSide } from './geometry';
 import { findImagingOpportunities } from './opportunities';
 
 const deg = (d: number) => (d * Math.PI) / 180;
@@ -25,6 +25,17 @@ describe('imaging geometry', () => {
     const eta = toDeg(offNadirAngle(sat, aside));
     expect(eta).toBeGreaterThan(40);
     expect(eta).toBeLessThan(50);
+  });
+
+  it('targetSide: facing east on the equator, a target to the south is on the right', () => {
+    const sat = { x: 6371 + 536, y: 0, z: 0 }; // over 0N 0E
+    const eastward = { x: 0, y: 7.6, z: 0 };
+    const south = targetEcfKm({ latitude: deg(-5), longitude: 0, heightKm: 0 });
+    const north = targetEcfKm({ latitude: deg(5), longitude: 0, heightKm: 0 });
+    expect(targetSide(sat, eastward, south)).toBe(1);
+    expect(targetSide(sat, eastward, north)).toBe(-1);
+    // Flying west the sides swap.
+    expect(targetSide(sat, { x: 0, y: -7.6, z: 0 }, south)).toBe(-1);
   });
 
   it('reach: 45 degrees from 536 km spans about 5 degrees of central angle', () => {
@@ -74,6 +85,37 @@ describe('findImagingOpportunities', () => {
     const wide = findImagingOpportunities(satrec, TEL_AVIV, epoch, 7, { maxOffNadirDeg: 45 });
     const narrow = findImagingOpportunities(satrec, TEL_AVIV, epoch, 7, { maxOffNadirDeg: 20 });
     expect(narrow.length).toBeLessThanOrEqual(wide.length);
-    for (const o of narrow) expect(o.offNadirDeg).toBeLessThanOrEqual(20);
+    for (const o of wide) expect(o.offNadirDeg).toBeLessThanOrEqual(45.001);
+    for (const o of narrow) {
+      expect(o.offNadirDeg).toBeLessThanOrEqual(20.001);
+      // Every narrow window lies inside a wide one.
+      expect(wide.some((w) => w.start.getTime() <= o.time.getTime() && o.time.getTime() <= w.end.getTime())).toBe(true);
+    }
+  });
+
+  it('finds windows shorter than the coarse step at a small roll limit', () => {
+    // At 5 degrees the reach is ~45 km, crossed in a few seconds; the 20 s scan must still catch it.
+    const tiny = findImagingOpportunities(satrec, TEL_AVIV, epoch, 30, { maxOffNadirDeg: 5, coarseStepS: 20 });
+    const fine = findImagingOpportunities(satrec, TEL_AVIV, epoch, 30, { maxOffNadirDeg: 5, coarseStepS: 2 });
+    expect(tiny.length).toBe(fine.length);
+    for (const o of tiny) {
+      expect(o.offNadirDeg).toBeLessThanOrEqual(5.001);
+      expect(o.end.getTime() - o.start.getTime()).toBeLessThan(60_000);
+      expect(fine.some((f) => Math.abs(f.time.getTime() - o.time.getTime()) < 3000)).toBe(true);
+    }
+  });
+
+  it('reports a window that continues past the end of the forecast', () => {
+    const first = findImagingOpportunities(satrec, TEL_AVIV, epoch, 7)[0]!;
+    const days = (first.time.getTime() - epoch.getTime()) / 86_400_000;
+    const cut = findImagingOpportunities(satrec, TEL_AVIV, epoch, days);
+    const last = cut[cut.length - 1]!;
+    expect(last.continuesAfterEnd).toBe(true);
+    expect(Math.abs(last.end.getTime() - (epoch.getTime() + days * 86_400_000))).toBeLessThan(25_000);
+  });
+
+  it('throws instead of returning an empty list when the satellite cannot be propagated', () => {
+    const decayed = ommToElementSet({ ...EROS_LIKE_OMM, EPOCH: '2000-01-01T00:00:00.000000', BSTAR: 0.5 });
+    expect(() => findImagingOpportunities(decayed.satrec, TEL_AVIV, new Date('2026-09-01T00:00:00Z'), 1)).toThrow();
   });
 });

@@ -105,6 +105,7 @@ export function SettingsPanel() {
             <span className="panel__hint">
               {updateStatus === 'upToDate' && `Up to date (${APP_VERSION}).`}
               {updateStatus === 'available' && update && `Version ${update.version} is available; you have ${update.currentVersion}.`}
+              {updateStatus === 'available' && updateError && ` ${updateError}`}
               {updateStatus === 'installing' && `Downloading${updateProgress !== null ? ` ${Math.round(updateProgress * 100)}%` : '…'} The app restarts when done.`}
               {updateStatus === 'error' && `Could not check: ${updateError}`}
               {updateStatus === 'idle' && 'Checked automatically a few seconds after start-up and every 6 hours.'}

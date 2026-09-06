@@ -75,6 +75,19 @@ interface Tracked {
   entity: Entity;
 }
 
+/** Ground track and its derived strips, sampled once and reused for TRACK_STALE_S of simulation time. */
+interface TrackCache {
+  id: number;
+  fromMs: number;
+  past: Cartesian3[];
+  future: Cartesian3[];
+  swathLeft: Cartesian3[];
+  swathRight: Cartesian3[];
+  reachLeft: Cartesian3[];
+  reachRight: Cartesian3[];
+  maxOffNadirDeg: number;
+}
+
 function kmToCartesian(v: EciVec3<number>, out?: Cartesian3): Cartesian3 {
   return Cartesian3.fromElements(v.x * 1000, v.y * 1000, v.z * 1000, out);
 }
@@ -148,17 +161,9 @@ export class SatelliteLayer {
   };
 
   private orbitCache: { id: number; sampledAtMs: number; periodMs: number; teme: EciVec3<number>[] } | null = null;
-  private trackCache: {
-    id: number;
-    fromMs: number;
-    past: Cartesian3[];
-    future: Cartesian3[];
-    swathLeft: Cartesian3[];
-    swathRight: Cartesian3[];
-    reachLeft: Cartesian3[];
-    reachRight: Cartesian3[];
-    maxOffNadirDeg: number;
-  } | null = null;
+  private trackCache: TrackCache | null = null;
+  /** The cache object whose arrays the six track/swath/reach polylines currently hold. */
+  private trackSynced: TrackCache | null = null;
   private footprintCache: { id: number; atMs: number; ring: Cartesian3[] } | null = null;
 
   constructor(
@@ -181,7 +186,7 @@ export class SatelliteLayer {
       id: 'satloc-track-future',
       show: false,
       polyline: {
-        positions: new CallbackProperty((time) => this.trackPositions(time ?? viewer.clock.currentTime, 'future'), false),
+        positions: [],
         width: 2,
         material: TRACK_FUTURE_COLOR,
       },
@@ -190,7 +195,7 @@ export class SatelliteLayer {
       id: 'satloc-track-past',
       show: false,
       polyline: {
-        positions: new CallbackProperty((time) => this.trackPositions(time ?? viewer.clock.currentTime, 'past'), false),
+        positions: [],
         width: 2,
         material: TRACK_PAST_COLOR,
       },
@@ -209,7 +214,7 @@ export class SatelliteLayer {
       id: 'satloc-swath-left',
       show: false,
       polyline: {
-        positions: new CallbackProperty((time) => this.swathPositions(time ?? viewer.clock.currentTime, 'left'), false),
+        positions: [],
         width: 1,
         material: SWATH_COLOR,
       },
@@ -218,7 +223,7 @@ export class SatelliteLayer {
       id: 'satloc-swath-right',
       show: false,
       polyline: {
-        positions: new CallbackProperty((time) => this.swathPositions(time ?? viewer.clock.currentTime, 'right'), false),
+        positions: [],
         width: 1,
         material: SWATH_COLOR,
       },
@@ -228,7 +233,7 @@ export class SatelliteLayer {
       id: 'satloc-reach-left',
       show: false,
       polyline: {
-        positions: new CallbackProperty((time) => this.reachPositions(time ?? viewer.clock.currentTime, 'left'), false),
+        positions: [],
         width: 1,
         material: REACH_COLOR,
       },
@@ -237,7 +242,7 @@ export class SatelliteLayer {
       id: 'satloc-reach-right',
       show: false,
       polyline: {
-        positions: new CallbackProperty((time) => this.reachPositions(time ?? viewer.clock.currentTime, 'right'), false),
+        positions: [],
         width: 1,
         material: REACH_COLOR,
       },
@@ -255,7 +260,10 @@ export class SatelliteLayer {
       },
     });
 
-    this.removePreRender = viewer.scene.preRender.addEventListener(() => this.updateCamera());
+    this.removePreRender = viewer.scene.preRender.addEventListener(() => {
+      this.syncTrack();
+      this.updateCamera();
+    });
 
     this.handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
     this.handler.setInputAction((event: ScreenSpaceEventHandler.PositionedEvent) => {
@@ -325,7 +333,8 @@ export class SatelliteLayer {
           verticalOrigin: VerticalOrigin.BOTTOM,
           pixelOffset: new Cartesian2(0, -12),
         },
-        viewFrom: new Cartesian3(0, -2_500_000, 2_000_000),
+        // Within MODEL_RANGE_M so "track" mode shows the 3D model, not the far-range dot.
+        viewFrom: new Cartesian3(0, -1_800_000, 1_400_000),
       });
       this.tracked.set(set.noradId, tracked);
     }
@@ -427,45 +436,65 @@ export class SatelliteLayer {
     return this.orbitCache!.teme.map((p) => kmToCartesian(temeToEcf(p, gmst)));
   }
 
-  private trackPositions(time: JulianDate, part: 'past' | 'future'): Cartesian3[] {
-    const selected = this.selection.selectedId === null ? undefined : this.tracked.get(this.selection.selectedId);
-    if (!selected) return [];
+  /**
+   * Ground track (half an orbit back, one ahead) plus the swath and reach strips, recomputed
+   * when the selection changes or the clock drifts TRACK_STALE_S from the cached origin.
+   */
+  private ensureTrackCache(time: JulianDate): TrackCache | null {
+    const { showGroundTrack, showSwath, showReach } = this.selection;
+    const selected = this.selectedTracked();
+    if (!selected || !(showGroundTrack || showSwath || showReach)) {
+      this.trackCache = null;
+      return null;
+    }
     const nowMs = JulianDate.toDate(time).getTime();
     const cache = this.trackCache;
-    if (!cache || cache.id !== selected.set.noradId || Math.abs(nowMs - cache.fromMs) > TRACK_STALE_S * 1000) {
-      try {
-        const period = orbitalPeriodMinutes(selected.set.satrec);
-        const samples = sampleGroundTrack(selected.set.satrec, new Date(nowMs), period / 2, period, TRACK_STEP_S);
-        const toCartesian = (p: LatLon) => Cartesian3.fromRadians(p.longitude, p.latitude, TRACK_HEIGHT_M);
-        const future = samples.filter((s) => s.time.getTime() >= nowMs).map((s) => s.point);
-        const swathKm = presetSatellite(selected.set.noradId)?.sat.swathKm;
-        const edges = swathKm ? stripEdges(future, (swathKm * 1000) / EARTH_MEAN_RADIUS_M) : { left: [], right: [] };
-        const futureSamples = samples.filter((s) => s.time.getTime() >= nowMs);
-        const meanHeightM = (futureSamples.reduce((acc, s) => acc + s.point.heightKm, 0) / Math.max(1, futureSamples.length)) * 1000;
-        const reach = stripEdges(future, 2 * reachCentralAngle(meanHeightM, (this.selection.maxOffNadirDeg * Math.PI) / 180));
-        this.trackCache = {
-          id: selected.set.noradId,
-          fromMs: nowMs,
-          past: samples.filter((s) => s.time.getTime() <= nowMs).map((s) => toCartesian(s.point)),
-          future: future.map(toCartesian),
-          swathLeft: edges.left.map(toCartesian),
-          swathRight: edges.right.map(toCartesian),
-          reachLeft: reach.left.map(toCartesian),
-          reachRight: reach.right.map(toCartesian),
-          maxOffNadirDeg: this.selection.maxOffNadirDeg,
-        };
-      } catch {
-        this.trackCache = null;
-        return [];
-      }
+    if (cache && cache.id === selected.set.noradId && Math.abs(nowMs - cache.fromMs) <= TRACK_STALE_S * 1000) return cache;
+    try {
+      const period = orbitalPeriodMinutes(selected.set.satrec);
+      // The sampling grid is anchored on `nowMs`, so both halves share the point under the satellite.
+      const samples = sampleGroundTrack(selected.set.satrec, new Date(nowMs), period / 2, period, TRACK_STEP_S);
+      const toCartesian = (p: LatLon) => Cartesian3.fromRadians(p.longitude, p.latitude, TRACK_HEIGHT_M);
+      const futureSamples = samples.filter((s) => s.time.getTime() >= nowMs);
+      const future = futureSamples.map((s) => s.point);
+      const swathKm = presetSatellite(selected.set.noradId)?.sat.swathKm;
+      const edges = swathKm ? stripEdges(future, (swathKm * 1000) / EARTH_MEAN_RADIUS_M) : { left: [], right: [] };
+      const meanHeightM = (futureSamples.reduce((acc, s) => acc + s.point.heightKm, 0) / Math.max(1, futureSamples.length)) * 1000;
+      const reach = stripEdges(future, 2 * reachCentralAngle(meanHeightM, (this.selection.maxOffNadirDeg * Math.PI) / 180));
+      this.trackCache = {
+        id: selected.set.noradId,
+        fromMs: nowMs,
+        past: samples.filter((s) => s.time.getTime() <= nowMs).map((s) => toCartesian(s.point)),
+        future: future.map(toCartesian),
+        swathLeft: edges.left.map(toCartesian),
+        swathRight: edges.right.map(toCartesian),
+        reachLeft: reach.left.map(toCartesian),
+        reachRight: reach.right.map(toCartesian),
+        maxOffNadirDeg: this.selection.maxOffNadirDeg,
+      };
+    } catch {
+      this.trackCache = null;
     }
-    return part === 'past' ? this.trackCache!.past : this.trackCache!.future;
+    return this.trackCache;
   }
 
-  private reachPositions(time: JulianDate, side: 'left' | 'right'): Cartesian3[] {
-    this.trackPositions(time, 'future');
-    if (!this.trackCache) return [];
-    return side === 'left' ? this.trackCache.reachLeft : this.trackCache.reachRight;
+  /**
+   * Push the cached arrays into the six static polylines, but only when the cache object changed:
+   * static positions let Cesium build the geometry once instead of every frame.
+   */
+  private syncTrack(): void {
+    const cache = this.ensureTrackCache(this.viewer.clock.currentTime);
+    if (cache === this.trackSynced) return;
+    this.trackSynced = cache;
+    const assign = (entity: Entity, positions: Cartesian3[]) => {
+      entity.polyline!.positions = new ConstantProperty(positions);
+    };
+    assign(this.trackPastEntity, cache?.past ?? []);
+    assign(this.trackFutureEntity, cache?.future ?? []);
+    assign(this.swathLeftEntity, cache?.swathLeft ?? []);
+    assign(this.swathRightEntity, cache?.swathRight ?? []);
+    assign(this.reachLeftEntity, cache?.reachLeft ?? []);
+    assign(this.reachRightEntity, cache?.reachRight ?? []);
   }
 
   private targetInReach = false;
@@ -489,12 +518,6 @@ export class SatelliteLayer {
     } catch {
       return [];
     }
-  }
-
-  private swathPositions(time: JulianDate, side: 'left' | 'right'): Cartesian3[] {
-    this.trackPositions(time, 'future'); // ensures the cache (and its swath edges) is current
-    if (!this.trackCache) return [];
-    return side === 'left' ? this.trackCache.swathLeft : this.trackCache.swathRight;
   }
 
   /** Horizon circle around the sub-satellite point, recomputed each simulated instant. */

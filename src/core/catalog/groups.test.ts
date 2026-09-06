@@ -14,12 +14,14 @@ describe('catalog groups', () => {
     expect(matchesIsraelPreset('Amos-17')).toBe(true);
     expect(matchesIsraelPreset('EROS C3')).toBe(true);
     expect(matchesIsraelPreset('STARLINK-1234')).toBe(false);
+    expect(matchesIsraelPreset('HORIZONS 3E')).toBe(false);
   });
 
   it('searches by name fragment or catalogue-number prefix', () => {
     expect(matchesQuery('eros', 'EROS C3', 54880)).toBe(true);
     expect(matchesQuery('548', 'EROS C3', 54880)).toBe(true);
     expect(matchesQuery('549', 'EROS C3', 54880)).toBe(false);
+    expect(matchesQuery('13', 'OFEQ 13', 44069)).toBe(true);
     expect(matchesQuery('', 'EROS C3', 54880)).toBe(false);
   });
 });

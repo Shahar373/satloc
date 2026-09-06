@@ -80,7 +80,13 @@ export function SatelliteLayerBridge() {
     const suspended = () => usePicking.getState().mode !== null;
     const select = (id: number) => useSelection.getState().select(id);
     const layer = new SatelliteLayer(viewer, select, suspended);
-    const catalog = new CatalogLayer(viewer, select, (info) => useHover.getState().setHover(info), suspended);
+    const catalog = new CatalogLayer(viewer, {
+      onPick: select,
+      onHover: (info) => useHover.getState().setHover(info),
+      clicksSuspended: suspended,
+      onStats: (stats) => useCatalog.getState().setPointStats(stats),
+      onError: (message) => useCatalog.getState().setWorkerError(message),
+    });
     layerRef.current = layer;
     catalogRef.current = catalog;
     return () => {
@@ -89,6 +95,8 @@ export function SatelliteLayerBridge() {
       layer.destroy();
       catalog.destroy();
       useHover.getState().setHover(null);
+      useCatalog.getState().setWorkerError(null);
+      useCatalog.getState().setPointStats(null);
     };
   }, [viewer]);
 

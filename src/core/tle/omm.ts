@@ -46,6 +46,7 @@ export function ommToElementSet(record: OmmRecord): ElementSet {
   if (satrec.error !== 0) {
     throw new Error(`SGP4 initialisation failed for ${record.OBJECT_NAME} (error ${satrec.error})`);
   }
+  assertUsable(satrec, record.OBJECT_NAME);
   return {
     noradId: record.NORAD_CAT_ID,
     name: record.OBJECT_NAME.trim(),
@@ -64,6 +65,7 @@ export function tleToElementSet(line1: string, line2: string, name?: string): El
   if (satrec.error !== 0) {
     throw new Error(`SGP4 initialisation failed for TLE ${satrec.satnum} (error ${satrec.error})`);
   }
+  assertUsable(satrec, name ?? `NORAD ${satrec.satnum}`);
   const noradId = Number(satrec.satnum);
   const intl = line1.slice(9, 17).trim();
   return {
@@ -76,6 +78,17 @@ export function tleToElementSet(line1: string, line2: string, name?: string): El
     eccentricity: satrec.ecco,
     meanMotion: publishedMeanMotion(satrec),
   };
+}
+
+/**
+ * satellite.js reports `error === 0` even when a field was missing or NaN; such a satrec then
+ * propagates to NaN positions silently. Reject it up front.
+ */
+function assertUsable(satrec: SatRec, name: string): void {
+  const fields = [satrec.jdsatepoch, satrec.no, satrec.ecco, satrec.inclo, satrec.nodeo, satrec.argpo, satrec.mo, satrec.bstar];
+  if (!fields.every(Number.isFinite) || satrec.no <= 0 || satrec.ecco < 0 || satrec.ecco >= 1) {
+    throw new Error(`Element set for ${name.trim()} is malformed (missing or non-numeric orbital elements)`);
+  }
 }
 
 /** Epoch from the satrec's Julian date. Unix epoch is JD 2440587.5. */

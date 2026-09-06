@@ -8,6 +8,8 @@ const GROUP_ROWS = [{ id: ISRAEL_GROUP_ID, name: 'Israeli satellites', approxCou
 
 export function CatalogPanel() {
   const groups = useCatalog((s) => s.groups);
+  const workerError = useCatalog((s) => s.workerError);
+  const pointStats = useCatalog((s) => s.pointStats);
   const loadGroup = useCatalog((s) => s.loadGroup);
   const search = useCatalog((s) => s.search);
   const displayedGroups = useSettings((s) => s.displayedGroups);
@@ -19,6 +21,7 @@ export function CatalogPanel() {
   // `groups` is a dependency so results refresh as groups finish loading.
   const results = useMemo(() => (query.trim() ? search(query) : []), [query, search, groups]);
   const loadedCount = Object.values(groups).filter((g) => g.status === 'ready').length;
+  const truncated = pointStats && pointStats.shown + pointStats.rejected < pointStats.total;
 
   return (
     <section className="panel" data-testid="catalog">
@@ -60,6 +63,17 @@ export function CatalogPanel() {
             </li>
           ))}
         </ul>
+      )}
+      {workerError && (
+        <p className="panel__hint panel__hint--warn" role="alert" data-testid="catalog-worker-error">
+          Catalogue points are not shown: {workerError}
+        </p>
+      )}
+      {truncated && (
+        <p className="panel__hint panel__hint--warn" data-testid="catalog-truncated">
+          Showing {pointStats.shown.toLocaleString()} of {pointStats.total.toLocaleString()} satellites. Raise the points limit in
+          Settings to see them all.
+        </p>
       )}
       {(open || displayedGroups.length > 0) && (
         <ul className="groups" data-testid="groups">

@@ -49,7 +49,7 @@ export function centralAngle(a: Vec3, b: Vec3): number {
  */
 export function targetSide(satEcfKm: Vec3, velocityEcfKmS: Vec3, targetEcfKm: Vec3): number {
   const nadir = scale(satEcfKm, -1 / norm(satEcfKm));
-  const right = cross(velocityEcfKmS, nadir); // velocity x down = right-hand side
+  const right = cross(nadir, velocityEcfKmS); // down x forward = right-hand side (right-hand rule)
   const s = dot(right, sub(targetEcfKm, satEcfKm));
   return s > 0 ? 1 : s < 0 ? -1 : 0;
 }

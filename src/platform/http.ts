@@ -5,7 +5,7 @@ export interface FetchTextOptions {
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000;
-const USER_AGENT = 'Mozilla/5.0 (compatible; SatLoc/0.1; +https://github.com/Shahar373/satloc)';
+const USER_AGENT = 'Mozilla/5.0 (compatible; SatLoc; +https://github.com/Shahar373/satloc)';
 
 /**
  * GET a URL and return its body as text.
@@ -15,7 +15,11 @@ const USER_AGENT = 'Mozilla/5.0 (compatible; SatLoc/0.1; +https://github.com/Sha
 export async function fetchText(url: string, options: FetchTextOptions = {}): Promise<string> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   try {
     const tauri = isTauri();
     const doFetch = tauri ? (await import('@tauri-apps/plugin-http')).fetch : fetch;
@@ -28,6 +32,11 @@ export async function fetchText(url: string, options: FetchTextOptions = {}): Pr
       throw new Error(`HTTP ${response.status} ${response.statusText} for ${url}`);
     }
     return await response.text();
+  } catch (err) {
+    if (timedOut || (err instanceof Error && err.name === 'AbortError')) {
+      throw new Error(`Timed out after ${Math.round(timeoutMs / 1000)} s for ${url}`);
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }

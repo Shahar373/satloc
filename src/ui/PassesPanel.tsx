@@ -5,6 +5,7 @@ import type { ElementSet } from '../core/tle/omm';
 import { useForecast } from '../state/forecast';
 import { formatLocation, useObserver } from '../state/observer';
 import { usePicking } from '../state/picking';
+import { useSelection } from '../state/selection';
 import { useViewerStore } from '../state/viewer';
 import { setSimulationTime } from '../viewer/createViewer';
 
@@ -91,6 +92,9 @@ export function PassesPanel({ set }: { set: ElementSet | undefined }) {
     if (!viewer) return;
     setSimulationTime(viewer, JulianDate.fromDate(new Date(pass.aos.getTime() - 30_000)));
     viewer.clock.shouldAnimate = true;
+    // A satellite camera mode (track/nadir/imaging) would override or displace the flight.
+    useSelection.getState().setCameraMode('free');
+    viewer.trackedEntity = undefined;
     viewer.camera.flyTo({
       destination: Cartesian3.fromDegrees(longitudeDeg, latitudeDeg, 3_500_000),
       duration: 1.5,

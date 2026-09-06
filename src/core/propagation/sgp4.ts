@@ -51,7 +51,11 @@ export function propagateTeme(satrec: SatRec, date: Date): TemeState {
     const code = satrec.error;
     throw new PropagationError(code, SGP4_ERRORS[code] ?? `SGP4 error ${code}`);
   }
-  return { position: result.position, velocity: result.velocity };
+  const { position, velocity } = result;
+  if (![position.x, position.y, position.z, velocity.x, velocity.y, velocity.z].every(Number.isFinite)) {
+    throw new PropagationError(satrec.error, 'SGP4 produced a non-finite state (malformed element set)');
+  }
+  return { position, velocity };
 }
 
 /** Greenwich mean sidereal time for `date`, radians. */
@@ -123,11 +127,14 @@ export function sampleGroundTrack(
   afterMinutes: number,
   stepSeconds = 10,
 ): { time: Date; point: GroundPoint }[] {
-  const start = from.getTime() - beforeMinutes * 60_000;
-  const end = from.getTime() + afterMinutes * 60_000;
+  // Anchor the grid on `from` so that instant is always a sample: a track split into "past" and
+  // "future" halves then shares the point under the satellite instead of leaving a gap there.
+  const stepMs = stepSeconds * 1000;
+  const first = -Math.ceil((beforeMinutes * 60_000) / stepMs);
+  const last = Math.ceil((afterMinutes * 60_000) / stepMs);
   const out: { time: Date; point: GroundPoint }[] = [];
-  for (let t = start; t <= end; t += stepSeconds * 1000) {
-    const time = new Date(t);
+  for (let k = first; k <= last; k++) {
+    const time = new Date(from.getTime() + k * stepMs);
     const state = propagateTeme(satrec, time);
     out.push({ time, point: temeToGroundPoint(state.position, gmstAt(time)) });
   }

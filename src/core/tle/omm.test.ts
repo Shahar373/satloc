@@ -14,6 +14,12 @@ describe('ommToElementSet', () => {
     expect(set.satrec.error).toBe(0);
   });
 
+  it('rejects malformed element sets instead of producing NaN positions', () => {
+    expect(() => ommToElementSet({ ...EROS_LIKE_OMM, MEAN_MOTION: Number.NaN })).toThrow(/malformed/);
+    expect(() => ommToElementSet({ ...EROS_LIKE_OMM, INCLINATION: undefined as unknown as number })).toThrow(/malformed/);
+    expect(() => ommToElementSet({ ...EROS_LIKE_OMM, ECCENTRICITY: 1.2 })).toThrow();
+  });
+
   it('reads the epoch back from the satrec to within a millisecond', () => {
     const set = ommToElementSet(EROS_LIKE_OMM);
     expect(Math.abs(satrecEpochDate(set.satrec).getTime() - set.epoch.getTime())).toBeLessThan(2);

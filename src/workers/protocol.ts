@@ -4,6 +4,8 @@ import type { OmmRecord } from '../core/tle/omm';
 /** Element sets the worker should know about, keyed by NORAD id (replaces the previous set). */
 export interface LoadMessage {
   type: 'load';
+  /** Echoed in the reply so overlapping loads resolve their own promise. */
+  requestId: number;
   records: OmmRecord[];
   tles: TleRecord[];
 }
@@ -20,6 +22,7 @@ export type WorkerRequest = LoadMessage | PropagateMessage;
 
 export interface LoadedMessage {
   type: 'loaded';
+  requestId: number;
   count: number;
   /** NORAD ids that failed SGP4 initialisation. */
   rejected: number[];

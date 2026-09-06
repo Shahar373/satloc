@@ -2,12 +2,16 @@
 import type { SatRec } from 'satellite.js';
 import { gmstAt, propagateTeme, temeToEcf } from '../core/propagation/sgp4';
 import { ommToElementSet, tleToElementSet } from '../core/tle/omm';
-import type { PositionsMessage, WorkerRequest } from './protocol';
+import type { LoadedMessage, PositionsMessage, WorkerRequest } from './protocol';
 
 const satrecs = new Map<number, SatRec>();
 let allIds = new Int32Array(0);
 
-function handleLoad(records: Parameters<typeof ommToElementSet>[0][], tles: { noradId: number; name: string; line1: string; line2: string }[]) {
+function handleLoad(
+  requestId: number,
+  records: Parameters<typeof ommToElementSet>[0][],
+  tles: { noradId: number; name: string; line1: string; line2: string }[],
+) {
   satrecs.clear();
   const rejected: number[] = [];
   for (const record of records) {
@@ -27,7 +31,8 @@ function handleLoad(records: Parameters<typeof ommToElementSet>[0][], tles: { no
     }
   }
   allIds = Int32Array.from(satrecs.keys());
-  self.postMessage({ type: 'loaded', count: satrecs.size, rejected });
+  const message: LoadedMessage = { type: 'loaded', requestId, count: satrecs.size, rejected };
+  self.postMessage(message);
 }
 
 function handlePropagate(requestId: number, timeMs: number, ids: Int32Array | undefined) {
@@ -61,6 +66,6 @@ function handlePropagate(requestId: number, timeMs: number, ids: Int32Array | un
 
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const msg = event.data;
-  if (msg.type === 'load') handleLoad(msg.records, msg.tles);
+  if (msg.type === 'load') handleLoad(msg.requestId, msg.records, msg.tles);
   else if (msg.type === 'propagate') handlePropagate(msg.requestId, msg.timeMs, msg.ids);
 };

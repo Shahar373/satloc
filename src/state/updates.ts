@@ -27,12 +27,17 @@ export const useUpdates = create<UpdatesState>()((set, get) => ({
 
   async check() {
     if (get().status === 'checking' || get().status === 'installing') return;
+    const previous = get().update;
     set({ status: 'checking', error: null });
     try {
       const update = await checkForUpdate();
-      set({ status: update ? 'available' : 'upToDate', update, checkedAt: new Date(), dismissed: false });
+      // A dismissed notice stays dismissed for the same version; a new version shows again.
+      const dismissed = update && previous && update.version === previous.version ? get().dismissed : false;
+      set({ status: update ? 'available' : 'upToDate', update, checkedAt: new Date(), dismissed });
     } catch (err) {
-      set({ status: 'error', error: err instanceof Error ? err.message : String(err), checkedAt: new Date() });
+      const message = err instanceof Error ? err.message : String(err);
+      // A transient check failure must not hide an update we already know about.
+      set({ status: previous ? 'available' : 'error', error: message, checkedAt: new Date() });
     }
   },
 
@@ -44,7 +49,8 @@ export const useUpdates = create<UpdatesState>()((set, get) => ({
       await update.install((progress) => set({ progress }));
       // The app relaunches; nothing to do if we get here.
     } catch (err) {
-      set({ status: 'available', progress: null, error: err instanceof Error ? err.message : String(err) });
+      // Stay 'available' so the user can retry; the error is shown next to the offer.
+      set({ status: 'available', progress: null, error: `Install failed: ${err instanceof Error ? err.message : String(err)}` });
     }
   },
 

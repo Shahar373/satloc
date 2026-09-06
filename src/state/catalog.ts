@@ -47,11 +47,20 @@ export interface CatalogState {
   error: string | null;
   /** Explanation when data arrived but not from the preferred source (shown quietly). */
   notice: string | null;
+  /** True while refresh() is running. */
+  refreshing: boolean;
+  /** Problem reported by the catalogue point layer (its web worker), shown in the catalogue panel. */
+  workerError: string | null;
+  /** How many catalogue points are on the globe versus how many the displayed groups hold. */
+  pointStats: { shown: number; total: number; rejected: number } | null;
   groups: Record<string, GroupState>;
   load(options?: { fixture?: boolean }): Promise<void>;
   /** Refresh the ISI element sets. CelesTrak is asked at most once per 2 hours; otherwise the mirror. */
   refresh(): Promise<void>;
-  loadGroup(groupId: string): Promise<void>;
+  /** Load a group (from cache when fresh). `force` re-fetches a loaded group older than 2 hours. */
+  loadGroup(groupId: string, options?: { force?: boolean }): Promise<void>;
+  setWorkerError(message: string | null): void;
+  setPointStats(stats: CatalogState['pointStats']): void;
   /** Find an element set anywhere: ISI, favourites, loaded groups. */
   findSet(noradId: number): ElementSet | undefined;
   /** Raw record for a catalogue satellite, for pinning it as a favourite. */
@@ -68,10 +77,62 @@ const GROUP_CACHE_PREFIX = 'satloc.group.';
 export function celestrakAllowed(now = Date.now()): boolean {
   try {
     const last = Number(getStorage().getItem(CELESTRAK_ATTEMPT_KEY) ?? 0);
-    return !Number.isFinite(last) || now - last >= CELESTRAK_MIN_REFRESH_MS;
+    // A timestamp in the future (clock set back) must not lock CelesTrak out; treat it as no attempt.
+    return !Number.isFinite(last) || last > now || now - last >= CELESTRAK_MIN_REFRESH_MS;
   } catch {
     return true;
   }
+}
+
+/** Shape check for catalogue data read back from a cache; bad entries are treated as absent. */
+function isStoredCatalog(value: unknown): value is StoredCatalog {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Partial<StoredCatalog>;
+  if (!Array.isArray(v.records)) return false;
+  if (v.fetchedAt !== null && (typeof v.fetchedAt !== 'string' || !Number.isFinite(new Date(v.fetchedAt).getTime()))) return false;
+  if (!v.records.every((r) => r && typeof r === 'object' && Number.isFinite((r as OmmRecord).NORAD_CAT_ID) && typeof (r as OmmRecord).EPOCH === 'string')) return false;
+  if (v.tles !== undefined && !Array.isArray(v.tles)) return false;
+  return true;
+}
+
+/** Element sets known before any refresh: the newer of the bundled snapshot and this device's cache. */
+function currentStored(): { stored: StoredCatalog; source: CatalogSource; fetchedAt: Date | null } {
+  let stored: StoredCatalog = snapshot as StoredCatalog;
+  let source: CatalogSource = stored.records.length + (stored.tles?.length ?? 0) > 0 ? 'snapshot' : 'none';
+  let fetchedAt = stored.fetchedAt ? new Date(stored.fetchedAt) : null;
+  const cache = readCache();
+  if (cache && cache.fetchedAt && (!fetchedAt || new Date(cache.fetchedAt) > fetchedAt)) {
+    stored = cache;
+    source = cache.source ?? 'cache';
+    fetchedAt = new Date(cache.fetchedAt);
+  }
+  return { stored, source, fetchedAt };
+}
+
+const KNOWN_GROUP_IDS = new Set([ISRAEL_GROUP_ID, ...CATALOG_GROUPS.map((g) => g.id)]);
+
+/** Group loads in flight, so concurrent callers (and the Israel filter) share one fetch. */
+const inflightGroups = new Map<string, Promise<void>>();
+
+/** Refresh interval for the background scheduler (the 2-hour rule decides whether anything is fetched). */
+const AUTO_REFRESH_TICK_MS = 15 * 60 * 1000;
+
+/**
+ * Keep element sets fresh while the app runs: every 15 minutes, refresh the ISI sets once they are
+ * 2 hours old and re-fetch displayed groups older than 2 hours. Returns a stop function.
+ */
+export function startAutoRefresh(): () => void {
+  const tick = () => {
+    const state = useCatalog.getState();
+    if (state.source === 'fixture' || state.refreshing) return;
+    const age = state.fetchedAt ? Date.now() - state.fetchedAt.getTime() : Number.POSITIVE_INFINITY;
+    if (age >= CELESTRAK_MIN_REFRESH_MS) void state.refresh();
+    for (const groupId of useSettings.getState().displayedGroups) {
+      if (KNOWN_GROUP_IDS.has(groupId)) void state.loadGroup(groupId, { force: true });
+    }
+  };
+  const timer = setInterval(tick, AUTO_REFRESH_TICK_MS);
+  return () => clearInterval(timer);
 }
 
 function markCelestrakAttempt(now = Date.now()): void {
@@ -141,8 +202,8 @@ function readCache(): StoredCatalog | null {
   try {
     const raw = getStorage().getItem(CACHE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredCatalog;
-    return Array.isArray(parsed.records) && typeof parsed.fetchedAt === 'string' ? parsed : null;
+    const parsed: unknown = JSON.parse(raw);
+    return isStoredCatalog(parsed) && typeof parsed.fetchedAt === 'string' ? parsed : null;
   } catch {
     return null;
   }
@@ -161,6 +222,75 @@ function groupMeta(groupId: string): { name: string } {
   return { name: CATALOG_GROUPS.find((g) => g.id === groupId)?.name ?? groupId };
 }
 
+type GetState = () => CatalogState;
+type SetState = (partial: Partial<CatalogState> | ((state: CatalogState) => Partial<CatalogState>)) => void;
+
+async function loadGroupImpl(
+  groupId: string,
+  options: { force?: boolean },
+  existing: GroupState | undefined,
+  get: GetState,
+  set: SetState,
+): Promise<void> {
+  const publish = (records: OmmRecord[], fetchedAt: Date | null, status: GroupState['status'], error: string | null) =>
+    set((s) => ({
+      groups: {
+        ...s.groups,
+        [groupId]: {
+          id: groupId,
+          ...groupMeta(groupId),
+          status,
+          error,
+          fetchedAt,
+          records,
+          // Reuse the element sets when the records did not change (12,000 satrecs take ~100 ms to build).
+          sets: existing && records === existing.records ? existing.sets : [...recordsToSets(records).values()],
+        },
+      },
+    }));
+
+  // The Israel preset is a filter over the full active catalogue and waits for it to actually load.
+  if (groupId === ISRAEL_GROUP_ID) {
+    if (!existing || existing.records.length === 0) publish([], null, 'loading', null);
+    await get().loadGroup('active', options);
+    const active = get().groups['active'];
+    const records = active?.records.filter((r) => matchesIsraelPreset(r.OBJECT_NAME)) ?? [];
+    const ok = active?.status === 'ready';
+    publish(records, active?.fetchedAt ?? null, ok ? 'ready' : 'error', ok ? active?.error ?? null : (active?.error ?? 'The active catalogue could not be loaded'));
+    return;
+  }
+
+  // Mark as loading right away (synchronously for callers) unless we already show records.
+  if (!existing || existing.records.length === 0) publish([], null, 'loading', null);
+
+  const kv = getKeyValueStore();
+  const cacheKey = GROUP_CACHE_PREFIX + groupId;
+  const cachedRaw = await kv.get<unknown>(cacheKey).catch(() => undefined);
+  let cached: StoredCatalog | null = null;
+  if (cachedRaw !== undefined) {
+    if (isStoredCatalog(cachedRaw) && typeof cachedRaw.fetchedAt === 'string') cached = cachedRaw;
+    else void kv.delete(cacheKey).catch(() => undefined);
+  }
+  const cachedAt = cached ? new Date(cached.fetchedAt as string) : null;
+  if (cached && cachedAt && (!existing || existing.records.length === 0)) publish(cached.records, cachedAt, 'ready', null);
+
+  const age = cachedAt ? Date.now() - cachedAt.getTime() : Number.POSITIVE_INFINITY;
+  if (age < CELESTRAK_MIN_REFRESH_MS) return;
+
+  try {
+    const records = parseGpJson(await fetchText(gpUrl({ group: groupId }, celestrakOrigin()), { timeoutMs: 60_000 }));
+    const fetchedAt = new Date();
+    await kv.set(cacheKey, { fetchedAt: fetchedAt.toISOString(), records } satisfies StoredCatalog).catch(() => undefined);
+    publish(records, fetchedAt, 'ready', null);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`Group ${groupId} failed`, err);
+    const fallback = existing && existing.records.length > 0 ? existing : cached && cachedAt ? { records: cached.records, fetchedAt: cachedAt } : null;
+    if (fallback) publish(fallback.records, fallback.fetchedAt, 'ready', message);
+    else publish([], null, 'error', message);
+  }
+}
+
 export const useCatalog = create<CatalogState>()((set, get) => ({
   sets: [],
   source: 'none',
@@ -168,7 +298,18 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
   status: 'idle',
   error: null,
   notice: null,
+  refreshing: false,
+  workerError: null,
+  pointStats: null,
   groups: {},
+
+  setWorkerError(message) {
+    set({ workerError: message });
+  },
+
+  setPointStats(stats) {
+    set({ pointStats: stats });
+  },
 
   async load(options = {}) {
     if (options.fixture) {
@@ -196,22 +337,15 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
     }
 
     // 1. Bundled snapshot, then 2. anything newer we cached on this device.
-    let stored: StoredCatalog = snapshot as StoredCatalog;
-    let source: CatalogSource = stored.records.length + (stored.tles?.length ?? 0) > 0 ? 'snapshot' : 'none';
-    let fetchedAt = stored.fetchedAt ? new Date(stored.fetchedAt) : null;
-
-    const cache = readCache();
-    if (cache && cache.fetchedAt && (!fetchedAt || new Date(cache.fetchedAt) > fetchedAt)) {
-      stored = cache;
-      source = cache.source ?? 'cache';
-      fetchedAt = new Date(cache.fetchedAt);
-    }
-
+    const { stored, source, fetchedAt } = currentStored();
     const sets = toPresetSets(stored.records, stored.tles ?? []);
     set({ sets, source, fetchedAt, status: sets.length > 0 ? 'ready' : 'loading', error: null });
 
-    // 3. Groups the user left displayed last time.
-    for (const groupId of useSettings.getState().displayedGroups) void get().loadGroup(groupId);
+    // 3. Groups the user left displayed last time (unknown ids, e.g. from a test build, are dropped).
+    for (const groupId of useSettings.getState().displayedGroups) {
+      if (KNOWN_GROUP_IDS.has(groupId)) void get().loadGroup(groupId);
+      else useSettings.getState().setGroupDisplayed(groupId, false);
+    }
 
     // 4. Refresh from CelesTrak unless the data is fresh enough.
     const age = fetchedAt ? Date.now() - fetchedAt.getTime() : Number.POSITIVE_INFINITY;
@@ -219,14 +353,20 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
   },
 
   async refresh() {
-    const origin = celestrakOrigin();
-    const askCelestrak = celestrakAllowed();
-    if (askCelestrak) markCelestrakAttempt();
+    if (get().refreshing || get().source === 'fixture') return;
+    set({ refreshing: true });
     try {
-      const records: OmmRecord[] = [];
-      const tles: TleRecord[] = [];
+      const origin = celestrakOrigin();
+      const askCelestrak = celestrakAllowed();
+      if (askCelestrak) markCelestrakAttempt();
+
+      // Start from what we already have, so a satellite whose fetch fails keeps its last elements.
+      const { stored } = currentStored();
+      const records = new Map<number, OmmRecord>(stored.records.map((r) => [r.NORAD_CAT_ID, r]));
+      const tles = new Map<number, TleRecord>((stored.tles ?? []).map((t) => [t.noradId, t]));
       const problems: string[] = [];
       let usedMirror = false;
+      let fetchedAny = false;
       for (const sat of ISI_PRESET.satellites) {
         if (askCelestrak) {
           try {
@@ -234,7 +374,9 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
               (r) => r.NORAD_CAT_ID === sat.noradId,
             );
             if (found) {
-              records.push(found);
+              records.set(sat.noradId, found);
+              tles.delete(sat.noradId); // the fresh OMM record supersedes any older mirror TLE
+              fetchedAny = true;
               continue;
             }
             problems.push(`${sat.name}: not in the CelesTrak response`);
@@ -244,88 +386,48 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
         }
         // Fallback (or the only source inside CelesTrak's 2-hour window): the TLE mirror.
         try {
-          tles.push(parseTleApiJson(await fetchText(tleApiUrl(sat.noradId)), sat.noradId));
+          tles.set(sat.noradId, parseTleApiJson(await fetchText(tleApiUrl(sat.noradId)), sat.noradId));
+          records.delete(sat.noradId); // the fresh TLE supersedes any older OMM record
           usedMirror = true;
+          fetchedAny = true;
         } catch (err) {
           problems.push(`${sat.name} (mirror): ${err instanceof Error ? err.message : String(err)}`);
         }
       }
-      if (records.length + tles.length === 0) {
+      if (!fetchedAny) {
         throw new Error(problems.join('; ') || 'no element sets returned');
       }
       const fetchedAt = new Date();
       const source: 'celestrak' | 'mirror' = usedMirror ? 'mirror' : 'celestrak';
-      writeCache({ fetchedAt: fetchedAt.toISOString(), records, tles, source });
+      const next: StoredCatalog = { fetchedAt: fetchedAt.toISOString(), records: [...records.values()], tles: [...tles.values()], source };
+      writeCache(next);
       const notice = !askCelestrak
         ? 'CelesTrak is asked at most once every 2 hours; this refresh used the mirror.'
         : problems.length > 0
           ? `${problems.join('; ')}; using the mirror.`
           : null;
-      set({ sets: toPresetSets(records, tles), source, fetchedAt, status: 'ready', error: null, notice });
+      set({ sets: toPresetSets(next.records, next.tles ?? []), source, fetchedAt, status: 'ready', error: null, notice });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.warn('Element set refresh failed', err);
       set((state) => ({ error: message, notice: null, status: state.sets.length > 0 ? 'ready' : 'error' }));
+    } finally {
+      set({ refreshing: false });
     }
   },
 
-  async loadGroup(groupId) {
+  loadGroup(groupId, options = {}) {
+    const running = inflightGroups.get(groupId);
+    if (running) return running;
     const existing = get().groups[groupId];
-    if (existing && (existing.status === 'loading' || existing.status === 'ready')) return;
-
-    // The Israel preset is a filter over the full active catalogue.
-    if (groupId === ISRAEL_GROUP_ID) {
-      set((s) => ({ groups: { ...s.groups, [groupId]: { id: groupId, ...groupMeta(groupId), status: 'loading', error: null, fetchedAt: null, records: [], sets: [] } } }));
-      await get().loadGroup('active');
-      const active = get().groups['active'];
-      const records = active?.records.filter((r) => matchesIsraelPreset(r.OBJECT_NAME)) ?? [];
-      set((s) => ({
-        groups: {
-          ...s.groups,
-          [groupId]: {
-            id: groupId,
-            ...groupMeta(groupId),
-            status: active?.status === 'ready' ? 'ready' : 'error',
-            error: active?.error ?? null,
-            fetchedAt: active?.fetchedAt ?? null,
-            records,
-            sets: [...recordsToSets(records).values()],
-          },
-        },
-      }));
-      return;
+    if (existing && existing.status === 'ready') {
+      if (!options.force) return Promise.resolve();
+      const age = existing.fetchedAt ? Date.now() - existing.fetchedAt.getTime() : Number.POSITIVE_INFINITY;
+      if (age < CELESTRAK_MIN_REFRESH_MS) return Promise.resolve();
     }
-
-    const kv = getKeyValueStore();
-    const cacheKey = GROUP_CACHE_PREFIX + groupId;
-    const cached = await kv.get<StoredCatalog>(cacheKey).catch(() => undefined);
-    const cachedAt = cached?.fetchedAt ? new Date(cached.fetchedAt) : null;
-
-    const publish = (records: OmmRecord[], fetchedAt: Date | null, status: GroupState['status'], error: string | null) =>
-      set((s) => ({
-        groups: {
-          ...s.groups,
-          [groupId]: { id: groupId, ...groupMeta(groupId), status, error, fetchedAt, records, sets: [...recordsToSets(records).values()] },
-        },
-      }));
-
-    if (cached && cachedAt) publish(cached.records, cachedAt, 'ready', null);
-    else publish([], null, 'loading', null);
-
-    const age = cachedAt ? Date.now() - cachedAt.getTime() : Number.POSITIVE_INFINITY;
-    if (age < CELESTRAK_MIN_REFRESH_MS) return;
-
-    try {
-      const records = parseGpJson(await fetchText(gpUrl({ group: groupId }, celestrakOrigin()), { timeoutMs: 60_000 }));
-      const fetchedAt = new Date();
-      await kv.set(cacheKey, { fetchedAt: fetchedAt.toISOString(), records } satisfies StoredCatalog).catch(() => undefined);
-      publish(records, fetchedAt, 'ready', null);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.warn(`Group ${groupId} failed`, err);
-      if (cached && cachedAt) publish(cached.records, cachedAt, 'ready', message);
-      else publish([], null, 'error', message);
-    }
+    const task = loadGroupImpl(groupId, options, existing, get, set).finally(() => inflightGroups.delete(groupId));
+    inflightGroups.set(groupId, task);
+    return task;
   },
 
   findSet(noradId) {

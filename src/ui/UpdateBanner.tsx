@@ -6,6 +6,7 @@ export function UpdateBanner() {
   const update = useUpdates((s) => s.update);
   const progress = useUpdates((s) => s.progress);
   const dismissed = useUpdates((s) => s.dismissed);
+  const error = useUpdates((s) => s.error);
   const install = useUpdates((s) => s.install);
   const dismiss = useUpdates((s) => s.dismiss);
 
@@ -18,10 +19,10 @@ export function UpdateBanner() {
   }
   if (status !== 'available' || !update || dismissed) return null;
   return (
-    <span className="badge badge--ok update-banner" data-testid="update-banner">
-      SatLoc {update.version} is available{' '}
+    <span className={`badge update-banner${error ? ' badge--warn' : ' badge--ok'}`} data-testid="update-banner" title={error ?? undefined}>
+      {error ? `Update to ${update.version} failed` : `SatLoc ${update.version} is available`}{' '}
       <button type="button" className="link" onClick={() => void install()}>
-        install
+        {error ? 'retry' : 'install'}
       </button>{' '}
       <button type="button" className="link" onClick={dismiss} aria-label="Dismiss update notice">
         ×
