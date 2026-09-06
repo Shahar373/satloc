@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { JulianDate } from 'cesium';
 import { jumpToNow, setSimulationTime } from '../viewer/createViewer';
 import { useViewerStore } from '../state/viewer';
@@ -27,6 +27,9 @@ export function TimeControls() {
   const animating = useViewerStore((s) => s.animating);
   // While the date field is focused it holds the user's draft; the live clock stops overwriting it.
   const [draft, setDraft] = useState<string | null>(null);
+  // Value at focus time (an unedited field must not commit its minute-truncated copy) and the Esc flag.
+  const focusValue = useRef<string>('');
+  const cancelled = useRef(false);
 
   const speedOptions = SPEEDS.includes(multiplier) ? SPEEDS : [...SPEEDS, multiplier].sort((a, b) => a - b);
 
@@ -75,15 +78,23 @@ export function TimeControls() {
         title="Jump to a UTC date and time (applied when you press Enter or leave the field)"
         disabled={!viewer || !simTime}
         value={draft ?? (simTime ? toInputValue(simTime) : '')}
-        onFocus={(e) => setDraft(e.currentTarget.value)}
+        onFocus={(e) => {
+          focusValue.current = e.currentTarget.value;
+          cancelled.current = false;
+          setDraft(e.currentTarget.value);
+        }}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={(e) => {
-          commitDraft(e.currentTarget.value);
+          const value = e.currentTarget.value;
+          if (!cancelled.current && value !== focusValue.current) commitDraft(value);
+          cancelled.current = false;
           setDraft(null);
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') e.currentTarget.blur();
           if (e.key === 'Escape') {
+            // blur() fires onBlur synchronously, before React applies setDraft(null): flag it first.
+            cancelled.current = true;
             setDraft(null);
             e.currentTarget.blur();
           }

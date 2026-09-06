@@ -82,12 +82,14 @@ export function predictPasses(
   let prevEl = elevationAt(prevMs);
   let aosMs: number | null = prevEl >= minEl ? startMs : null;
   let inProgress = prevEl >= minEl;
+  let decayed = false;
 
   for (let ms = startMs + stepMs; ms <= endMs; ms += stepMs) {
     let el: number;
     try {
       el = elevationAt(ms);
     } catch {
+      decayed = true;
       break; // the satellite decays inside the window: stop scanning, keep what was found
     }
     if (aosMs === null && prevEl < minEl && el >= minEl) {
@@ -101,9 +103,10 @@ export function predictPasses(
     prevMs = ms;
     prevEl = el;
   }
-  // A pass still in progress at the end of the window is reported, truncated at the window edge.
+  // A pass still in progress at the end of the window is reported, truncated at the window edge
+  // (one cut short by decay is truncated too, but does not continue anywhere).
   if (aosMs !== null && prevMs > aosMs) {
-    passes.push(buildPass(satrec, observer, aosMs, Math.min(prevMs, endMs), elevationAt, inProgress, true));
+    passes.push(buildPass(satrec, observer, aosMs, Math.min(prevMs, endMs), elevationAt, inProgress, !decayed));
   }
 
   return passes;

@@ -27,6 +27,8 @@ export interface SettingsState {
   setGroupDisplayed(groupId: string, displayed: boolean): void;
   setMaxCatalogPoints(n: number): void;
   addFavorite(favorite: Favorite): void;
+  /** Replace a pinned satellite's stored copy in place (order preserved); no-op when it is not pinned. */
+  updateFavorite(favorite: Favorite): void;
   removeFavorite(noradId: number): void;
 }
 
@@ -49,6 +51,8 @@ export const useSettings = create<SettingsState>()(
       setMaxCatalogPoints: (maxCatalogPoints) => set({ maxCatalogPoints }),
       addFavorite: (favorite) =>
         set((s) => ({ favorites: [...s.favorites.filter((f) => f.noradId !== favorite.noradId), favorite] })),
+      updateFavorite: (favorite) =>
+        set((s) => ({ favorites: s.favorites.map((f) => (f.noradId === favorite.noradId ? favorite : f)) })),
       removeFavorite: (noradId) => set((s) => ({ favorites: s.favorites.filter((f) => f.noradId !== noradId) })),
     }),
     {

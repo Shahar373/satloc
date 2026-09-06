@@ -71,6 +71,7 @@ export class CatalogLayer {
   private pointerDown = false;
   private lastRequested: { records: OmmRecord[]; tles: TleRecord[]; maxPoints: number } | null = null;
   private failed = false;
+  private destroyed = false;
   private readonly scratch = new Cartesian3();
   private readonly clearHover = () => {
     this.hoverPending = null;
@@ -189,15 +190,17 @@ export class CatalogLayer {
   }
 
   destroy(): void {
+    this.destroyed = true;
     this.removePreRender();
     this.handler.destroy();
     this.client.terminate();
+    window.removeEventListener('pointerup', this.onPointerUp);
+    // The viewer is usually torn down first; its canvas listeners die with it, the primitives too.
     if (this.viewer.isDestroyed()) return;
     const canvas = this.viewer.scene.canvas;
     canvas.removeEventListener('pointerleave', this.clearHover);
     canvas.removeEventListener('pointercancel', this.clearHover);
     canvas.removeEventListener('pointerdown', this.onPointerDown);
-    window.removeEventListener('pointerup', this.onPointerUp);
     this.viewer.scene.primitives.remove(this.points);
   }
 
@@ -214,7 +217,8 @@ export class CatalogLayer {
   }
 
   private reportFailure(err: unknown): void {
-    if (this.failed) return;
+    // Our own terminate() rejects pending work; that is not a worker failure to show.
+    if (this.failed || this.destroyed) return;
     this.failed = true;
     const message = err instanceof Error ? err.message : String(err);
     console.error('Catalogue layer failed', err);

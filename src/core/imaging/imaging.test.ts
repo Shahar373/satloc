@@ -114,6 +114,19 @@ describe('findImagingOpportunities', () => {
     expect(Math.abs(last.end.getTime() - (epoch.getTime() + days * 86_400_000))).toBeLessThan(25_000);
   });
 
+  it('bisects a short window whose closest approach falls right after the forecast start', () => {
+    // A 5-degree window is shorter than the coarse step; starting 8 s before its closest approach
+    // puts the minimum on the first sample, where the target is still out of reach.
+    const known = findImagingOpportunities(satrec, TEL_AVIV, epoch, 30, { maxOffNadirDeg: 5, coarseStepS: 2 })[0]!;
+    const start = new Date(known.time.getTime() - 8_000);
+    const found = findImagingOpportunities(satrec, TEL_AVIV, start, 1, { maxOffNadirDeg: 5, coarseStepS: 20 });
+    const hit = found.find((o) => Math.abs(o.time.getTime() - known.time.getTime()) < 2_000);
+    expect(hit).toBeDefined();
+    expect(hit!.start.getTime()).toBeGreaterThan(start.getTime() + 500);
+    expect(Math.abs(hit!.start.getTime() - known.start.getTime())).toBeLessThan(2_500);
+    expect(hit!.continuesAfterEnd).toBe(false);
+  });
+
   it('throws instead of returning an empty list when the satellite cannot be propagated', () => {
     const decayed = ommToElementSet({ ...EROS_LIKE_OMM, EPOCH: '2000-01-01T00:00:00.000000', BSTAR: 0.5 });
     expect(() => findImagingOpportunities(decayed.satrec, TEL_AVIV, new Date('2026-09-01T00:00:00Z'), 1)).toThrow();

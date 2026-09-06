@@ -193,7 +193,8 @@ function markCelestrakAttempt(now = Date.now()): void {
 export function describeCelestrakFailure(message: string, subject = 'this satellite'): string {
   if (/HTTP 403/.test(message)) return 'CelesTrak refused the request (HTTP 403, its temporary block for repeated queries)';
   if (/HTTP 404/.test(message)) return `CelesTrak had no record for ${subject} (HTTP 404)`;
-  if (/HTTP 5\d\d/.test(message)) return `CelesTrak is having trouble (${message.slice(0, 12).trim()})`;
+  const serverError = /HTTP 5\d\d/.exec(message);
+  if (serverError) return `CelesTrak is having trouble (${serverError[0]})`;
   // Browser fetch, the Tauri http plugin (reqwest) and our own timeout word this differently.
   if (/Failed to fetch|fetch failed|network|timed? ?out|error sending request|dns|ENOTFOUND|ECONN|connect/i.test(message)) {
     return 'CelesTrak could not be reached';
@@ -281,7 +282,7 @@ function syncFavoritesWith(records: OmmRecord[]): void {
     const currentEpoch = elementEpoch(current);
     const freshEpoch = elementEpoch(fresh);
     if (!freshEpoch || (currentEpoch && freshEpoch.getTime() <= currentEpoch.getTime())) continue;
-    settings.addFavorite({ noradId: favorite.noradId, name: fresh.OBJECT_NAME.trim() || favorite.name, record: { omm: fresh } });
+    settings.updateFavorite({ noradId: favorite.noradId, name: fresh.OBJECT_NAME.trim() || favorite.name, record: { omm: fresh } });
   }
 }
 

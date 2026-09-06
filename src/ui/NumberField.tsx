@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 
 interface NumberFieldProps {
   value: number;
@@ -19,6 +19,7 @@ interface NumberFieldProps {
 export function NumberField({ value, min, max, step, onCommit, title, className, 'aria-label': ariaLabel }: NumberFieldProps) {
   const [text, setText] = useState(String(value));
   const [focused, setFocused] = useState(false);
+  const cancelled = useRef(false);
   useEffect(() => {
     if (!focused) setText(String(value));
   }, [value, focused]);
@@ -54,12 +55,18 @@ export function NumberField({ value, min, max, step, onCommit, title, className,
       }}
       onBlur={(e) => {
         setFocused(false);
+        if (cancelled.current) {
+          cancelled.current = false;
+          setText(String(value));
+          return;
+        }
         commit(e.target.value);
       }}
       onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') e.currentTarget.blur();
         if (e.key === 'Escape') {
-          setText(String(value));
+          // blur() runs onBlur synchronously; the flag keeps it from committing the discarded text.
+          cancelled.current = true;
           e.currentTarget.blur();
         }
       }}

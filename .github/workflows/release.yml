@@ -119,7 +119,7 @@ jobs:
         with:
           tagName: ${{ needs.prepare.outputs.tag }}
           releaseName: SatLoc ${{ needs.prepare.outputs.tag }}
-          releaseBody: ${{ toJSON(needs.prepare.outputs.notes) }}
+          releaseBody: ${{ needs.prepare.outputs.notes }}
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true

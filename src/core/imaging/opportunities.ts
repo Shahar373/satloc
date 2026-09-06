@@ -87,6 +87,7 @@ export function findImagingOpportunities(
   const firstState = temeToEcf(propagateTeme(satrec, start).position, gmstAt(start));
   const altitudeKm = Math.max(150, vec.norm(firstState) - earthKm);
   const marginRad = Math.atan((GROUND_SPEED_KM_S * (stepMs / 1000)) / (0.6 * altitudeKm));
+  let scanComplete = true;
   const times: number[] = [];
   const gaps: number[] = [];
   for (let ms = startMs; ms <= endMs; ms += stepMs) {
@@ -95,6 +96,7 @@ export function findImagingOpportunities(
       gap = gapAt(ms);
     } catch (err) {
       if (times.length === 0) throw err; // cannot propagate at all: the caller reports why
+      scanComplete = false;
       break; // decays inside the window: keep what was found so far
     }
     times.push(ms);
@@ -103,6 +105,7 @@ export function findImagingOpportunities(
 
   const opportunities: ImagingOpportunity[] = [];
   const n = gaps.length;
+  const lastMs = times[n - 1]!;
   let i = 0;
   while (i < n) {
     const g = gaps[i]!;
@@ -127,14 +130,16 @@ export function findImagingOpportunities(
       while (j > 0 && gaps[j - 1]! <= 0) j--;
       while (k < n - 1 && gaps[k + 1]! <= 0) k++;
     }
-    const outsideBefore = sampledInside ? (j > 0 ? times[j - 1]! : null) : i > 0 ? times[i - 1]! : null;
-    const outsideAfter = sampledInside ? (k < n - 1 ? times[k + 1]! : null) : i < n - 1 ? times[i + 1]! : null;
+    // A window shorter than a step whose minimum sits on the first/last sample is still outside the
+    // limit at that sample (its gap is > 0), so it is bisected against it, not clamped to the edge.
+    const outsideBefore = sampledInside ? (j > 0 ? times[j - 1]! : null) : i > 0 ? times[i - 1]! : times[0]!;
+    const outsideAfter = sampledInside ? (k < n - 1 ? times[k + 1]! : null) : i < n - 1 ? times[i + 1]! : lastMs;
     const insideStart = sampledInside ? times[j]! : bestMs;
     const insideEnd = sampledInside ? times[k]! : bestMs;
-    const windowStart = outsideBefore === null ? startMs : bisect(outsideBefore, insideStart, 0, gapAt, true);
-    const windowEnd = outsideAfter === null ? times[n - 1]! : bisect(insideEnd, outsideAfter, 0, gapAt, false);
+    const windowStart = outsideBefore === null || outsideBefore >= insideStart ? insideStart : bisect(outsideBefore, insideStart, 0, gapAt, true);
+    const windowEnd = outsideAfter === null || outsideAfter <= insideEnd ? insideEnd : bisect(insideEnd, outsideAfter, 0, gapAt, false);
     opportunities.push(
-      buildOpportunity(satrec, target, targetEcf, windowStart, windowEnd, bestMs, minSun, outsideAfter === null),
+      buildOpportunity(satrec, target, targetEcf, windowStart, windowEnd, bestMs, minSun, outsideAfter === null && scanComplete),
     );
     i = Math.max(k, i) + 1;
   }
