@@ -1,7 +1,9 @@
 import { create } from 'zustand';
+import { isTauri } from '../platform/env';
 import { checkForUpdate, type AvailableUpdate } from '../platform/updater';
 
-export type UpdateStatus = 'idle' | 'checking' | 'upToDate' | 'available' | 'installing' | 'error';
+/** 'unsupported': not running inside the desktop shell, so there is nothing to check. */
+export type UpdateStatus = 'idle' | 'checking' | 'upToDate' | 'available' | 'installing' | 'error' | 'unsupported';
 
 interface UpdatesState {
   status: UpdateStatus;
@@ -27,12 +29,18 @@ export const useUpdates = create<UpdatesState>()((set, get) => ({
 
   async check() {
     if (get().status === 'checking' || get().status === 'installing') return;
+    if (!isTauri()) {
+      set({ status: 'unsupported', update: null });
+      return;
+    }
     const previous = get().update;
     set({ status: 'checking', error: null });
     try {
       const update = await checkForUpdate();
       // A dismissed notice stays dismissed for the same version; a new version shows again.
       const dismissed = update && previous && update.version === previous.version ? get().dismissed : false;
+      // The previous check's native resource is no longer needed (each check creates a new one).
+      if (previous && previous !== update) void previous.close();
       set({ status: update ? 'available' : 'upToDate', update, checkedAt: new Date(), dismissed });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

@@ -19,24 +19,38 @@ on:
 permissions:
   contents: write
 
+# One release at a time: a bump commit pushed together with its tag must not race itself.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   prepare:
     name: Decide the release tag
+    # Version bumps publish only from the default branch (a feature branch must not become releases/latest).
+    if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.decide.outputs.tag }}
       publish: ${{ steps.decide.outputs.publish }}
+      notes: ${{ steps.notes.outputs.notes }}
     steps:
       - uses: actions/checkout@v4
       - id: decide
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          conf="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             tag="$GITHUB_REF_NAME"
+            if [[ "$tag" != "$conf" ]]; then
+              echo "Tag $tag does not match the version in src-tauri/tauri.conf.json ($conf); bump the version first."
+              exit 1
+            fi
           else
-            tag="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
+            tag="$conf"
           fi
+          node scripts/check-versions.mjs
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
                "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$tag")
@@ -51,6 +65,14 @@ jobs:
               echo "GitHub API returned HTTP $code while looking for release $tag; not publishing blindly."
               exit 1 ;;
           esac
+      - id: notes
+        name: Release notes from CHANGELOG.md
+        run: |
+          {
+            echo 'notes<<NOTES_EOF'
+            node scripts/release-notes.mjs "${{ steps.decide.outputs.tag }}"
+            echo 'NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
 
   build:
     name: Build and publish
@@ -85,6 +107,10 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      # Bundle element sets that are minutes old, not whatever was last committed (best effort: the
+      # committed snapshot is the fallback when CelesTrak is unreachable from the runner).
+      - run: node scripts/update-snapshot.mjs
+        continue-on-error: true
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,7 +119,7 @@ jobs:
         with:
           tagName: ${{ needs.prepare.outputs.tag }}
           releaseName: SatLoc ${{ needs.prepare.outputs.tag }}
-          releaseBody: 'Installers built by GitHub Actions. Windows: use the .exe (NSIS) installer. Installed copies update themselves from this release.'
+          releaseBody: ${{ toJSON(needs.prepare.outputs.notes) }}
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true

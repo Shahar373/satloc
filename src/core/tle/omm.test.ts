@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EROS_LIKE_OMM } from './fixtures';
-import { elementSetAgeDays, ommToElementSet, satrecEpochDate, tleToElementSet } from './omm';
+import { elementSetAgeDays, ommToElementSet, satrecEpochDate, tleToElementSet, tleChecksum, validateTleLine } from './omm';
 
 describe('ommToElementSet', () => {
   it('builds a propagatable element set with metadata', () => {
@@ -34,8 +34,8 @@ describe('ommToElementSet', () => {
 
 describe('tleToElementSet', () => {
   // Synthetic two-line set matching the OMM fixture (columns per the TLE standard; checksums unused).
-  const line1 = '1 99999U 22179A   26244.00000000  .00001000  00000-0  10000-3 0  9990';
-  const line2 = '2 99999  97.4000 200.0000 0012000  90.0000 270.0000 15.24000000200000';
+  const line1 = '1 99999U 22179A   26244.00000000  .00001000  00000-0  10000-3 0  9999';
+  const line2 = '2 99999  97.4000 200.0000 0012000  90.0000 270.0000 15.24000000200004';
 
   it('parses the classic format and expands the international designator', () => {
     const set = tleToElementSet(line1, line2, 'EROS-LIKE');
@@ -53,5 +53,22 @@ describe('tleToElementSet', () => {
     expect(fromTle.satrec.no).toBeCloseTo(fromOmm.satrec.no, 8);
     expect(fromTle.satrec.inclo).toBeCloseTo(fromOmm.satrec.inclo, 8);
     expect(fromTle.satrec.nodeo).toBeCloseTo(fromOmm.satrec.nodeo, 8);
+  });
+});
+
+describe('TLE line validation', () => {
+  const line1 = '1 99999U 22179A   26244.00000000  .00001000  00000-0  10000-3 0  9999';
+  const line2 = '2 99999  97.4000 200.0000 0012000  90.0000 270.0000 15.24000000200004';
+  it('accepts lines with a correct checksum', () => {
+    expect(() => validateTleLine(line1, 1)).not.toThrow();
+    expect(() => validateTleLine(line2, 2)).not.toThrow();
+    expect(tleChecksum(line1)).toBe(Number(line1[68]));
+  });
+  it('rejects a corrupted digit, a wrong length and a wrong line number', () => {
+    const corrupted = line1.slice(0, 20) + '9' + line1.slice(21);
+    expect(() => validateTleLine(corrupted, 1)).toThrow(/checksum/);
+    expect(() => validateTleLine(line1.slice(0, 60), 1)).toThrow(/69/);
+    expect(() => validateTleLine(line2, 1)).toThrow(/starts with/);
+    expect(() => tleToElementSet(corrupted, line2)).toThrow(/checksum/);
   });
 });

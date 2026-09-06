@@ -30,7 +30,7 @@ export const CATALOG_GROUPS: CatalogGroup[] = [
  * Name patterns that identify Israeli satellites in the CelesTrak catalogue (object names are
  * upper-case). Used as a search preset rather than a hard-coded NORAD list.
  */
-export const ISRAEL_NAME_PATTERNS = ['OFEQ', 'AMOS', 'TECSAR', 'VENUS', 'DROR', 'EROS', 'DUCHIFAT', 'TAUSAT', 'NSLSAT', 'BGUSAT'];
+export const ISRAEL_NAME_PATTERNS = ['OFEQ', 'AMOS', 'TECSAR', 'VENUS', 'DROR', 'EROS', 'DUCHIFAT', 'TAUSAT', 'NSLSAT', 'BGUSAT', 'TEVEL', 'DIDO'];
 
 export function matchesIsraelPreset(objectName: string): boolean {
   const upper = objectName.toUpperCase();

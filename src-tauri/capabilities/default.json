@@ -1,7 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capability for the main SatLoc window.",
+  "description": "Desktop capability for the main SatLoc window (updater, process and window-state exist on desktop only).",
+  "platforms": [
+    "windows",
+    "macOS",
+    "linux"
+  ],
   "windows": [
     "main"
   ],
@@ -19,6 +24,7 @@
       ]
     },
     "updater:default",
-    "process:default"
+    "process:default",
+    "window-state:default"
   ]
 }

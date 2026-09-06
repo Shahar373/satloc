@@ -10,10 +10,20 @@
     el.className = 'boot boot--error';
     el.textContent = 'SatLoc could not start.\n\n' + message + '\n\nPress Ctrl+Shift+I for details, and report this at github.com/Shahar373/satloc.';
   }
-  window.addEventListener('error', function (event) {
-    var err = event.error;
-    show(err && err.stack ? err.stack : event.message || String(err));
-  });
+  // Capture phase: a script/link/img that fails to load fires 'error' on the element only.
+  window.addEventListener(
+    'error',
+    function (event) {
+      var target = event.target;
+      if (target && target !== window && (target.src || target.href)) {
+        show('Failed to load ' + (target.src || target.href));
+        return;
+      }
+      var err = event.error;
+      show(err && err.stack ? err.stack : event.message || String(err));
+    },
+    true,
+  );
   window.addEventListener('unhandledrejection', function (event) {
     var reason = event.reason;
     show(reason && reason.stack ? reason.stack : String(reason));

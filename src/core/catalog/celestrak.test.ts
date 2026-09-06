@@ -25,6 +25,13 @@ describe('parseGpJson', () => {
   });
 
   it('rejects other non-JSON bodies', () => {
-    expect(() => parseGpJson('<html>rate limited</html>')).toThrow(/Unexpected CelesTrak response/);
+    expect(() => parseGpJson('rate limited')).toThrow(/Unexpected CelesTrak response/);
+    expect(() => parseGpJson('<html>rate limited</html>')).toThrow(/web page instead of data/);
+  });
+});
+
+describe('parseGpJson with non-JSON bodies', () => {
+  it('does not echo HTML back to the user', () => {
+    expect(() => parseGpJson('<!DOCTYPE html><html><body>blocked</body></html>')).toThrow(/web page instead of data/);
   });
 });

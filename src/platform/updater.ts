@@ -7,6 +7,8 @@ export interface AvailableUpdate {
   date: string | null;
   /** Download and install; `onProgress` gets 0..1 (or null when the size is unknown). Relaunches when done. */
   install(onProgress?: (fraction: number | null) => void): Promise<void>;
+  /** Release the native resource behind this update (call when it is replaced by a newer check). */
+  close(): Promise<void>;
 }
 
 /**
@@ -41,5 +43,6 @@ export async function checkForUpdate(): Promise<AvailableUpdate | null> {
       const { relaunch } = await import('@tauri-apps/plugin-process');
       await relaunch();
     },
+    close: () => update.close().catch(() => undefined),
   };
 }

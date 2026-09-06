@@ -73,6 +73,48 @@ const CACHE_KEY = 'satloc.catalog.isi';
 const CELESTRAK_ATTEMPT_KEY = 'satloc.catalog.isi.celestrakAttempt';
 const GROUP_CACHE_PREFIX = 'satloc.group.';
 
+/** Age in ms of a fetch timestamp; a timestamp in the future (clock set back) counts as infinitely old. */
+export function ageMs(fetchedAt: Date | null, now = Date.now()): number {
+  if (!fetchedAt) return Number.POSITIVE_INFINITY;
+  const age = now - fetchedAt.getTime();
+  return age < 0 ? Number.POSITIVE_INFINITY : age;
+}
+
+/** True when `message` describes an answer from the server (as opposed to no connection at all). */
+function serverAnswered(message: string): boolean {
+  return /^HTTP \d{3}/.test(message) || /CelesTrak returned a web page|Unexpected CelesTrak response|not an array/.test(message);
+}
+
+const GROUP_ATTEMPT_PREFIX = 'satloc.group.attempt.';
+
+/** Per-group version of the 2-hour rule: when did CelesTrak last answer a query for this group? */
+function groupAttemptAllowed(groupId: string, now = Date.now()): boolean {
+  try {
+    const last = Number(getStorage().getItem(GROUP_ATTEMPT_PREFIX + groupId) ?? 0);
+    return !Number.isFinite(last) || last > now || now - last >= CELESTRAK_MIN_REFRESH_MS;
+  } catch {
+    return true;
+  }
+}
+
+function markGroupAttempt(groupId: string, now = Date.now()): void {
+  try {
+    getStorage().setItem(GROUP_ATTEMPT_PREFIX + groupId, String(now));
+  } catch {
+    // Best effort.
+  }
+}
+
+function nextTryLabel(groupId: string): string {
+  try {
+    const last = Number(getStorage().getItem(GROUP_ATTEMPT_PREFIX + groupId) ?? 0);
+    const at = new Date(last + CELESTRAK_MIN_REFRESH_MS);
+    return `next try after ${at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+  } catch {
+    return 'next try in 2 hours';
+  }
+}
+
 /** CelesTrak temporarily blocks clients that repeat a query within 2 hours; remember when we last asked. */
 export function celestrakAllowed(now = Date.now()): boolean {
   try {
@@ -91,7 +133,10 @@ function isStoredCatalog(value: unknown): value is StoredCatalog {
   if (!Array.isArray(v.records)) return false;
   if (v.fetchedAt !== null && (typeof v.fetchedAt !== 'string' || !Number.isFinite(new Date(v.fetchedAt).getTime()))) return false;
   if (!v.records.every((r) => r && typeof r === 'object' && Number.isFinite((r as OmmRecord).NORAD_CAT_ID) && typeof (r as OmmRecord).EPOCH === 'string')) return false;
-  if (v.tles !== undefined && !Array.isArray(v.tles)) return false;
+  if (v.tles !== undefined) {
+    if (!Array.isArray(v.tles)) return false;
+    if (!v.tles.every((t) => t && typeof t === 'object' && Number.isFinite((t as TleRecord).noradId) && typeof (t as TleRecord).line1 === 'string' && typeof (t as TleRecord).line2 === 'string')) return false;
+  }
   return true;
 }
 
@@ -125,8 +170,7 @@ export function startAutoRefresh(): () => void {
   const tick = () => {
     const state = useCatalog.getState();
     if (state.source === 'fixture' || state.refreshing) return;
-    const age = state.fetchedAt ? Date.now() - state.fetchedAt.getTime() : Number.POSITIVE_INFINITY;
-    if (age >= CELESTRAK_MIN_REFRESH_MS) void state.refresh();
+    if (ageMs(state.fetchedAt) >= CELESTRAK_MIN_REFRESH_MS) void state.refresh();
     for (const groupId of useSettings.getState().displayedGroups) {
       if (KNOWN_GROUP_IDS.has(groupId)) void state.loadGroup(groupId, { force: true });
     }
@@ -144,10 +188,15 @@ function markCelestrakAttempt(now = Date.now()): void {
 }
 
 /** Turn an HTTP failure into a sentence a user can act on. */
-export function describeCelestrakFailure(message: string): string {
+export function describeCelestrakFailure(message: string, subject = 'this satellite'): string {
   if (/HTTP 403/.test(message)) return 'CelesTrak refused the request (HTTP 403, its temporary block for repeated queries)';
-  if (/HTTP 404/.test(message)) return 'CelesTrak had no record for this satellite (HTTP 404)';
-  if (/Failed to fetch|fetch failed|network|timeout/i.test(message)) return 'CelesTrak could not be reached';
+  if (/HTTP 404/.test(message)) return `CelesTrak had no record for ${subject} (HTTP 404)`;
+  if (/HTTP 5\d\d/.test(message)) return `CelesTrak is having trouble (${message.slice(0, 12).trim()})`;
+  // Browser fetch, the Tauri http plugin (reqwest) and our own timeout word this differently.
+  if (/Failed to fetch|fetch failed|network|timed? ?out|error sending request|dns|ENOTFOUND|ECONN|connect/i.test(message)) {
+    return 'CelesTrak could not be reached';
+  }
+  if (/web page instead of data/.test(message)) return message;
   return `CelesTrak failed (${message})`;
 }
 
@@ -186,6 +235,32 @@ function toPresetSets(records: OmmRecord[], tles: TleRecord[] = []): ElementSet[
     if (set) ordered.push({ ...set, name: sat.name });
   }
   return ordered;
+}
+
+/** Epoch of an OMM record or a TLE record, or null when it cannot be parsed. */
+function elementEpoch(entry: OmmRecord | TleRecord): Date | null {
+  try {
+    const set = 'EPOCH' in entry ? ommToElementSet(entry) : tleToElementSet(entry.line1, entry.line2, entry.name);
+    return set.epoch;
+  } catch {
+    return null;
+  }
+}
+
+/** Fresh group records replace the frozen copies stored for pinned satellites when they are newer. */
+function syncFavoritesWith(records: OmmRecord[]): void {
+  const settings = useSettings.getState();
+  if (settings.favorites.length === 0) return;
+  const byId = new Map(records.map((r) => [r.NORAD_CAT_ID, r]));
+  for (const favorite of settings.favorites) {
+    const fresh = byId.get(favorite.noradId);
+    if (!fresh) continue;
+    const current = 'omm' in favorite.record ? favorite.record.omm : favorite.record.tle;
+    const currentEpoch = elementEpoch(current);
+    const freshEpoch = elementEpoch(fresh);
+    if (!freshEpoch || (currentEpoch && freshEpoch.getTime() <= currentEpoch.getTime())) continue;
+    settings.addFavorite({ noradId: favorite.noradId, name: fresh.OBJECT_NAME.trim() || favorite.name, record: { omm: fresh } });
+  }
 }
 
 /** Element sets built from favourites, keyed by the favourite object (stable across store updates). */
@@ -241,7 +316,8 @@ async function loadGroupImpl(
   get: GetState,
   set: SetState,
 ): Promise<void> {
-  const publish = (records: OmmRecord[], fetchedAt: Date | null, status: GroupState['status'], error: string | null) =>
+  const publish = (records: OmmRecord[], fetchedAt: Date | null, status: GroupState['status'], error: string | null) => {
+    if (status === 'ready' && records.length > 0 && (!existing || records !== existing.records)) syncFavoritesWith(records);
     set((s) => ({
       groups: {
         ...s.groups,
@@ -257,6 +333,7 @@ async function loadGroupImpl(
         },
       },
     }));
+  };
 
   // The Israel preset is a filter over the full active catalogue and waits for it to actually load.
   if (groupId === ISRAEL_GROUP_ID) {
@@ -283,18 +360,38 @@ async function loadGroupImpl(
   const cachedAt = cached ? new Date(cached.fetchedAt as string) : null;
   if (cached && cachedAt && (!existing || existing.records.length === 0)) publish(cached.records, cachedAt, 'ready', null);
 
-  const age = cachedAt ? Date.now() - cachedAt.getTime() : Number.POSITIVE_INFINITY;
-  if (age < CELESTRAK_MIN_REFRESH_MS) return;
+  if (ageMs(cachedAt) < CELESTRAK_MIN_REFRESH_MS) return;
+
+  const fallback = existing && existing.records.length > 0 ? existing : cached && cachedAt ? { records: cached.records, fetchedAt: cachedAt } : null;
+  // CelesTrak blocks clients that repeat a query within 2 hours, and a failed answer counts too:
+  // do not let the 15-minute tick (or a checkbox toggle) turn one 403 into a lasting block.
+  if (!groupAttemptAllowed(groupId)) {
+    const message = `CelesTrak was asked for this group less than 2 hours ago (${nextTryLabel(groupId)})`;
+    if (fallback) publish(fallback.records, fallback.fetchedAt, 'ready', existing?.error ?? message);
+    else publish([], null, 'error', message);
+    return;
+  }
 
   try {
-    const records = parseGpJson(await fetchText(gpUrl({ group: groupId }, celestrakOrigin()), { timeoutMs: 60_000 }));
+    let text: string;
+    try {
+      text = await fetchText(gpUrl({ group: groupId }, celestrakOrigin()), { timeoutMs: 60_000 });
+      markGroupAttempt(groupId);
+    } catch (err) {
+      if (serverAnswered(err instanceof Error ? err.message : String(err))) markGroupAttempt(groupId);
+      throw err;
+    }
+    const records = parseGpJson(text);
     const fetchedAt = new Date();
-    await kv.set(cacheKey, { fetchedAt: fetchedAt.toISOString(), records } satisfies StoredCatalog).catch(() => undefined);
-    publish(records, fetchedAt, 'ready', null);
+    let saveError: string | null = null;
+    await kv.set(cacheKey, { fetchedAt: fetchedAt.toISOString(), records } satisfies StoredCatalog).catch((err: unknown) => {
+      console.warn(`Could not cache group ${groupId}`, err);
+      saveError = 'Could not save this group for offline use (storage full or unavailable); it will be downloaded again next time';
+    });
+    publish(records, fetchedAt, 'ready', saveError);
   } catch (err) {
-    const message = describeCelestrakFailure(err instanceof Error ? err.message : String(err));
+    const message = describeCelestrakFailure(err instanceof Error ? err.message : String(err), 'this group');
     console.warn(`Group ${groupId} failed`, err);
-    const fallback = existing && existing.records.length > 0 ? existing : cached && cachedAt ? { records: cached.records, fetchedAt: cachedAt } : null;
     if (fallback) publish(fallback.records, fallback.fetchedAt, 'ready', message);
     else publish([], null, 'error', message);
   }
@@ -357,8 +454,7 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
     }
 
     // 4. Refresh from CelesTrak unless the data is fresh enough.
-    const age = fetchedAt ? Date.now() - fetchedAt.getTime() : Number.POSITIVE_INFINITY;
-    if (age >= CELESTRAK_MIN_REFRESH_MS) await get().refresh();
+    if (ageMs(fetchedAt) >= CELESTRAK_MIN_REFRESH_MS) await get().refresh();
   },
 
   async refresh() {
@@ -367,7 +463,6 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
     try {
       const origin = celestrakOrigin();
       const askCelestrak = celestrakAllowed();
-      if (askCelestrak) markCelestrakAttempt();
 
       // Start from what we already have, so a satellite whose fetch fails keeps its last elements.
       const { stored } = currentStored();
@@ -379,9 +474,16 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
       for (const sat of ISI_PRESET.satellites) {
         if (askCelestrak) {
           try {
-            const found = parseGpJson(await fetchText(gpUrl({ catnr: sat.noradId }, origin))).find(
-              (r) => r.NORAD_CAT_ID === sat.noradId,
-            );
+            let text: string;
+            try {
+              text = await fetchText(gpUrl({ catnr: sat.noradId }, origin));
+              markCelestrakAttempt(); // CelesTrak saw this query: the 2-hour clock starts now
+            } catch (err) {
+              // Offline or DNS failure: CelesTrak never saw the query, so do not burn the 2-hour slot.
+              if (serverAnswered(err instanceof Error ? err.message : String(err))) markCelestrakAttempt();
+              throw err;
+            }
+            const found = parseGpJson(text).find((r) => r.NORAD_CAT_ID === sat.noradId);
             if (found) {
               records.set(sat.noradId, found);
               tles.delete(sat.noradId); // the fresh OMM record supersedes any older mirror TLE
@@ -395,10 +497,20 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
         }
         // Fallback (or the only source inside CelesTrak's 2-hour window): the TLE mirror.
         try {
-          tles.set(sat.noradId, parseTleApiJson(await fetchText(tleApiUrl(sat.noradId)), sat.noradId));
-          records.delete(sat.noradId); // the fresh TLE supersedes any older OMM record
-          usedMirror = true;
-          fetchedAny = true;
+          const tle = parseTleApiJson(await fetchText(tleApiUrl(sat.noradId)), sat.noradId);
+          // The mirror lags CelesTrak: never replace newer elements with older ones.
+          const have = records.get(sat.noradId) ?? tles.get(sat.noradId);
+          const haveEpoch = have ? elementEpoch(have) : null;
+          const tleEpoch = elementEpoch(tle);
+          if (haveEpoch && tleEpoch && tleEpoch.getTime() <= haveEpoch.getTime()) {
+            problems.push(`${sat.name}: the mirror has nothing newer than what we have`);
+            fetchedAny = true; // the data is confirmed current, so the refresh did not fail
+          } else {
+            tles.set(sat.noradId, tle);
+            records.delete(sat.noradId); // the fresh TLE supersedes any older OMM record
+            usedMirror = true;
+            fetchedAny = true;
+          }
         } catch (err) {
           problems.push(`${sat.name} (mirror): ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -431,8 +543,7 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
     const existing = get().groups[groupId];
     if (existing && existing.status === 'ready') {
       if (!options.force) return Promise.resolve();
-      const age = existing.fetchedAt ? Date.now() - existing.fetchedAt.getTime() : Number.POSITIVE_INFINITY;
-      if (age < CELESTRAK_MIN_REFRESH_MS) return Promise.resolve();
+      if (ageMs(existing.fetchedAt) < CELESTRAK_MIN_REFRESH_MS) return Promise.resolve();
     }
     const task = loadGroupImpl(groupId, options, existing, get, set).finally(() => inflightGroups.delete(groupId));
     inflightGroups.set(groupId, task);
@@ -443,16 +554,13 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
     const state = get();
     const isi = state.sets.find((s) => s.noradId === noradId);
     if (isi) return isi;
-    const favorite = useSettings.getState().favorites.find((f) => f.noradId === noradId);
-    if (favorite) {
-      const set = favoriteToSet(favorite);
-      if (set) return set;
-    }
+    // Loaded groups first: they are refreshed, a favourite is the copy taken when it was pinned.
     for (const group of Object.values(state.groups)) {
       const found = group.sets.find((s) => s.noradId === noradId);
       if (found) return found;
     }
-    return undefined;
+    const favorite = useSettings.getState().favorites.find((f) => f.noradId === noradId);
+    return favorite ? favoriteToSet(favorite) : undefined;
   },
 
   findRecord(noradId) {
@@ -476,11 +584,11 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
       }
     };
     state.sets.forEach(consider);
+    for (const group of Object.values(state.groups)) group.sets.forEach(consider);
     for (const f of useSettings.getState().favorites) {
       const set = favoriteToSet(f);
       if (set) consider(set);
     }
-    for (const group of Object.values(state.groups)) group.sets.forEach(consider);
     return results;
   },
 }));

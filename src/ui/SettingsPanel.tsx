@@ -91,7 +91,8 @@ export function SettingsPanel() {
             aria-label="Cesium Ion access token"
           />
           <span className="panel__hint">
-            A free account at cesium.com/ion gives Bing satellite imagery and world terrain. Stored only on this device.
+            A free account at cesium.com/ion gives Bing satellite imagery and world terrain. Stored unencrypted on this
+            device only; use a token limited to imagery and terrain.
           </span>
         </label>
 
@@ -130,6 +131,7 @@ export function SettingsPanel() {
                 {updateStatus === 'available' && updateError && ` ${updateError}`}
                 {updateStatus === 'installing' && `Downloading${updateProgress !== null ? ` ${Math.round(updateProgress * 100)}%` : '…'} The app restarts when done.`}
                 {updateStatus === 'error' && `Could not check: ${updateError}`}
+                {updateStatus === 'unsupported' && 'Updates are only available in the installed desktop app.'}
                 {updateStatus === 'idle' && 'Checked automatically a few seconds after start-up and every 6 hours.'}
                 {checkedAt && updateStatus !== 'idle' && ` Last check ${checkedAt.toLocaleTimeString()}.`}
               </span>

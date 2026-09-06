@@ -24,8 +24,17 @@ function run<T>(mode: IDBTransactionMode, op: (store: IDBObjectStore) => IDBRequ
   return openDb().then(
     (db) =>
       new Promise<T>((resolve, reject) => {
-        const tx = db.transaction(STORE, mode);
-        const request = op(tx.objectStore(STORE));
+        let tx: IDBTransaction;
+        let request: IDBRequest<T>;
+        try {
+          tx = db.transaction(STORE, mode);
+          request = op(tx.objectStore(STORE));
+        } catch (err) {
+          // NotFoundError (store missing) or InvalidStateError (connection closing): do not leak the handle.
+          db.close();
+          reject(err instanceof Error ? err : new Error(String(err)));
+          return;
+        }
         let result: T;
         request.onsuccess = () => {
           result = request.result;

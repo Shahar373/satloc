@@ -23,6 +23,8 @@ tauri-plugin-http = "2"
 # Self-update from GitHub Releases (desktop only).
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+# Remembers window size, position and maximised state between launches.
+tauri-plugin-window-state = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

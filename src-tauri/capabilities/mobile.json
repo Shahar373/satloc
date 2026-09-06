@@ -1,0 +1,26 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "Mobile capability for the main SatLoc window (no updater/process/window-state plugins there).",
+  "platforms": [
+    "android",
+    "iOS"
+  ],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://celestrak.org/*"
+        },
+        {
+          "url": "https://tle.ivanstanojevic.me/*"
+        }
+      ]
+    }
+  ]
+}

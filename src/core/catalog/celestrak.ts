@@ -24,6 +24,7 @@ export function parseGpJson(text: string): OmmRecord[] {
   const trimmed = text.trim();
   if (!trimmed.startsWith('[')) {
     if (/no gp data found/i.test(trimmed)) return [];
+    if (trimmed.startsWith('<')) throw new Error('CelesTrak returned a web page instead of data (captive portal or block?)');
     throw new Error(`Unexpected CelesTrak response: ${trimmed.slice(0, 120)}`);
   }
   const data = JSON.parse(trimmed) as unknown;

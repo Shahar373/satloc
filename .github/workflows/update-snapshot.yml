@@ -7,6 +7,7 @@ on:
     - cron: '17 3 * * *'
   workflow_dispatch:
   push:
+    branches: ['**']
     paths:
       - scripts/update-snapshot.mjs
       - src/data/isi.json
@@ -35,5 +36,7 @@ jobs:
             echo "Snapshot unchanged"
           else
             git commit -m "data: refresh ISI TLE snapshot [skip ci]"
+            # Something may have landed on the branch while the job ran.
+            git pull --rebase origin "$GITHUB_REF_NAME"
             git push
           fi

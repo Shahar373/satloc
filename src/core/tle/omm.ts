@@ -59,8 +59,29 @@ export function ommToElementSet(record: OmmRecord): ElementSet {
   };
 }
 
-/** Classic two-line element set; `name` is the optional "line 0". */
+/** Modulo-10 checksum of a TLE line: digits count their value, minus signs count 1, everything else 0. */
+export function tleChecksum(line: string): number {
+  let sum = 0;
+  for (const ch of line.slice(0, 68)) {
+    if (ch >= '0' && ch <= '9') sum += Number(ch);
+    else if (ch === '-') sum += 1;
+  }
+  return sum % 10;
+}
+
+/** Reject lines that are not 69 columns, start with the wrong line number, or fail the checksum. */
+export function validateTleLine(line: string, lineNumber: 1 | 2): void {
+  if (line.length !== 69) throw new Error(`TLE line ${lineNumber} is ${line.length} characters long, expected 69`);
+  if (line[0] !== String(lineNumber)) throw new Error(`TLE line ${lineNumber} starts with "${line[0]}"`);
+  const expected = Number(line[68]);
+  const actual = tleChecksum(line);
+  if (expected !== actual) throw new Error(`TLE line ${lineNumber} checksum mismatch (line says ${line[68]}, computed ${actual})`);
+}
+
+/** Classic two-line element set; `name` is the optional "line 0". Lines are checksum-verified first. */
 export function tleToElementSet(line1: string, line2: string, name?: string): ElementSet {
+  validateTleLine(line1.trimEnd(), 1);
+  validateTleLine(line2.trimEnd(), 2);
   const satrec = twoline2satrec(line1, line2);
   if (satrec.error !== 0) {
     throw new Error(`SGP4 initialisation failed for TLE ${satrec.satnum} (error ${satrec.error})`);

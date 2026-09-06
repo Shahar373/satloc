@@ -16,8 +16,13 @@ const USER_AGENT = 'Mozilla/5.0 (compatible; SatLoc/0.1; +https://github.com/Sha
 const CELESTRAK = 'https://celestrak.org/NORAD/elements/gp.php';
 const TLE_API = 'https://tle.ivanstanojevic.me/api/tle';
 
+const FETCH_TIMEOUT_MS = 30_000;
+
 async function get(url) {
-  const res = await fetch(url, { headers: { 'user-agent': USER_AGENT, accept: 'application/json, text/plain' } });
+  const res = await fetch(url, {
+    headers: { 'user-agent': USER_AGENT, accept: 'application/json, text/plain' },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   const text = (await res.text()).trim();
   console.log(`[update-snapshot] GET ${url} -> ${res.status}${res.ok ? '' : ` ${text.slice(0, 200).replace(/\s+/g, ' ')}`}`);
   return { ok: res.ok, status: res.status, text };
@@ -80,7 +85,30 @@ if (records.length + tles.length === 0) {
   throw new Error('No element sets fetched from any source; snapshot left unchanged');
 }
 
+/** Epoch (ms) of an OMM record or a TLE line 1 (YYDDD.DDDDDDDD in columns 19-32). */
+function epochMs(entry) {
+  if (entry.EPOCH) return Date.parse(entry.EPOCH.endsWith('Z') ? entry.EPOCH : entry.EPOCH + 'Z');
+  const yy = Number(entry.line1.slice(18, 20));
+  const doy = Number(entry.line1.slice(20, 32));
+  const year = yy < 57 ? 2000 + yy : 1900 + yy;
+  return Date.UTC(year, 0, 1) + (doy - 1) * 86_400_000;
+}
+const idOf = (entry) => entry.NORAD_CAT_ID ?? entry.noradId;
+
 const previous = JSON.parse(readFileSync(snapshotPath, 'utf8'));
+// Never regress: when the mirror (or CelesTrak) answers with something older than what is bundled,
+// keep the bundled entry for that satellite.
+const previousById = new Map([...(previous.records ?? []), ...(previous.tles ?? [])].map((e) => [idOf(e), e]));
+for (const list of [records, tles]) {
+  for (let i = list.length - 1; i >= 0; i--) {
+    const old = previousById.get(idOf(list[i]));
+    if (old && epochMs(old) > epochMs(list[i])) {
+      console.log(`[update-snapshot] ${idOf(list[i])}: fetched epoch is older than the bundled one, keeping the bundled entry`);
+      list.splice(i, 1);
+      (old.EPOCH ? records : tles).push(old);
+    }
+  }
+}
 const unchanged =
   JSON.stringify(previous.records ?? []) === JSON.stringify(records) &&
   JSON.stringify(previous.tles ?? []) === JSON.stringify(tles);

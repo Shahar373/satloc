@@ -12,7 +12,7 @@ const GROUP_ROWS: { id: string; name: string; approxCount: number; hint?: string
     id: ISRAEL_GROUP_ID,
     name: 'Israeli satellites',
     approxCount: 15,
-    hint: 'Filtered by name from the full active catalogue, so the first load downloads all ~12,000 objects (a few MB).',
+    hint: 'A name-based filter (OFEQ, AMOS, EROS, TECSAR, …) over the full active catalogue, so the first load downloads all ~12,000 objects (a few MB).',
   },
   ...CATALOG_GROUPS,
 ];
