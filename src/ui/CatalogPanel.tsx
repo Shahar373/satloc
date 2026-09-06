@@ -3,8 +3,19 @@ import { CATALOG_GROUPS } from '../core/catalog/groups';
 import { ISRAEL_GROUP_ID, useCatalog } from '../state/catalog';
 import { useSelection } from '../state/selection';
 import { useSettings } from '../state/settings';
+import { Panel } from './Panel';
+import { formatAgeSince } from './format';
 
-const GROUP_ROWS = [{ id: ISRAEL_GROUP_ID, name: 'Israeli satellites', approxCount: 15 }, ...CATALOG_GROUPS];
+const SEARCH_LIMIT = 30;
+const GROUP_ROWS: { id: string; name: string; approxCount: number; hint?: string }[] = [
+  {
+    id: ISRAEL_GROUP_ID,
+    name: 'Israeli satellites',
+    approxCount: 15,
+    hint: 'Filtered by name from the full active catalogue, so the first load downloads all ~12,000 objects (a few MB).',
+  },
+  ...CATALOG_GROUPS,
+];
 
 export function CatalogPanel() {
   const groups = useCatalog((s) => s.groups);
@@ -13,29 +24,40 @@ export function CatalogPanel() {
   const loadGroup = useCatalog((s) => s.loadGroup);
   const search = useCatalog((s) => s.search);
   const displayedGroups = useSettings((s) => s.displayedGroups);
+  const favorites = useSettings((s) => s.favorites);
   const setGroupDisplayed = useSettings((s) => s.setGroupDisplayed);
   const select = useSelection((s) => s.select);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
 
-  // `groups` is a dependency so results refresh as groups finish loading.
-  const results = useMemo(() => (query.trim() ? search(query) : []), [query, search, groups]);
+  // `groups`/`favorites` are dependencies so results refresh as groups finish loading or pins change.
+  const results = useMemo(() => (query.trim() ? search(query, SEARCH_LIMIT) : []), [query, search, groups, favorites]);
   const loadedCount = Object.values(groups).filter((g) => g.status === 'ready').length;
   const truncated = pointStats && pointStats.shown + pointStats.rejected < pointStats.total;
 
   return (
-    <section className="panel" data-testid="catalog">
-      <div className="panel__header">
-        <h2 className="panel__title">Catalogue</h2>
-        <button type="button" className="link" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+    <Panel
+      id="catalog"
+      testId="catalog"
+      title="Catalogue"
+      actions={
+        <button
+          type="button"
+          className="link"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          title="Choose which CelesTrak groups to download and draw on the globe"
+        >
           {open ? 'hide groups' : 'groups'}
         </button>
-      </div>
+      }
+    >
       <input
         className="input input--wide"
         type="search"
         placeholder="Search name or NORAD id…"
         aria-label="Search satellites"
+        title="Searches the ISI satellites, pinned satellites and every loaded group"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -43,7 +65,17 @@ export function CatalogPanel() {
         <ul className="satlist" data-testid="search-results">
           {results.length === 0 && (
             <li className="panel__hint">
-              No match{loadedCount === 0 ? '. Load a group below to search it.' : ' in the loaded groups.'}
+              {loadedCount === 0 ? (
+                <>
+                  No match.{' '}
+                  <button type="button" className="link" onClick={() => setOpen(true)}>
+                    Load a catalogue group
+                  </button>{' '}
+                  to search it.
+                </>
+              ) : (
+                'No match in the loaded groups.'
+              )}
             </li>
           )}
           {results.map((set) => (
@@ -62,6 +94,9 @@ export function CatalogPanel() {
               </button>
             </li>
           ))}
+          {results.length >= SEARCH_LIMIT && (
+            <li className="panel__hint">First {SEARCH_LIMIT} matches shown. Narrow the search to find others.</li>
+          )}
         </ul>
       )}
       {workerError && (
@@ -83,9 +118,10 @@ export function CatalogPanel() {
               const state = groups[g.id];
               const displayed = displayedGroups.includes(g.id);
               const count = state?.status === 'ready' ? state.records.length : undefined;
+              const staleWithError = state?.status === 'ready' && state.error;
               return (
                 <li key={g.id} className="groups__row">
-                  <label className="groups__label">
+                  <label className="groups__label" title={g.hint}>
                     <input
                       type="checkbox"
                       checked={displayed}
@@ -96,18 +132,24 @@ export function CatalogPanel() {
                     />
                     <span className="satlist__name">{g.name}</span>
                     <span className="satlist__meta">
-                      {state?.status === 'loading' && 'loading…'}
+                      {state?.status === 'loading' && (g.id === ISRAEL_GROUP_ID ? 'loading active…' : 'loading…')}
                       {state?.status === 'error' && <span className="panel__hint--warn">failed</span>}
                       {count !== undefined && `${count}`}
                       {count === undefined && state?.status !== 'loading' && state?.status !== 'error' && `~${g.approxCount}`}
                     </span>
                   </label>
-                  {state?.error && displayed && <p className="panel__hint panel__hint--warn">{state.error}</p>}
+                  {state?.error && displayed && (
+                    <p className="panel__hint panel__hint--warn">
+                      {staleWithError
+                        ? `Refresh failed: ${state.error}. Showing data saved ${state.fetchedAt ? formatAgeSince(state.fetchedAt) : 'earlier'}.`
+                        : state.error}
+                    </p>
+                  )}
                 </li>
               );
             })}
         </ul>
       )}
-    </section>
+    </Panel>
   );
 }

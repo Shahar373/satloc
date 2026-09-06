@@ -1,24 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { JulianDate } from 'cesium';
 import { findImagingOpportunities, type ImagingOpportunity } from '../core/imaging/opportunities';
 import type { ElementSet } from '../core/tle/omm';
 import { useForecast } from '../state/forecast';
 import { usePicking } from '../state/picking';
 import { useSelection } from '../state/selection';
-import { formatLatLon, useTargets } from '../state/targets';
+import { formatLatLon, nextTargetName, useTargets } from '../state/targets';
 import { useViewerStore } from '../state/viewer';
-import { setSimulationTime } from '../viewer/createViewer';
+import { flyToLocation, jumpToInstant } from '../viewer/createViewer';
+import { NumberField } from './NumberField';
+import { Panel } from './Panel';
+import { formatLocalDateTime, formatUtcShort } from './format';
+import { useForecastWindow } from './useForecastWindow';
 
 /** Recompute when the simulation clock drifts this far from the forecast start. */
 const WINDOW_DRIFT_MS = 30 * 60 * 1000;
-
-function formatUtc(date: Date): string {
-  return date.toISOString().slice(5, 16).replace('T', ' ');
-}
-
-function formatLocal(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-}
+/** Land a jump this long before the closest approach, so the approach is visible at 1x–10x. */
+const JUMP_LEAD_MS = 60_000;
 
 export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
   const viewer = useViewerStore((s) => s.viewer);
@@ -43,32 +40,35 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
   const toggleReach = useSelection((s) => s.toggleReach);
   const [coords, setCoords] = useState('');
   const [coordsError, setCoordsError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const target = targets.find((t) => t.id === selectedTargetId);
 
-  const [windowStart, setWindowStart] = useState<Date | null>(null);
-  useEffect(() => {
-    if (!simTime) return;
-    if (!windowStart || Math.abs(simTime.getTime() - windowStart.getTime()) > WINDOW_DRIFT_MS) setWindowStart(simTime);
-  }, [simTime, windowStart]);
+  const windowStart = useForecastWindow(simTime, WINDOW_DRIFT_MS);
 
-  const opportunities = useMemo<ImagingOpportunity[] | null>(() => {
+  const forecast = useMemo<{ opportunities: ImagingOpportunity[]; error: string | null } | null>(() => {
     if (!set || !target || !windowStart) return null;
     try {
-      return findImagingOpportunities(
-        set.satrec,
-        { latitude: (target.latitudeDeg * Math.PI) / 180, longitude: (target.longitudeDeg * Math.PI) / 180, heightKm: 0 },
-        windowStart,
-        forecastDays,
-        { maxOffNadirDeg, minSunElevationDeg },
-      );
-    } catch {
-      return [];
+      return {
+        opportunities: findImagingOpportunities(
+          set.satrec,
+          { latitude: (target.latitudeDeg * Math.PI) / 180, longitude: (target.longitudeDeg * Math.PI) / 180, heightKm: 0 },
+          windowStart,
+          forecastDays,
+          { maxOffNadirDeg, minSunElevationDeg },
+        ),
+        error: null,
+      };
+    } catch (err) {
+      return { opportunities: [], error: err instanceof Error ? err.message : String(err) };
     }
   }, [set, target, windowStart, forecastDays, maxOffNadirDeg, minSunElevationDeg]);
+  const opportunities = forecast?.opportunities ?? null;
 
   useEffect(() => {
     useForecast.getState().setOpportunities(opportunities ?? []);
   }, [opportunities]);
+
+  useEffect(() => () => useForecast.getState().setOpportunities([]), []);
 
   const addByCoordinates = () => {
     const m = /^\s*(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)\s*$/.exec(coords);
@@ -83,43 +83,74 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
       return;
     }
     setCoordsError(null);
-    addTarget({ name: `Target ${targets.length + 1}`, latitudeDeg: lat, longitudeDeg: lon });
+    addTarget({ name: nextTargetName(targets), latitudeDeg: lat, longitudeDeg: lon });
     setCoords('');
+    // Show where it landed; a target on the far side of the planet would otherwise look like nothing happened.
+    if (viewer && cameraMode === 'free') flyToLocation(viewer, lon, lat);
+  };
+
+  const commitRename = () => {
+    if (!editing) return;
+    const name = editing.name.trim();
+    if (name) updateTarget(editing.id, { name });
+    setEditing(null);
   };
 
   const jumpTo = (o: ImagingOpportunity) => {
     if (!viewer) return;
-    setSimulationTime(viewer, JulianDate.fromDate(o.time));
-    viewer.clock.shouldAnimate = true;
+    jumpToInstant(viewer, new Date(Math.max(o.start.getTime(), o.time.getTime() - JUMP_LEAD_MS)));
     setCameraMode('imaging');
   };
 
-  return (
-    <section className="panel" data-testid="imaging">
-      <h2 className="panel__title">Imaging opportunities</h2>
+  const daylightCount = opportunities?.filter((o) => o.daylight).length ?? 0;
 
+  return (
+    <Panel id="imaging" testId="imaging" title="Imaging opportunities">
       <ul className="satlist" data-testid="target-list">
         {targets.map((t) => (
           <li key={t.id} className="target-row">
-            <button
-              type="button"
-              className={`satlist__item${t.id === selectedTargetId ? ' satlist__item--selected' : ''}`}
-              onClick={() => selectTarget(t.id === selectedTargetId ? null : t.id)}
-              title={formatLatLon(t.latitudeDeg, t.longitudeDeg)}
-            >
-              <span className="satlist__dot satlist__dot--target" aria-hidden="true" />
-              <span className="satlist__name">{t.name}</span>
-              <span className="satlist__meta">{formatLatLon(t.latitudeDeg, t.longitudeDeg)}</span>
-            </button>
+            {editing?.id === t.id ? (
+              <form
+                className="target-row__edit"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  commitRename();
+                }}
+              >
+                <input
+                  className="input input--wide"
+                  autoFocus
+                  value={editing.name}
+                  aria-label={`New name for ${t.name}`}
+                  onChange={(e) => setEditing({ id: t.id, name: e.target.value })}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setEditing(null);
+                    }
+                  }}
+                />
+              </form>
+            ) : (
+              <button
+                type="button"
+                className={`satlist__item${t.id === selectedTargetId ? ' satlist__item--selected' : ''}`}
+                aria-pressed={t.id === selectedTargetId}
+                onClick={() => selectTarget(t.id === selectedTargetId ? null : t.id)}
+                title={formatLatLon(t.latitudeDeg, t.longitudeDeg)}
+              >
+                <span className="satlist__dot satlist__dot--target" aria-hidden="true" />
+                <span className="satlist__name">{t.name}</span>
+                <span className="satlist__meta">{formatLatLon(t.latitudeDeg, t.longitudeDeg)}</span>
+              </button>
+            )}
             <button
               type="button"
               className="link"
               title="Rename"
               aria-label={`Rename ${t.name}`}
-              onClick={() => {
-                const name = window.prompt('Target name', t.name);
-                if (name && name.trim()) updateTarget(t.id, { name: name.trim() });
-              }}
+              onClick={() => setEditing({ id: t.id, name: t.name })}
             >
               ✎
             </button>
@@ -130,11 +161,12 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
         ))}
       </ul>
 
-      <div className="toggles">
+      <div className="toggles" role="group" aria-label="Targets">
         <button
           type="button"
           className={`btn${picking ? ' btn--on' : ''}`}
-          title="Click a point on the globe to add a target"
+          aria-pressed={picking}
+          title="Click a point on the globe to add a target (Esc cancels)"
           onClick={() => setPickingMode(picking ? null : 'target')}
         >
           {picking ? 'Click the globe…' : 'Add on globe'}
@@ -150,46 +182,32 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
             className="input"
             placeholder="lat, lon"
             aria-label="Target coordinates"
+            title="Decimal degrees, e.g. 31.77, 35.21"
             value={coords}
             onChange={(e) => setCoords(e.target.value)}
           />
-          <button type="submit" className="btn">
+          <button type="submit" className="btn" title="Add a target at these coordinates">
             Add
           </button>
         </form>
       </div>
       {coordsError && <p className="panel__hint panel__hint--warn">{coordsError}</p>}
 
-      <div className="toggles">
-        <label className="topbar__dim">
+      <div className="toggles" role="group" aria-label="Imaging constraints">
+        <label className="topbar__dim" title="Largest roll (off-nadir angle) the satellite may use to look at the target">
           roll ≤&nbsp;
-          <input
-            className="input input--num"
-            type="number"
-            min={5}
-            max={70}
-            step={5}
-            value={maxOffNadirDeg}
-            aria-label="Maximum off-nadir angle"
-            onChange={(e) => setMaxOffNadir(Math.max(5, Math.min(70, Number(e.target.value) || 45)))}
-          />
+          <NumberField value={maxOffNadirDeg} min={5} max={70} step={5} onCommit={setMaxOffNadir} aria-label="Maximum off-nadir angle" />
           °
         </label>
-        <label className="topbar__dim">
+        <label
+          className="topbar__dim"
+          title="Sun elevation at the target above which an opportunity counts as daylight (night opportunities are still listed)"
+        >
           sun ≥&nbsp;
-          <input
-            className="input input--num"
-            type="number"
-            min={-10}
-            max={60}
-            step={5}
-            value={minSunElevationDeg}
-            aria-label="Minimum Sun elevation"
-            onChange={(e) => setMinSunElevation(Math.max(-10, Math.min(60, Number(e.target.value) || 0)))}
-          />
+          <NumberField value={minSunElevationDeg} min={-10} max={60} step={5} onCommit={setMinSunElevation} aria-label="Minimum Sun elevation" />
           °
         </label>
-        <label className="topbar__dim">
+        <label className="topbar__dim" title="How far ahead to look for opportunities">
           <select className="select" aria-label="Forecast days" value={forecastDays} onChange={(e) => setForecastDays(Number(e.target.value))}>
             {[1, 3, 7, 14].map((d) => (
               <option key={d} value={d}>
@@ -198,14 +216,25 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
             ))}
           </select>
         </label>
-        <button type="button" className={`btn${showReach ? ' btn--on' : ''}`} onClick={toggleReach} title="Ground reach of the roll limit and the line of sight to the target">
+        <button
+          type="button"
+          className={`btn${showReach ? ' btn--on' : ''}`}
+          aria-pressed={showReach}
+          onClick={toggleReach}
+          title="Show the ground reach of the roll limit along the coming orbit and the line of sight to the target"
+        >
           Reach
         </button>
         <button
           type="button"
           className={`btn${cameraMode === 'imaging' ? ' btn--on' : ''}`}
+          aria-pressed={cameraMode === 'imaging'}
           disabled={!set || !target}
-          title="Camera on the satellite, looking at the target"
+          title={
+            !set || !target
+              ? 'Select a satellite and a target first'
+              : 'Camera on the satellite, looking at the target (locks the camera; Esc releases it)'
+          }
           onClick={() => setCameraMode(cameraMode === 'imaging' ? 'free' : 'imaging')}
         >
           Imaging view
@@ -214,30 +243,47 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
 
       {!set && <p className="panel__hint">Select a satellite to compute its imaging opportunities.</p>}
       {set && !target && <p className="panel__hint">Select or add a target.</p>}
-      {set && target && opportunities && opportunities.length === 0 && (
+      {set && target && forecast?.error && (
+        <p className="panel__hint panel__hint--warn" role="alert">
+          Opportunities could not be computed: {forecast.error}
+        </p>
+      )}
+      {set && target && opportunities && !forecast?.error && opportunities.length === 0 && (
         <p className="panel__hint">
-          No access to {target.name} within {forecastDays} day{forecastDays > 1 ? 's' : ''} at roll ≤ {maxOffNadirDeg}°.
+          No access to {target.name} within {forecastDays} day{forecastDays > 1 ? 's' : ''} at roll ≤ {maxOffNadirDeg}°. Try a
+          longer forecast or a larger roll.
         </p>
       )}
       {set && target && opportunities && opportunities.length > 0 && (
-        <ol className="passes" data-testid="opportunity-list">
-          {opportunities.map((o) => (
-            <li key={o.time.getTime()}>
-              <button type="button" className={`pass${o.daylight ? '' : ' pass--night'}`} onClick={() => jumpTo(o)} title="Jump to this opportunity and look at the target from the satellite">
-                <span className="pass__when">
-                  {formatUtc(o.time)} UTC
-                  <span className="topbar__dim"> · {formatLocal(o.time)} local</span>
-                  <span className={`badge badge--inline${o.daylight ? ' badge--ok' : ' badge--warn'}`}>{o.daylight ? 'daylight' : 'night'}</span>
-                </span>
-                <span className="pass__facts">
-                  roll {o.offNadirDeg.toFixed(1)}° {o.side} · sun {o.sunElevationDeg.toFixed(0)}° · {o.direction}
-                  {!o.satelliteSunlit && ' · satellite in eclipse'}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ol>
+        <>
+          <p className="panel__hint">
+            {opportunities.length} in {forecastDays} d, {daylightCount} in daylight (sun ≥ {minSunElevationDeg}°).
+          </p>
+          <ol className="passes" data-testid="opportunity-list">
+            {opportunities.map((o) => (
+              <li key={o.time.getTime()}>
+                <button
+                  type="button"
+                  className={`pass${o.daylight ? '' : ' pass--night'}`}
+                  onClick={() => jumpTo(o)}
+                  title="Jump to this opportunity and look at the target from the satellite"
+                >
+                  <span className="pass__when">
+                    {formatUtcShort(o.time)} UTC
+                    <span className="topbar__dim"> · {formatLocalDateTime(o.time)} local</span>
+                    <span className={`badge badge--inline${o.daylight ? ' badge--ok' : ' badge--warn'}`}>{o.daylight ? 'daylight' : 'night'}</span>
+                  </span>
+                  <span className="pass__facts">
+                    roll {o.offNadirDeg.toFixed(1)}° {o.side} · sun {o.sunElevationDeg.toFixed(0)}° · {o.direction}
+                    {!o.satelliteSunlit && ' · satellite in eclipse'}
+                    {o.continuesAfterEnd && ' · continues past the forecast'}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </>
       )}
-    </section>
+    </Panel>
   );
 }

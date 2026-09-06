@@ -188,14 +188,23 @@ function toPresetSets(records: OmmRecord[], tles: TleRecord[] = []): ElementSet[
   return ordered;
 }
 
+/** Element sets built from favourites, keyed by the favourite object (stable across store updates). */
+const favoriteSets = new WeakMap<Favorite, ElementSet | undefined>();
+
+/** Memoised per favourite object: callers get the same ElementSet each time, so memos downstream hold. */
 export function favoriteToSet(favorite: Favorite): ElementSet | undefined {
+  if (favoriteSets.has(favorite)) return favoriteSets.get(favorite);
+  let set: ElementSet | undefined;
   try {
-    return 'omm' in favorite.record
-      ? ommToElementSet(favorite.record.omm)
-      : tleToElementSet(favorite.record.tle.line1, favorite.record.tle.line2, favorite.record.tle.name);
+    set =
+      'omm' in favorite.record
+        ? ommToElementSet(favorite.record.omm)
+        : tleToElementSet(favorite.record.tle.line1, favorite.record.tle.line2, favorite.record.tle.name);
   } catch {
-    return undefined;
+    set = undefined;
   }
+  favoriteSets.set(favorite, set);
+  return set;
 }
 
 function readCache(): StoredCatalog | null {
@@ -283,7 +292,7 @@ async function loadGroupImpl(
     await kv.set(cacheKey, { fetchedAt: fetchedAt.toISOString(), records } satisfies StoredCatalog).catch(() => undefined);
     publish(records, fetchedAt, 'ready', null);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = describeCelestrakFailure(err instanceof Error ? err.message : String(err));
     console.warn(`Group ${groupId} failed`, err);
     const fallback = existing && existing.records.length > 0 ? existing : cached && cachedAt ? { records: cached.records, fetchedAt: cachedAt } : null;
     if (fallback) publish(fallback.records, fallback.fetchedAt, 'ready', message);

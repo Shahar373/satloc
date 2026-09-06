@@ -1,10 +1,11 @@
 import { ISI_PRESET, presetSatellite } from '../core/catalog/presets';
 import type { ElementSet } from '../core/tle/omm';
-import { useCatalog } from '../state/catalog';
+import { favoriteToSet, useCatalog } from '../state/catalog';
 import { useSelection } from '../state/selection';
 import { useSettings } from '../state/settings';
 import { CatalogPanel } from './CatalogPanel';
 import { ImagingPanel } from './ImagingPanel';
+import { Panel } from './Panel';
 import { PassesPanel } from './PassesPanel';
 import { useLiveOrbit } from './useLiveOrbit';
 
@@ -41,15 +42,20 @@ export function Sidebar() {
   const findSet = useCatalog((s) => s.findSet);
   const groups = useCatalog((s) => s.groups);
   const favorites = useSettings((s) => s.favorites);
+  const removeFavorite = useSettings((s) => s.removeFavorite);
   // `groups`/`favorites` are dependencies because findSet reads them.
   const selected = selectedId === null ? undefined : (sets.find((s) => s.noradId === selectedId) ?? findSet(selectedId));
   void groups;
-  void favorites;
+
+  const unpin = (noradId: number) => {
+    removeFavorite(noradId);
+    // A pinned catalogue satellite whose group is not loaded has nowhere else to come from.
+    if (selectedId === noradId && !useCatalog.getState().findSet(noradId)) select(null);
+  };
 
   return (
     <aside className="sidebar" data-testid="sidebar">
-      <section className="panel">
-        <h2 className="panel__title">{ISI_PRESET.name}</h2>
+      <Panel id="isi" title={ISI_PRESET.name}>
         {status === 'loading' && sets.length === 0 && <p className="panel__hint">Loading orbital elements…</p>}
         {status === 'error' && sets.length === 0 && (
           <p className="panel__hint panel__hint--warn">No orbital elements available yet. {error}</p>
@@ -60,6 +66,7 @@ export function Sidebar() {
               <button
                 type="button"
                 className={`satlist__item${set.noradId === selectedId ? ' satlist__item--selected' : ''}`}
+                aria-pressed={set.noradId === selectedId}
                 onClick={() => select(set.noradId === selectedId ? null : set.noradId)}
               >
                 <span className="satlist__dot" aria-hidden="true" />
@@ -85,17 +92,46 @@ export function Sidebar() {
         </p>
         {notice && <p className="panel__hint">{notice}</p>}
         {error && sets.length > 0 && <p className="panel__hint panel__hint--warn">Refresh failed, showing the last known elements: {error}</p>}
-      </section>
+      </Panel>
+
+      {favorites.length > 0 && (
+        <Panel id="pinned" testId="pinned" title="Pinned">
+          <ul className="satlist" data-testid="pinned-list">
+            {favorites.map((f) => {
+              const set = favoriteToSet(f);
+              return (
+                <li key={f.noradId} className="target-row">
+                  <button
+                    type="button"
+                    className={`satlist__item${f.noradId === selectedId ? ' satlist__item--selected' : ''}`}
+                    aria-pressed={f.noradId === selectedId}
+                    disabled={!set}
+                    title={set ? undefined : 'The saved element set is unusable'}
+                    onClick={() => select(f.noradId === selectedId ? null : f.noradId)}
+                  >
+                    <span className="satlist__dot" aria-hidden="true" />
+                    <span className="satlist__name">{f.name}</span>
+                    <span className="satlist__meta">{f.noradId}</span>
+                  </button>
+                  <button type="button" className="link" title="Unpin" aria-label={`Unpin ${f.name}`} onClick={() => unpin(f.noradId)}>
+                    ×
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+      )}
 
       <CatalogPanel />
-      {selected && <SatelliteDetails set={selected} />}
+      {selected && <SatelliteDetails set={selected} onUnpin={unpin} />}
       <ImagingPanel set={selected} />
       <PassesPanel set={selected} />
     </aside>
   );
 }
 
-function SatelliteDetails({ set }: { set: ElementSet }) {
+function SatelliteDetails({ set, onUnpin }: { set: ElementSet; onUnpin(noradId: number): void }) {
   const live = useLiveOrbit(set);
   const showOrbit = useSelection((s) => s.showOrbit);
   const showGroundTrack = useSelection((s) => s.showGroundTrack);
@@ -112,12 +148,11 @@ function SatelliteDetails({ set }: { set: ElementSet }) {
   const hasSwath = preset?.swathKm !== undefined;
   const favorites = useSettings((s) => s.favorites);
   const addFavorite = useSettings((s) => s.addFavorite);
-  const removeFavorite = useSettings((s) => s.removeFavorite);
   const isIsi = presetSatellite(set.noradId) !== undefined;
   const isFavorite = favorites.some((f) => f.noradId === set.noradId);
   const toggleFavorite = () => {
     if (isFavorite) {
-      removeFavorite(set.noradId);
+      onUnpin(set.noradId);
       return;
     }
     const record = useCatalog.getState().findRecord(set.noradId);
@@ -126,10 +161,12 @@ function SatelliteDetails({ set }: { set: ElementSet }) {
   const stale = live ? Math.abs(live.elementAgeDays) > 7 : false;
 
   return (
-    <section className="panel" data-testid="details">
-      <div className="panel__header">
-        <h2 className="panel__title">{set.name}</h2>
-        <span>
+    <Panel
+      id="details"
+      testId="details"
+      title={set.name}
+      actions={
+        <>
           {!isIsi && (
             <button
               type="button"
@@ -141,16 +178,18 @@ function SatelliteDetails({ set }: { set: ElementSet }) {
               {isFavorite ? '★ pinned' : '☆ pin'}
             </button>
           )}{' '}
-          <button type="button" className="link" onClick={() => select(null)} title="Deselect" aria-label="Deselect">
+          <button type="button" className="link" onClick={() => select(null)} title="Deselect (Esc)" aria-label="Deselect">
             ×
           </button>
-        </span>
-      </div>
-      <div className="toggles" aria-label="Camera">
+        </>
+      }
+    >
+      <div className="toggles" role="group" aria-label="Camera">
         <button
           type="button"
           className={`btn${cameraMode === 'track' ? ' btn--on' : ''}`}
-          title="Camera follows the satellite"
+          aria-pressed={cameraMode === 'track'}
+          title="Camera follows the satellite; drag to orbit around it (Esc releases)"
           onClick={() => setCameraMode(cameraMode === 'track' ? 'free' : 'track')}
         >
           Track
@@ -158,22 +197,30 @@ function SatelliteDetails({ set }: { set: ElementSet }) {
         <button
           type="button"
           className={`btn${cameraMode === 'nadir' ? ' btn--on' : ''}`}
-          title="Look straight down from the satellite"
+          aria-pressed={cameraMode === 'nadir'}
+          title="Look straight down from the satellite (locks the camera; Esc releases it)"
           onClick={() => setCameraMode(cameraMode === 'nadir' ? 'free' : 'nadir')}
         >
           Nadir
         </button>
       </div>
-      <div className="toggles" aria-label="Overlays">
-        <button type="button" className={`btn${showOrbit ? ' btn--on' : ''}`} onClick={toggleOrbit}>
+      <div className="toggles" role="group" aria-label="Overlays">
+        <button type="button" className={`btn${showOrbit ? ' btn--on' : ''}`} aria-pressed={showOrbit} onClick={toggleOrbit} title="One orbit in inertial space">
           Orbit
         </button>
-        <button type="button" className={`btn${showGroundTrack ? ' btn--on' : ''}`} onClick={toggleGroundTrack}>
+        <button
+          type="button"
+          className={`btn${showGroundTrack ? ' btn--on' : ''}`}
+          aria-pressed={showGroundTrack}
+          onClick={toggleGroundTrack}
+          title="Path of the sub-satellite point: half an orbit back, one orbit ahead"
+        >
           Ground track
         </button>
         <button
           type="button"
           className={`btn${showFootprint ? ' btn--on' : ''}`}
+          aria-pressed={showFootprint}
           title="Where the satellite is above the horizon"
           onClick={toggleFootprint}
         >
@@ -183,6 +230,7 @@ function SatelliteDetails({ set }: { set: ElementSet }) {
           <button
             type="button"
             className={`btn${showSwath ? ' btn--on' : ''}`}
+            aria-pressed={showSwath}
             title={`Imaging swath, ${preset?.swathKm} km wide, along the coming orbit`}
             onClick={toggleSwath}
           >
@@ -239,6 +287,6 @@ function SatelliteDetails({ set }: { set: ElementSet }) {
           Elements are more than a week from the simulation time; positions may be off by kilometres.
         </p>
       )}
-    </section>
+    </Panel>
   );
 }

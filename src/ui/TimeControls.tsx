@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { JulianDate } from 'cesium';
 import { jumpToNow, setSimulationTime } from '../viewer/createViewer';
 import { useViewerStore } from '../state/viewer';
 
 /** Speed presets, in simulated seconds per real second. Negative runs time backwards. */
 const SPEEDS = [-1000, -300, -60, -10, -1, 1, 10, 60, 300, 1000];
+/** Years a typed date must fall in before it is applied (keeps "0002" out of the clock while typing). */
+const MIN_YEAR = 1957;
+const MAX_YEAR = 2100;
 
 function formatMultiplier(multiplier: number): string {
   const abs = Math.abs(multiplier);
@@ -11,9 +15,9 @@ function formatMultiplier(multiplier: number): string {
   return multiplier < 0 ? `-${text}` : text;
 }
 
-/** `datetime-local` value (no zone) for a UTC instant. */
-function toLocalInputValue(date: Date): string {
-  return date.toISOString().slice(0, 19);
+/** `datetime-local` value (no zone, minutes) for a UTC instant. */
+function toInputValue(date: Date): string {
+  return date.toISOString().slice(0, 16);
 }
 
 export function TimeControls() {
@@ -21,8 +25,18 @@ export function TimeControls() {
   const simTime = useViewerStore((s) => s.simTime);
   const multiplier = useViewerStore((s) => s.multiplier);
   const animating = useViewerStore((s) => s.animating);
+  // While the date field is focused it holds the user's draft; the live clock stops overwriting it.
+  const [draft, setDraft] = useState<string | null>(null);
 
   const speedOptions = SPEEDS.includes(multiplier) ? SPEEDS : [...SPEEDS, multiplier].sort((a, b) => a - b);
+
+  const commitDraft = (value: string) => {
+    if (!viewer || !value) return;
+    const parsed = new Date(value + 'Z');
+    const year = parsed.getUTCFullYear();
+    if (Number.isNaN(parsed.getTime()) || year < MIN_YEAR || year > MAX_YEAR) return;
+    setSimulationTime(viewer, JulianDate.fromDate(parsed));
+  };
 
   return (
     <div className="timectl" data-testid="time-controls">
@@ -31,7 +45,7 @@ export function TimeControls() {
         className="btn btn--icon"
         disabled={!viewer}
         aria-label={animating ? 'Pause' : 'Play'}
-        title={animating ? 'Pause simulation' : 'Run simulation'}
+        title={animating ? 'Pause simulation (Space)' : 'Run simulation (Space)'}
         onClick={() => {
           if (viewer) viewer.clock.shouldAnimate = !viewer.clock.shouldAnimate;
         }}
@@ -41,7 +55,7 @@ export function TimeControls() {
       <select
         className="select"
         aria-label="Simulation speed"
-        title="Simulated seconds per real second"
+        title="Simulated seconds per real second ([ and ] step through the presets)"
         disabled={!viewer}
         value={multiplier}
         onChange={(e) => {
@@ -57,15 +71,22 @@ export function TimeControls() {
       <input
         className="input"
         type="datetime-local"
-        step="1"
         aria-label="Simulation time (UTC)"
-        title="Jump to a UTC date and time"
+        title="Jump to a UTC date and time (applied when you press Enter or leave the field)"
         disabled={!viewer || !simTime}
-        value={simTime ? toLocalInputValue(simTime) : ''}
-        onChange={(e) => {
-          if (!viewer || !e.target.value) return;
-          const parsed = new Date(e.target.value + 'Z');
-          if (!Number.isNaN(parsed.getTime())) setSimulationTime(viewer, JulianDate.fromDate(parsed));
+        value={draft ?? (simTime ? toInputValue(simTime) : '')}
+        onFocus={(e) => setDraft(e.currentTarget.value)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={(e) => {
+          commitDraft(e.currentTarget.value);
+          setDraft(null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') {
+            setDraft(null);
+            e.currentTarget.blur();
+          }
         }}
       />
       <span className="topbar__dim">UTC</span>
@@ -74,7 +95,7 @@ export function TimeControls() {
         className="btn"
         disabled={!viewer}
         onClick={() => viewer && jumpToNow(viewer)}
-        title="Return to the current time at 1x"
+        title="Return to the current time at 1x (N)"
       >
         Now
       </button>

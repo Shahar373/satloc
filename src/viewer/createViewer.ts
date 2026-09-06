@@ -185,6 +185,23 @@ export function flyHome(viewer: Viewer, duration = 1.5): void {
   viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(HOME_LON, HOME_LAT, HOME_HEIGHT_M), duration });
 }
 
+/** Fly to a point on the ground, seen from `heightM` above it. Releases any tracked entity. */
+export function flyToLocation(viewer: Viewer, longitudeDeg: number, latitudeDeg: number, heightM = 3_500_000, duration = 1.5): void {
+  viewer.trackedEntity = undefined;
+  viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(longitudeDeg, latitudeDeg, heightM), duration });
+}
+
+/**
+ * Jump the clock to an event and run forward at a speed suitable for watching it: a preset
+ * between 1x and 60x is kept, anything else (backwards, 300x, 1000x) becomes 10x.
+ */
+export function jumpToInstant(viewer: Viewer, time: Date): void {
+  setSimulationTime(viewer, JulianDate.fromDate(time));
+  const multiplier = viewer.clock.multiplier;
+  if (!(multiplier >= 1 && multiplier <= 60)) viewer.clock.multiplier = 10;
+  viewer.clock.shouldAnimate = true;
+}
+
 /** Reset the simulation clock to wall-clock time at 1x. */
 export function jumpToNow(viewer: Viewer): void {
   setSimulationTime(viewer, JulianDate.now());

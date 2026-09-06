@@ -1,3 +1,4 @@
+import { useImagerySource } from '../state/overrides';
 import { useSelection } from '../state/selection';
 import { useUi } from '../state/ui';
 import { useViewerStore } from '../state/viewer';
@@ -22,6 +23,7 @@ export function TopBar() {
   const imagery = useViewerStore((s) => s.imagery);
   const viewer = useViewerStore((s) => s.viewer);
   const problems = useViewerStore((s) => s.problems);
+  const chosenImagery = useImagerySource();
   const settingsOpen = useUi((s) => s.settingsOpen);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
 
@@ -37,7 +39,14 @@ export function TopBar() {
         </span>
       ))}
       {imagery === 'offline' && (
-        <span className="badge badge--warn" title="Online imagery is unreachable; showing bundled low-resolution tiles.">
+        <span
+          className="badge badge--warn"
+          title={
+            chosenImagery === 'offline'
+              ? 'Showing the bundled low-resolution tiles, as chosen in Settings.'
+              : 'Online imagery is unreachable; showing bundled low-resolution tiles.'
+          }
+        >
           Offline imagery
         </span>
       )}
@@ -52,7 +61,7 @@ export function TopBar() {
         type="button"
         className="btn btn--icon"
         disabled={!viewer}
-        title="Whole-planet view"
+        title="Whole-planet view (H)"
         aria-label="Home view"
         onClick={() => {
           if (!viewer) return;

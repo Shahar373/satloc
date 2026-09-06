@@ -15,10 +15,6 @@ import { useGlobePick } from './useGlobePick';
 
 const PIN_COLOR = Color.fromCssColorString('#ff5c7a');
 
-function describe(lat: number, lon: number): string {
-  return `${Math.abs(lat).toFixed(2)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(2)}° ${lon >= 0 ? 'E' : 'W'}`;
-}
-
 /** Marker for the observer location, plus "pick on globe" handling. */
 export function ObserverLayer() {
   const viewer = useViewerStore((s) => s.viewer);
@@ -59,7 +55,8 @@ export function ObserverLayer() {
   }, [viewer, name, latitudeDeg, longitudeDeg, heightM]);
 
   const onPick = useCallback((lat: number, lon: number) => {
-    useObserver.getState().setLocation({ name: describe(lat, lon), latitudeDeg: lat, longitudeDeg: lon, heightM: 0 });
+    // The panel prints the coordinates on its own line; the name stays a short label.
+    useObserver.getState().setLocation({ name: 'Picked location', latitudeDeg: lat, longitudeDeg: lon, heightM: 0 });
     usePicking.getState().setMode(null);
   }, []);
   useGlobePick(viewer, picking, onPick);

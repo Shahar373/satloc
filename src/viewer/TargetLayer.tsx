@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { Cartesian2, Cartesian3, Color, Entity, LabelStyle, VerticalOrigin } from 'cesium';
 import { usePicking } from '../state/picking';
-import { useTargets } from '../state/targets';
+import { nextTargetName, useTargets } from '../state/targets';
 import { useViewerStore } from '../state/viewer';
 import { useGlobePick } from './useGlobePick';
 
@@ -47,7 +47,7 @@ export function TargetLayer() {
 
   const onPick = useCallback((lat: number, lon: number) => {
     const { targets: existing, addTarget } = useTargets.getState();
-    addTarget({ name: `Target ${existing.length + 1}`, latitudeDeg: lat, longitudeDeg: lon });
+    addTarget({ name: nextTargetName(existing), latitudeDeg: lat, longitudeDeg: lon });
     usePicking.getState().setMode(null);
   }, []);
   useGlobePick(viewer, picking, onPick);

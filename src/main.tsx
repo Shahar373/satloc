@@ -6,6 +6,7 @@ import './styles/cesium-dark.css';
 import { App } from './App';
 import { useCatalog } from './state/catalog';
 import { applyUrlOverrides, useOverrides } from './state/overrides';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 
 // Cesium resolves its workers/textures relative to this URL. It is read lazily,
 // on first use, so setting it before the first Viewer is created is enough.
@@ -16,6 +17,8 @@ void useCatalog.getState().load({ fixture: useOverrides.getState().catalogFixtur
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

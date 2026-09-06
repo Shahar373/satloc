@@ -67,6 +67,18 @@ export const useTargets = create<TargetsState>()(
   ),
 );
 
+/** "Target N" with the smallest N not already used, so names stay unique after removals. */
+export function nextTargetName(targets: readonly ImagingTarget[]): string {
+  const used = new Set<number>();
+  for (const t of targets) {
+    const m = /^Target (\d+)$/.exec(t.name);
+    if (m) used.add(Number(m[1]));
+  }
+  let n = targets.length + 1;
+  while (used.has(n)) n += 1;
+  return `Target ${n}`;
+}
+
 export function formatLatLon(latitudeDeg: number, longitudeDeg: number): string {
   const lat = `${Math.abs(latitudeDeg).toFixed(3)}° ${latitudeDeg >= 0 ? 'N' : 'S'}`;
   const lon = `${Math.abs(longitudeDeg).toFixed(3)}° ${longitudeDeg >= 0 ? 'E' : 'W'}`;

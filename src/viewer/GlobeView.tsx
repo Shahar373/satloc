@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { JulianDate, type Viewer } from 'cesium';
+import { isTauri } from '../platform/env';
 import { useHover } from '../state/hover';
+import { useSelection } from '../state/selection';
 import { useImagerySource, useOverrides } from '../state/overrides';
 import { useSettings } from '../state/settings';
 import { useViewerStore } from '../state/viewer';
@@ -11,6 +13,25 @@ import { captureView, createViewer, type CreateViewerOptions } from './createVie
 const LOADING_HINT_MAX_MS = 20_000;
 
 type Carried = { time: Date } & NonNullable<CreateViewerOptions['restore']>;
+
+const CAMERA_MODE_LABELS = {
+  free: 'free',
+  track: 'following the satellite',
+  nadir: 'looking straight down from the satellite',
+  imaging: 'looking at the target from the satellite',
+} as const;
+
+function describeStartupError(message: string): string {
+  if (/webgl/i.test(message)) {
+    return isTauri()
+      ? 'SatLoc needs WebGL 2, which the graphics driver did not provide. Updating the graphics driver usually fixes this.'
+      : 'SatLoc needs WebGL 2. Check your graphics drivers or try another browser.';
+  }
+  if (/NaturalEarthII|tilemapresource|Assets\//i.test(message)) {
+    return 'The bundled globe assets could not be loaded. The installation may be incomplete; reinstalling SatLoc should fix it.';
+  }
+  return 'Something went wrong while creating the globe. Trying again usually helps; if not, please report the message below.';
+}
 
 export function GlobeView() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -23,6 +44,7 @@ export function GlobeView() {
   const ready = useViewerStore((s) => s.ready);
   const error = useViewerStore((s) => s.error);
   const hover = useHover((s) => s.hover);
+  const cameraMode = useSelection((s) => s.cameraMode);
   const [hintExpired, setHintExpired] = useState(false);
 
   useEffect(() => {
@@ -104,12 +126,25 @@ export function GlobeView() {
           {hasViewer ? 'Loading imagery…' : 'Starting the 3D globe…'}
         </div>
       )}
+      {cameraMode !== 'free' && (
+        <div className="globe__mode" role="status" data-testid="camera-mode">
+          Camera: {CAMERA_MODE_LABELS[cameraMode]}
+          <button type="button" className="link" onClick={() => useSelection.getState().setCameraMode('free')} title="Release the camera (Esc)">
+            release
+          </button>
+        </div>
+      )}
       {error && (
         <div className="error-panel" role="alert">
           <div>
             <strong>The 3D globe could not start.</strong>
-            <div>SatLoc needs WebGL 2. Check your graphics drivers or try another browser.</div>
+            <div>{describeStartupError(error)}</div>
             <code>{error}</code>
+            <p>
+              <button type="button" className="btn" onClick={() => window.location.reload()}>
+                Try again
+              </button>
+            </p>
           </div>
         </div>
       )}

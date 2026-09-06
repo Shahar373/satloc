@@ -95,7 +95,7 @@ test('the globe renders and a satellite can be selected', async ({ page }) => {
 
   // Settings dialog opens, shows the resolved imagery, and closes.
   await page.getByRole('button', { name: 'Settings' }).click();
-  await expect(page.getByTestId('settings')).toContainText('Currently showing: offline');
+  await expect(page.getByTestId('settings')).toContainText('Currently showing: Offline (bundled Natural Earth II)');
   await page.getByTestId('settings').getByRole('button', { name: 'Close' }).click();
   await expect(page.getByTestId('settings')).toHaveCount(0);
   await page.getByRole('button', { name: 'Home view' }).click();
