@@ -11,6 +11,7 @@
   ],
   "permissions": [
     "core:default",
+    "opener:default",
     {
       "identifier": "http:default",
       "allow": [

@@ -6,6 +6,8 @@ export interface KeyValueStore {
   get<T>(key: string): Promise<T | undefined>;
   set<T>(key: string, value: T): Promise<void>;
   delete(key: string): Promise<void>;
+  /** Remove everything (used by "clear downloaded catalogue"). */
+  clear(): Promise<void>;
 }
 
 const DB_NAME = 'satloc';
@@ -58,6 +60,14 @@ const indexedDbStore: KeyValueStore = {
   get: (key) => run('readonly', (s) => s.get(key)) as Promise<never>,
   set: (key, value) => run('readwrite', (s) => s.put(value, key)).then(() => undefined),
   delete: (key) => run('readwrite', (s) => s.delete(key)).then(() => undefined),
+  clear: () =>
+    new Promise((resolve, reject) => {
+      // Connections are opened per operation, so nothing holds the database open here.
+      const request = indexedDB.deleteDatabase(DB_NAME);
+      request.onsuccess = () => resolve();
+      request.onblocked = () => resolve();
+      request.onerror = () => reject(request.error ?? new Error('IndexedDB delete failed'));
+    }),
 };
 
 const memory = new Map<string, unknown>();
@@ -65,6 +75,7 @@ const memoryStore: KeyValueStore = {
   get: async (key) => memory.get(key) as never,
   set: async (key, value) => void memory.set(key, value),
   delete: async (key) => void memory.delete(key),
+  clear: async () => memory.clear(),
 };
 
 export function getKeyValueStore(): KeyValueStore {

@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { getStorage } from '../platform/storage';
 
 export type CameraMode = 'free' | 'track' | 'nadir' | 'imaging';
 
@@ -24,19 +26,37 @@ export interface SelectionState {
   setCameraMode(mode: CameraMode): void;
 }
 
-export const useSelection = create<SelectionState>()((set) => ({
-  selectedId: null,
-  showOrbit: true,
-  showGroundTrack: true,
-  showFootprint: true,
-  showSwath: true,
-  showReach: true,
-  cameraMode: 'free',
-  select: (id) => set((s) => ({ selectedId: id, cameraMode: id === null ? 'free' : s.cameraMode })),
-  toggleOrbit: () => set((s) => ({ showOrbit: !s.showOrbit })),
-  toggleGroundTrack: () => set((s) => ({ showGroundTrack: !s.showGroundTrack })),
-  toggleFootprint: () => set((s) => ({ showFootprint: !s.showFootprint })),
-  toggleSwath: () => set((s) => ({ showSwath: !s.showSwath })),
-  toggleReach: () => set((s) => ({ showReach: !s.showReach })),
-  setCameraMode: (cameraMode) => set({ cameraMode }),
-}));
+/** Selection and overlay toggles survive a relaunch; the camera mode always starts free. */
+export const useSelection = create<SelectionState>()(
+  persist(
+    (set) => ({
+      selectedId: null,
+      showOrbit: true,
+      showGroundTrack: true,
+      showFootprint: true,
+      showSwath: true,
+      showReach: true,
+      cameraMode: 'free',
+      select: (id) => set((s) => ({ selectedId: id, cameraMode: id === null ? 'free' : s.cameraMode })),
+      toggleOrbit: () => set((s) => ({ showOrbit: !s.showOrbit })),
+      toggleGroundTrack: () => set((s) => ({ showGroundTrack: !s.showGroundTrack })),
+      toggleFootprint: () => set((s) => ({ showFootprint: !s.showFootprint })),
+      toggleSwath: () => set((s) => ({ showSwath: !s.showSwath })),
+      toggleReach: () => set((s) => ({ showReach: !s.showReach })),
+      setCameraMode: (cameraMode) => set({ cameraMode }),
+    }),
+    {
+      name: 'satloc.selection',
+      version: 1,
+      storage: createJSONStorage(() => getStorage()),
+      partialize: (s) => ({
+        selectedId: s.selectedId,
+        showOrbit: s.showOrbit,
+        showGroundTrack: s.showGroundTrack,
+        showFootprint: s.showFootprint,
+        showSwath: s.showSwath,
+        showReach: s.showReach,
+      }),
+    },
+  ),
+);

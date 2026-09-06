@@ -7,7 +7,9 @@ import { CatalogPanel } from './CatalogPanel';
 import { ImagingPanel } from './ImagingPanel';
 import { Panel } from './Panel';
 import { PassesPanel } from './PassesPanel';
+import { UndoHint } from './UndoHint';
 import { useLiveOrbit } from './useLiveOrbit';
+import { useUndo } from './useUndo';
 
 function formatDeg(value: number, posSuffix: string, negSuffix: string): string {
   if (!Number.isFinite(value)) return '–';
@@ -43,14 +45,27 @@ export function Sidebar() {
   const groups = useCatalog((s) => s.groups);
   const favorites = useSettings((s) => s.favorites);
   const removeFavorite = useSettings((s) => s.removeFavorite);
+  const addFavorite = useSettings((s) => s.addFavorite);
+  const [undo, offerUndo] = useUndo();
   // `groups`/`favorites` are dependencies because findSet reads them.
   const selected = selectedId === null ? undefined : (sets.find((s) => s.noradId === selectedId) ?? findSet(selectedId));
   void groups;
 
   const unpin = (noradId: number) => {
+    const favorite = favorites.find((f) => f.noradId === noradId);
     removeFavorite(noradId);
     // A pinned catalogue satellite whose group is not loaded has nowhere else to come from.
-    if (selectedId === noradId && !useCatalog.getState().findSet(noradId)) select(null);
+    const orphaned = selectedId === noradId && !useCatalog.getState().findSet(noradId);
+    if (orphaned) select(null);
+    if (favorite) {
+      offerUndo({
+        label: `Unpinned ${favorite.name}`,
+        restore: () => {
+          addFavorite(favorite);
+          if (orphaned) select(favorite.noradId);
+        },
+      });
+    }
   };
 
   return (
@@ -92,6 +107,24 @@ export function Sidebar() {
         </p>
         {notice && <p className="panel__hint">{notice}</p>}
         {error && sets.length > 0 && <p className="panel__hint panel__hint--warn">Refresh failed, showing the last known elements: {error}</p>}
+        {ISI_PRESET.historical && ISI_PRESET.historical.length > 0 && (
+          <details className="history">
+            <summary className="panel__hint">History (re-entered, no orbit to show)</summary>
+            <ul className="satlist">
+              {ISI_PRESET.historical.map((h) => (
+                <li key={h.noradId} className="history__row">
+                  <span className="satlist__dot satlist__dot--gone" aria-hidden="true" />
+                  <span className="satlist__name">{h.name}</span>
+                  <span className="satlist__meta">
+                    {h.launched.slice(0, 4)}–{h.decayed.slice(0, 4)}
+                    {h.resolutionM !== undefined && ` · ${h.resolutionM} m`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        <UndoHint offer={undo} />
       </Panel>
 
       {favorites.length > 0 && (

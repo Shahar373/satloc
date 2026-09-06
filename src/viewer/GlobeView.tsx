@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { JulianDate, type Viewer } from 'cesium';
 import { isTauri } from '../platform/env';
 import { HoverTooltip } from '../ui/HoverTooltip';
+import { copyDiagnostics } from '../ui/diagnostics';
+import { useUi } from '../state/ui';
 import { useSelection } from '../state/selection';
 import { useImagerySource, useOverrides } from '../state/overrides';
 import { useSettings } from '../state/settings';
@@ -44,6 +46,8 @@ export function GlobeView() {
   const ready = useViewerStore((s) => s.ready);
   const error = useViewerStore((s) => s.error);
   const cameraMode = useSelection((s) => s.cameraMode);
+  const hintDismissed = useUi((s) => s.hintDismissed);
+  const dismissHint = useUi((s) => s.dismissHint);
   const [hintExpired, setHintExpired] = useState(false);
 
   useEffect(() => {
@@ -125,6 +129,16 @@ export function GlobeView() {
           {hasViewer ? 'Loading imagery…' : 'Starting the 3D globe…'}
         </div>
       )}
+      {ready && !hintDismissed && (
+        <div className="globe__hint" role="note" data-testid="first-run-hint">
+          <span>
+            Click a satellite in the list or on the globe · drag the timeline to move in time · ⚙ lists the keyboard shortcuts
+          </span>
+          <button type="button" className="link" onClick={dismissHint} aria-label="Dismiss hint" title="Dismiss">
+            ×
+          </button>
+        </div>
+      )}
       {cameraMode !== 'free' && (
         <div className="globe__mode" role="status" data-testid="camera-mode">
           Camera: {CAMERA_MODE_LABELS[cameraMode]}
@@ -139,9 +153,12 @@ export function GlobeView() {
             <strong>The 3D globe could not start.</strong>
             <div>{describeStartupError(error)}</div>
             <code>{error}</code>
-            <p>
+            <p className="toggles">
               <button type="button" className="btn" onClick={() => window.location.reload()}>
                 Try again
+              </button>
+              <button type="button" className="btn" onClick={() => void copyDiagnostics(`Globe start-up error: ${error}`)}>
+                Copy diagnostics
               </button>
             </p>
           </div>

@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { isTauri } from '../platform/env';
+import { getKeyValueStore } from '../platform/kv';
+import { openExternal } from '../platform/open';
+import { getStorage, listStorageKeys } from '../platform/storage';
+import { useCatalog } from '../state/catalog';
 import { useSettings } from '../state/settings';
 import { useUi } from '../state/ui';
 import { useUpdates } from '../state/updates';
 import { useViewerStore } from '../state/viewer';
 import { IMAGERY_LABELS, IMAGERY_SOURCES, type ImagerySource } from '../viewer/imagery';
 import { NumberField } from './NumberField';
+import { APP_VERSION, ISSUES_URL, copyDiagnostics } from './diagnostics';
 import { SHORTCUTS } from './useKeyboardShortcuts';
-
-const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? '0.1.0';
 
 export function SettingsPanel() {
   const open = useUi((s) => s.settingsOpen);
@@ -31,6 +34,21 @@ export function SettingsPanel() {
   const checkUpdates = useUpdates((s) => s.check);
   const installUpdate = useUpdates((s) => s.install);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const clearDownloaded = useCatalog((s) => s.clearDownloaded);
+  const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle');
+  const [resetArmed, setResetArmed] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  const copy = async () => {
+    setCopied((await copyDiagnostics()) ? 'done' : 'failed');
+    window.setTimeout(() => setCopied('idle'), 2500);
+  };
+
+  const resetEverything = async () => {
+    for (const key of listStorageKeys()) getStorage().removeItem(key);
+    await getKeyValueStore().clear().catch(() => undefined);
+    window.location.reload();
+  };
 
   // Move focus into the dialog when it opens (keyboard users land on the close button).
   useEffect(() => {
@@ -160,6 +178,43 @@ export function SettingsPanel() {
         </section>
 
         <section className="field">
+          <span className="field__label">Reset</span>
+          <div className="toggles">
+            <button
+              type="button"
+              className="btn"
+              disabled={clearing}
+              title="Deletes the downloaded catalogue groups and their 2-hour bookkeeping; displayed groups are fetched again"
+              onClick={() => {
+                setClearing(true);
+                void clearDownloaded().finally(() => setClearing(false));
+              }}
+            >
+              {clearing ? 'Clearing…' : 'Clear downloaded catalogue'}
+            </button>
+            {!resetArmed ? (
+              <button type="button" className="btn" onClick={() => setResetArmed(true)} title="Targets, observer, pins, imagery choice, token, everything">
+                Reset all settings…
+              </button>
+            ) : (
+              <>
+                <button type="button" className="btn btn--danger" onClick={() => void resetEverything()}>
+                  Yes, reset and restart
+                </button>
+                <button type="button" className="btn" onClick={() => setResetArmed(false)}>
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+          {resetArmed && (
+            <span className="panel__hint panel__hint--warn">
+              This removes targets, the observer, pinned satellites, the imagery choice and the Ion token, and restarts SatLoc.
+            </span>
+          )}
+        </section>
+
+        <section className="field">
           <span className="field__label">About</span>
           <p className="panel__hint">
             SatLoc {APP_VERSION}. Orbital elements from CelesTrak (celestrak.org) with tle.ivanstanojevic.me as
@@ -167,6 +222,18 @@ export function SettingsPanel() {
             globe by CesiumJS. Satellite positions carry the usual SGP4 error of a few kilometres and grow with the age
             of the element set.
           </p>
+          <p className="panel__hint">
+            Built with CesiumJS (Apache-2.0), satellite.js (MIT), React (MIT), zustand (MIT) and Tauri (MIT/Apache-2.0).
+            Natural Earth II tiles are public domain; Esri and NASA GIBS imagery under their terms of use.
+          </p>
+          <div className="toggles">
+            <button type="button" className="btn" onClick={() => void copy()} title="Copies a plain-text state summary (no token) for a bug report">
+              {copied === 'done' ? 'Copied ✓' : copied === 'failed' ? 'Copy failed' : 'Copy diagnostics'}
+            </button>
+            <button type="button" className="btn" onClick={() => void openExternal(ISSUES_URL)} title="Opens GitHub in your browser; paste the diagnostics there">
+              Report a problem
+            </button>
+          </div>
         </section>
       </div>
     </>

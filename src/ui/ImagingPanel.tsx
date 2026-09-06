@@ -8,8 +8,10 @@ import { formatLatLon, nextTargetName, useTargets } from '../state/targets';
 import { useViewerStore } from '../state/viewer';
 import { flyToLocation, jumpToInstant } from '../viewer/createViewer';
 import { NumberField } from './NumberField';
+import { UndoHint } from './UndoHint';
+import { useUndo } from './useUndo';
 import { Panel } from './Panel';
-import { formatLocalDateTime, formatUtcShort } from './format';
+import { formatLocalBeside, formatUtcShort } from './format';
 import { useForecastWindow } from './useForecastWindow';
 
 /** Recompute when the simulation clock drifts this far from the forecast start. */
@@ -28,6 +30,8 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
   const selectTarget = useTargets((s) => s.selectTarget);
   const addTarget = useTargets((s) => s.addTarget);
   const removeTarget = useTargets((s) => s.removeTarget);
+  const restoreTarget = useTargets((s) => s.restoreTarget);
+  const [undo, offerUndo] = useUndo();
   const updateTarget = useTargets((s) => s.updateTarget);
   const setMaxOffNadir = useTargets((s) => s.setMaxOffNadir);
   const setMinSunElevation = useTargets((s) => s.setMinSunElevation);
@@ -154,12 +158,23 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
             >
               ✎
             </button>
-            <button type="button" className="link" title="Remove" aria-label={`Remove ${t.name}`} onClick={() => removeTarget(t.id)}>
+            <button
+              type="button"
+              className="link"
+              title="Remove"
+              aria-label={`Remove ${t.name}`}
+              onClick={() => {
+                const index = targets.indexOf(t);
+                removeTarget(t.id);
+                offerUndo({ label: `Removed ${t.name}`, restore: () => restoreTarget(t, index) });
+              }}
+            >
               ×
             </button>
           </li>
         ))}
       </ul>
+      <UndoHint offer={undo} />
 
       <div className="toggles" role="group" aria-label="Targets">
         <button
@@ -270,7 +285,7 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
                 >
                   <span className="pass__when">
                     {formatUtcShort(o.time)} UTC
-                    <span className="topbar__dim"> · {formatLocalDateTime(o.time)} local</span>
+                    <span className="topbar__dim"> · {formatLocalBeside(o.time)} local</span>
                     <span className={`badge badge--inline${o.daylight ? ' badge--ok' : ' badge--warn'}`}>{o.daylight ? 'daylight' : 'night'}</span>
                   </span>
                   <span className="pass__facts">

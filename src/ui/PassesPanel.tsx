@@ -8,7 +8,7 @@ import { useSelection } from '../state/selection';
 import { useViewerStore } from '../state/viewer';
 import { flyToLocation, jumpToInstant } from '../viewer/createViewer';
 import { Panel } from './Panel';
-import { formatDuration, formatLocalDateTime, formatUtcShort } from './format';
+import { formatDuration, formatLocalBeside, formatUtcShort } from './format';
 import { useForecastWindow } from './useForecastWindow';
 
 const WINDOW_HOURS = 48;
@@ -143,7 +143,7 @@ export function PassesPanel({ set }: { set: ElementSet | undefined }) {
               <button type="button" className="pass" onClick={() => jumpToPass(pass)} title="Jump to 30 s before this pass and look at the observer">
                 <span className="pass__when">
                   {formatUtcShort(pass.aos)} UTC
-                  <span className="topbar__dim"> · {formatLocalDateTime(pass.aos)} local</span>
+                  <span className="topbar__dim"> · {formatLocalBeside(pass.aos)} local</span>
                 </span>
                 <span className="pass__facts">
                   {formatDuration(pass.durationS)} · max {pass.maxElevationDeg.toFixed(0)}° ·{' '}

@@ -1,10 +1,15 @@
+import { useCatalog } from '../state/catalog';
 import { useImagerySource } from '../state/overrides';
+import { formatClockOffset } from './format';
 import { useSelection } from '../state/selection';
 import { useUi } from '../state/ui';
 import { useViewerStore } from '../state/viewer';
 import { flyHome } from '../viewer/createViewer';
 import { TimeControls } from './TimeControls';
 import { UpdateBanner } from './UpdateBanner';
+
+/** Warn when this PC's clock is further than this from the data server's (moves satellites by km). */
+const CLOCK_WARN_MS = 30_000;
 
 function formatUtc(date: Date): string {
   return date.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
@@ -25,6 +30,11 @@ export function TopBar() {
   const problems = useViewerStore((s) => s.problems);
   const imageryPending = useViewerStore((s) => s.imageryPending);
   const chosenImagery = useImagerySource();
+  const clockOffsetMs = useCatalog((s) => s.clockOffsetMs);
+  // simTime is refreshed a few times a second, so this comparison stays current.
+  const offsetMs = simTime ? simTime.getTime() - Date.now() : 0;
+  const live = animating && multiplier === 1 && Math.abs(offsetMs) < 2000;
+  const clockWrong = clockOffsetMs !== null && Math.abs(clockOffsetMs) > CLOCK_WARN_MS;
   const settingsOpen = useUi((s) => s.settingsOpen);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
 
@@ -39,6 +49,15 @@ export function TopBar() {
           {p.label}
         </span>
       ))}
+      {clockWrong && (
+        <span
+          className="badge badge--warn"
+          role="status"
+          title={`This computer's clock is ${formatClockOffset(clockOffsetMs)} from the data server's. Satellite positions and pass times are shifted by that amount; fix the clock in Windows settings.`}
+        >
+          PC clock off by {formatClockOffset(clockOffsetMs).replace(/^[+−]/, '')}
+        </span>
+      )}
       {imagery === 'offline' && !imageryPending && (
         <span
           className="badge badge--warn"
@@ -55,6 +74,19 @@ export function TopBar() {
         <span className="topbar__time" data-testid="sim-time">
           {formatUtc(simTime)}
           <span className="topbar__dim"> · {animating ? formatMultiplier(multiplier) : 'paused'}</span>
+          {live ? (
+            <span className="badge badge--ok badge--inline" title="The simulation follows the current time">
+              live
+            </span>
+          ) : (
+            <span
+              className="badge badge--warn badge--inline"
+              title="Simulation time differs from now; press N (or Now) to return to the present"
+              data-testid="time-offset"
+            >
+              {formatClockOffset(offsetMs)}
+            </span>
+          )}
         </span>
       )}
       <TimeControls />

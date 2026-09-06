@@ -17,6 +17,18 @@ const memoryStorage: KeyValueStorage = {
   removeItem: (key) => void memory.delete(key),
 };
 
+/** Every key this app wrote (all start with `satloc.`), for "reset everything". */
+export function listStorageKeys(): string[] {
+  const storage = getStorage();
+  if (storage === memoryStorage) return [...memory.keys()].filter((k) => k.startsWith('satloc.'));
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('satloc.')) keys.push(key);
+  }
+  return keys;
+}
+
 export function getStorage(): KeyValueStorage {
   try {
     if (typeof localStorage !== 'undefined') {

@@ -20,6 +20,8 @@ export interface TargetsState {
   addTarget(target: Omit<ImagingTarget, 'id'>): ImagingTarget;
   updateTarget(id: string, patch: Partial<Omit<ImagingTarget, 'id'>>): void;
   removeTarget(id: string): void;
+  /** Put a removed target back (undo), at `index` when given. */
+  restoreTarget(target: ImagingTarget, index?: number): void;
   selectTarget(id: string | null): void;
   setMaxOffNadir(deg: number): void;
   setMinSunElevation(deg: number): void;
@@ -54,6 +56,13 @@ export const useTargets = create<TargetsState>()(
           targets: s.targets.filter((t) => t.id !== id),
           selectedTargetId: s.selectedTargetId === id ? null : s.selectedTargetId,
         })),
+      restoreTarget: (target, index) =>
+        set((s) => {
+          if (s.targets.some((t) => t.id === target.id)) return s;
+          const targets = [...s.targets];
+          targets.splice(index === undefined ? targets.length : Math.min(index, targets.length), 0, target);
+          return { targets, selectedTargetId: s.selectedTargetId ?? target.id };
+        }),
       selectTarget: (selectedTargetId) => set({ selectedTargetId }),
       setMaxOffNadir: (maxOffNadirDeg) => set({ maxOffNadirDeg }),
       setMinSunElevation: (minSunElevationDeg) => set({ minSunElevationDeg }),

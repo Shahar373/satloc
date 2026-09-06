@@ -112,7 +112,7 @@ export async function createImageryLayer(resolved: ImageryResolved, ionToken = '
 export const IMAGERY_LABELS: Record<ImagerySource, string> = {
   auto: 'Automatic (Esri, offline fallback)',
   esri: 'Esri World Imagery',
-  'gibs-bluemarble': 'NASA Blue Marble (GIBS)',
+  'gibs-bluemarble': 'NASA Blue Marble (GIBS, experimental)',
   ion: 'Cesium Ion: Bing imagery + terrain (token)',
   offline: 'Offline (bundled Natural Earth II)',
 };

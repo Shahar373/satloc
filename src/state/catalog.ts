@@ -7,9 +7,9 @@ import { EROS_LIKE_OMM, syntheticConstellation } from '../core/tle/fixtures';
 import { ommToElementSet, tleToElementSet, type ElementSet, type OmmRecord } from '../core/tle/omm';
 import snapshot from '../data/isi-snapshot.json';
 import { isTauri } from '../platform/env';
-import { fetchText } from '../platform/http';
+import { fetchText, getServerClockOffsetMs } from '../platform/http';
 import { getKeyValueStore } from '../platform/kv';
-import { getStorage } from '../platform/storage';
+import { getStorage, listStorageKeys } from '../platform/storage';
 import { useSettings, type Favorite } from './settings';
 
 export type CatalogSource = 'none' | 'fixture' | 'snapshot' | 'cache' | 'celestrak' | 'mirror';
@@ -51,6 +51,8 @@ export interface CatalogState {
   workerError: string | null;
   /** How many catalogue points are on the globe versus how many the displayed groups hold. */
   pointStats: { shown: number; total: number; rejected: number } | null;
+  /** This machine's clock minus the data server's, ms, once a server answered; null when unknown. */
+  clockOffsetMs: number | null;
   groups: Record<string, GroupState>;
   load(options?: { fixture?: boolean }): Promise<void>;
   /** Refresh the ISI element sets. CelesTrak is asked at most once per 2 hours; otherwise the mirror. */
@@ -59,6 +61,8 @@ export interface CatalogState {
   loadGroup(groupId: string, options?: { force?: boolean }): Promise<void>;
   setWorkerError(message: string | null): void;
   setPointStats(stats: CatalogState['pointStats']): void;
+  /** Drop downloaded groups and their 2-hour bookkeeping, then reload what is displayed. */
+  clearDownloaded(): Promise<void>;
   /** Find an element set anywhere: ISI, favourites, loaded groups. */
   findSet(noradId: number): ElementSet | undefined;
   /** Raw record for a catalogue satellite, for pinning it as a favourite. */
@@ -423,6 +427,7 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
   refreshing: false,
   workerError: null,
   pointStats: null,
+  clockOffsetMs: null,
   groups: {},
 
   setWorkerError(message) {
@@ -431,6 +436,13 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
 
   setPointStats(stats) {
     set({ pointStats: stats });
+  },
+
+  async clearDownloaded() {
+    await getKeyValueStore().clear().catch((err: unknown) => console.warn('Could not clear the group cache', err));
+    for (const key of listStorageKeys()) if (key.startsWith(GROUP_ATTEMPT_PREFIX)) getStorage().removeItem(key);
+    set({ groups: {}, pointStats: null });
+    for (const groupId of useSettings.getState().displayedGroups) void get().loadGroup(groupId);
   },
 
   async load(options = {}) {
@@ -548,7 +560,8 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
       console.warn('Element set refresh failed', err);
       set((state) => ({ error: message, notice: null, status: state.sets.length > 0 ? 'ready' : 'error' }));
     } finally {
-      set({ refreshing: false });
+      const serverOffset = getServerClockOffsetMs();
+      set({ refreshing: false, clockOffsetMs: serverOffset === null ? get().clockOffsetMs : -serverOffset });
     }
   },
 

@@ -33,6 +33,17 @@ npm run test:e2e     # Playwright smoke test with screenshots
 Installers are built by GitHub Actions on every push (Actions tab, "SatLoc-windows-installer"
 artifact); releases are published as described above.
 
+## Install (beta)
+
+1. Download the newest installer from https://github.com/Shahar373/satloc/releases/latest:
+   `SatLoc_x.y.z_x64-setup.exe` (NSIS, per-user install, no admin rights needed).
+2. Windows SmartScreen shows "Windows protected your PC" because the build is not code-signed yet:
+   choose **More info → Run anyway**.
+3. The app updates itself from the same Releases page (Settings → Updates).
+
+On first launch SatLoc contacts celestrak.org and tle.ivanstanojevic.me for orbital elements,
+server.arcgisonline.com for imagery and github.com for updates. There is no telemetry.
+
 ## Beta notes
 
 - Windows 10/11 with WebView2 (preinstalled on Windows 11; the installer fetches it otherwise).
@@ -40,5 +51,5 @@ artifact); releases are published as described above.
   uses a mirror and says so under the satellite list. Positions carry the usual SGP4 error of a
   few kilometres and grow with the age of the element set (shown in the details panel).
 - Keyboard shortcuts are listed in Settings. Esc unwinds: field → settings → picking → camera lock → selection.
-- Problems: press Ctrl+Shift+I for the developer console and report the message, the SatLoc
-  version (Settings → About) and what you did at https://github.com/Shahar373/satloc/issues.
+- Problems: Settings → About → **Copy diagnostics**, then **Report a problem** (opens GitHub) and
+  paste them with what you did. Ctrl+Shift+I opens the developer console for details.

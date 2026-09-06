@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { copyDiagnostics } from './diagnostics';
 
 interface State {
   error: Error | null;
@@ -23,11 +24,14 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
       <div className="error-panel" role="alert" data-testid="app-crash">
         <div>
           <strong>SatLoc ran into a problem and stopped.</strong>
-          <div>Reloading usually fixes it. If it keeps happening, please report the message below.</div>
+          <div>Reloading usually fixes it. If it keeps happening, copy the diagnostics and report them on GitHub.</div>
           <code>{error.message}</code>
-          <p>
+          <p className="toggles">
             <button type="button" className="btn" onClick={() => window.location.reload()}>
               Reload
+            </button>
+            <button type="button" className="btn" onClick={() => void copyDiagnostics(`Crash: ${error.stack ?? error.message}`)}>
+              Copy diagnostics
             </button>
           </p>
         </div>
