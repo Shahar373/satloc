@@ -204,17 +204,34 @@ downlinked, no contact left active) and passes all four Validator rules with zer
 findings when re-evaluated against the same real geometry — the intended happy path for Scenario
 01; fault injection is Scenario 02's job (§ Roadmap, not built yet).
 
-**Not yet wired into `TrainV2`.** The real opportunity is ~59 hours out; reaching it at `TrainV2`'s
-current fastest rate (×60) means ~59 minutes of real wall-clock time, which is impractical for a
-live training console session. Wiring this in needs a UX decision this PR deliberately leaves
-open — a much higher rate preset, jumping the clock directly to the next scheduled event, or
-choosing a scenario `startTime` authored to sit close to a real opportunity — not a decision to
-make silently inside a scheduling-logic PR.
+**Now wired into `TrainV2`** (a later PR): the UX gap above — ~59 hours out is impractical at
+`TrainV2`'s old fastest rate (×60) — is resolved by adding a ×3600 ("1 hour per second") rate
+preset and making it the default, rather than jumping the clock or moving the scenario's
+`startTime` (rejected: `asteria1.test.ts` asserts `startTime` equals the TLE's own epoch on
+purpose, a decision this wiring PR wasn't the place to relitigate).
+
+## Plan workspace (browse mode)
+
+`evaluateImagingOpportunities` (`src/core/scenario/planOpportunities.ts`), rendered by `PlanV2.tsx`
+(replacing the Plan workspace's placeholder text), lists real `findImagingOpportunities` output
+for Asteria-1's target over the next 30 days and evaluates each one against `checkRollLimit` and
+`checkImagingWindow` — the two Validator rules that depend only on the candidate itself. For the
+real Asteria-1 geometry this genuinely produces a mix of clean and roll-limited candidates (10 of
+27 over a real 30-day window at the time this was written), not a contrived example.
+
+Deliberately **read-only** and does not evaluate `checkStorageBudget` or `checkContactTiming`:
+both need state this module has no access to (an accumulated plan — unmodeled so far — for
+storage; a real domain event log with recorded contact acquisition for timing), and picking an
+opportunity to build an actual committable plan needs a `CommandSubmitted`/plan data model this
+codebase doesn't have yet. That's the Plan workspace's next PR, not this one.
 
 ## What's not decided here
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
 but not approved), Train console telemetry channels, and Scenario 02's fault injection are all
 still open — later PRs, not this document. All four originally-planned HardBlock Validator rules
-(storage, roll-limit, contact-timing, imaging-window) are now built; none of them are wired into
-TrainV2's demo timeline or a real Plan workspace yet — that wiring is separate work.
+(storage, roll-limit, contact-timing, imaging-window) are now built and live in both `TrainV2` and
+the Plan workspace's browse mode; what's still missing is a real committable plan (an operator
+picking an opportunity and a contact, with `checkStorageBudget`/`checkContactTiming` evaluated
+against the resulting accumulated state) and the waiver flow for `WaivableWarning` findings — no
+rule of that severity exists yet either.
