@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useViewerStore } from '../../state/viewer';
 import { Icon } from './Icon';
 
@@ -21,6 +22,7 @@ function useDisplayClock(): Date {
 export function TopBarV2() {
   const clock = useDisplayClock();
   const multiplier = useViewerStore((s) => s.multiplier);
+  const { t, i18n } = useTranslation();
 
   return (
     <div className="sl-topbar">
@@ -30,13 +32,20 @@ export function TopBarV2() {
       </div>
       <button type="button" className="sl-topbar__cmdk">
         <Icon name="search" size={14} />
-        <span>Jump to satellite, task, or command…</span>
+        <span>{t('topbar.searchPlaceholder')}</span>
         <kbd>⌘K</kbd>
       </button>
       <div className="sl-topbar__clock sl-mono sl-tabular">
         <span className="sl-bidi-isolate">{formatUtc(clock)}</span>
         {multiplier !== 1 && <span className="sl-topbar__rate"> · ×{multiplier}</span>}
       </div>
+      <button
+        type="button"
+        className="sl-topbar__lang"
+        onClick={() => void i18n.changeLanguage(i18n.language === 'he' ? 'en' : 'he')}
+      >
+        {t('topbar.switchLanguage')}
+      </button>
     </div>
   );
 }

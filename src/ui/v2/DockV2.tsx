@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCatalog } from '../../state/catalog';
 import { useSelection } from '../../state/selection';
 import type { WorkspaceId } from './RailV2';
@@ -12,6 +13,7 @@ export interface DockV2Props {
  * attached, which lands with Explore workspace wiring (see AppV2.tsx's globe placeholder note).
  */
 export function DockV2({ workspace }: DockV2Props) {
+  const { t } = useTranslation();
   const sets = useCatalog((s) => s.sets);
   const selectedId = useSelection((s) => s.selectedId);
   const select = useSelection((s) => s.select);
@@ -22,7 +24,7 @@ export function DockV2({ workspace }: DockV2Props) {
 
   return (
     <div className="sl-dock">
-      <div className="sl-dock__title">Catalog ({sets.length})</div>
+      <div className="sl-dock__title">{t('dock.catalog', { count: sets.length })}</div>
       <table className="sl-dock__table">
         <tbody>
           {sets.map((set) => (

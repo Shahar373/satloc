@@ -82,10 +82,15 @@
   font-family: var(--sl-font-ui-he);
 }
 
+/* Technical/numeric values always read left-to-right regardless of UI language (a duration, a
+   NORAD id, a lat/lon reading) — direction: ltr keeps them from being reordered by the bidi
+   algorithm or right-aligned when the page is RTL, the same requirement .sl-bidi-isolate covers
+   for a value embedded mid-sentence, applied here to values shown in their own field/cell. */
 .sl-v2 .sl-mono,
 .sl-v2 .sl-tabular {
   font-family: var(--sl-font-mono);
   font-variant-numeric: tabular-nums;
+  direction: ltr;
 }
 
 /* A number embedded in RTL text stays LTR and doesn't get bidi-scrambled. */
