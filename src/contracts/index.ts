@@ -44,3 +44,9 @@ export {
 } from './envelope';
 
 export { generateUlid } from './ulid';
+
+export { ASTERIA_1_GROUND_STATIONS, ASTERIA_1_PROFILE, ASTERIA_1_SCENARIO, ASTERIA_1_TLE } from './asteria1';
+export { checkScenarioConsistency } from './scenario';
+export type { ScenarioDefinition, SyntheticTle } from './scenario';
+
+export type { EntityRef, ValidationFinding, ValidationSeverity } from './validation';
