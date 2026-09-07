@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import './styles/global.css';
 import './styles/cesium-dark.css';
-import { App } from './App';
+import { AppV2 } from './ui/v2/AppV2';
 import { useCatalog } from './state/catalog';
 import { applyUrlOverrides, useOverrides } from './state/overrides';
 import { ErrorBoundary } from './ui/ErrorBoundary';
@@ -18,14 +18,15 @@ void useCatalog.getState().load({ fixture: useOverrides.getState().catalogFixtur
 
 const root = createRoot(document.getElementById('root')!);
 
-// Dynamically imported so Shell V1's bundle and load path are completely unaffected when the
-// flag isn't present — only `?shell=v2` visitors pay for Shell V2's code, tokens, and fonts.
-if (urlParams.get('shell') === 'v2') {
-  void import('./ui/v2/AppV2').then(({ AppV2 }) => {
+// Shell V2 (docs/design/gate-01/DECISION.md) is now the default shell. Shell V1 — the original
+// UI — is kept available behind `?shell=v1` for one transition PR before removal, dynamically
+// imported so its bundle and load path cost nothing for the now-default V2 path.
+if (urlParams.get('shell') === 'v1') {
+  void import('./App').then(({ App }) => {
     root.render(
       <StrictMode>
         <ErrorBoundary>
-          <AppV2 />
+          <App />
         </ErrorBoundary>
       </StrictMode>,
     );
@@ -34,7 +35,7 @@ if (urlParams.get('shell') === 'v2') {
   root.render(
     <StrictMode>
       <ErrorBoundary>
-        <App />
+        <AppV2 />
       </ErrorBoundary>
     </StrictMode>,
   );

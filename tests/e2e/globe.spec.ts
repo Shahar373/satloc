@@ -2,7 +2,11 @@ import { expect, test } from '@playwright/test';
 
 // `imagery=offline` uses the bundled tiles and `catalog=fixture` a synthetic element set,
 // so the test never touches the network and is deterministic in the sandbox and in CI.
-const APP_URL = '/?imagery=offline&catalog=fixture&time=2026-09-01T12:00:00Z';
+// `shell=v1` targets Shell V1 explicitly (Shell V2 is now the default — see main.tsx): this test
+// exercises functionality (catalog groups, imaging opportunities, pass prediction, the timeline,
+// the settings dialog) that only exists in V1 so far, kept working during the V1→V2 transition
+// period until V1 is removed, at which point this whole test needs its own V2 replacement.
+const APP_URL = '/?shell=v1&imagery=offline&catalog=fixture&time=2026-09-01T12:00:00Z';
 
 test('the globe renders and a satellite can be selected', async ({ page }) => {
   const pageErrors: string[] = [];
