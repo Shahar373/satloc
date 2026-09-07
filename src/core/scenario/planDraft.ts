@@ -2,6 +2,7 @@ import type { DataProduct, ImagingMode, SatelliteProfile } from '../../contracts
 import type { ValidationFinding } from '../../contracts/validation';
 import type { ImagingOpportunity } from '../imaging/opportunities';
 import { checkContactCapacity } from '../validation/contactCapacity';
+import { checkElementsStale } from '../validation/elementsStale';
 import { checkImagingWindow } from '../validation/imagingWindow';
 import { checkRollLimit } from '../validation/rollLimit';
 import { checkStorageBudget } from '../validation/storageBudget';
@@ -14,6 +15,8 @@ export interface ImagingPlanCandidate {
   /** The specific real opportunity chosen for this candidate (from `findImagingOpportunities`). */
   opportunity: ImagingOpportunity;
   mode: ImagingMode;
+  /** Age (`elementSetAgeDays`) of the element set this candidate's geometry was computed from. */
+  elementSetAgeDays: number;
 }
 
 export interface DownlinkPlanCandidate {
@@ -53,9 +56,13 @@ const deg2rad = (d: number) => (d * Math.PI) / 180;
  * first real multi-candidate use of the Validator rules, rather than each rule seeing one candidate
  * against an empty or already-current Truth State in isolation.
  *
- * A candidate with any finding does not count toward storage for the candidates after it — a plan
- * that can't commit a capture doesn't actually put anything in storage for it, and a downlink that
- * can't clear its assigned products doesn't actually free anything either.
+ * A candidate with a `HardBlock` finding does not count toward storage for the candidates after it
+ * — a plan that can't commit a capture doesn't actually put anything in storage for it, and a
+ * downlink that can't clear its assigned products doesn't actually free anything either. A
+ * `WaivableWarning` (e.g. `checkElementsStale`) does *not* block this: it's a confidence caveat
+ * about the prediction, not a physical impossibility, so the capture/downlink still happens and
+ * still needs to be shown alongside the warning — only a real committable-plan flow (not built yet)
+ * needs to gate on whether an operator actually waived it.
  *
  * A downlink candidate can only reference data products produced by an *earlier*, *accepted*
  * imaging candidate in this same draft (`DOWNLINK_PRODUCT_MISSING`, the causal-ordering check this
@@ -90,12 +97,20 @@ export function evaluatePlanDraft(
       });
       if (windowFinding) findings.push(windowFinding);
 
+      const staleFinding = checkElementsStale({
+        taskId: candidate.id,
+        targetId: candidate.targetId,
+        ageDays: candidate.elementSetAgeDays,
+      });
+      if (staleFinding) findings.push(staleFinding);
+
       const sizeGB = profile.storage.productGB[candidate.mode];
       const dataProduct: DataProduct = { id: candidate.id, taskId: candidate.id, mode: candidate.mode, sizeGB };
       const storageFinding = checkStorageBudget(profile, truth, dataProduct);
       if (storageFinding) findings.push(storageFinding);
 
-      if (findings.length === 0) {
+      const hardBlocked = findings.some((finding) => finding.severity === 'HardBlock');
+      if (!hardBlocked) {
         truth = applyDomainEvent(truth, { type: 'DataProductStored@1', dataProduct });
         storedByCandidateId.set(candidate.id, dataProduct);
       }
@@ -134,7 +149,8 @@ export function evaluatePlanDraft(
         if (capacityFinding) findings.push(capacityFinding);
       }
 
-      if (findings.length === 0) {
+      const hardBlocked = findings.some((finding) => finding.severity === 'HardBlock');
+      if (!hardBlocked) {
         for (const product of dataProducts) {
           truth = applyDomainEvent(truth, {
             type: 'DownlinkCompleted@1',
