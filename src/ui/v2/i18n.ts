@@ -61,8 +61,17 @@ const resources = {
       dock: {
         catalog: 'Catalog ({{count}})',
       },
-      placeholder: {
-        plan: 'Plan workspace lands with the operator-simulation vertical slice (Scenario 01).',
+      plan: {
+        title: 'Scenario 01 — Imaging Opportunities',
+        disclaimer:
+          'Asteria-1 is a fictional satellite invented for training. Its orbit, storage/downlink figures, and ground stations are simulated or assumed, not real telemetry from any ImageSat International satellite.',
+        note: 'Browse only for now — picking an opportunity to build a real plan is later work.',
+        offNadir: 'Off-nadir {{deg}}°',
+        daylightYes: 'Day',
+        daylightNo: 'Night',
+        clean: 'OK',
+        loadError: "Couldn't compute imaging opportunities: {{message}}",
+        empty: 'No imaging opportunities found in the search window.',
       },
       train: {
         title: 'Scenario 01',
@@ -136,8 +145,17 @@ const resources = {
       dock: {
         catalog: 'קטלוג ({{count}})',
       },
-      placeholder: {
-        plan: 'סביבת התכנון תופעל עם פרוסת סימולציית המפעיל (תרחיש 01).',
+      plan: {
+        title: 'תרחיש 01 — הזדמנויות צילום',
+        disclaimer:
+          'Asteria-1 הוא לוויין בדיוני שהומצא לצורכי אימון. המסלול, נתוני האחסון/הורדה ותחנות הקרקע שלו מדומים או מונחים, ואינם טלמטריה אמיתית מלוויין כלשהו של ImageSat International.',
+        note: 'תצוגה בלבד בשלב זה — בחירת הזדמנות לבניית תוכנית אמיתית תגיע בהמשך.',
+        offNadir: 'סטייה מהנדיר {{deg}}°',
+        daylightYes: 'יום',
+        daylightNo: 'לילה',
+        clean: 'תקין',
+        loadError: 'חישוב הזדמנויות הצילום נכשל: {{message}}',
+        empty: 'לא נמצאו הזדמנויות צילום בחלון החיפוש.',
       },
       train: {
         title: 'תרחיש 01',

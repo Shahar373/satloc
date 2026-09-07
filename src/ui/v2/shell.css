@@ -216,19 +216,6 @@
   position: relative;
   overflow: auto;
 }
-.sl-shell__placeholder {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sl-sp-2);
-  color: var(--sl-text-tertiary);
-  text-align: center;
-  padding: var(--sl-sp-6);
-}
-
 .sl-globe-explore {
   position: absolute;
   inset: 0;
@@ -346,6 +333,84 @@
 }
 .sl-train__task-row:last-child {
   border-bottom: none;
+}
+
+.sl-plan {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sl-sp-4);
+  padding: var(--sl-sp-5);
+}
+.sl-plan__header h1 {
+  margin: 0 0 var(--sl-sp-1);
+  font-size: var(--sl-fs-20);
+}
+.sl-plan__disclaimer {
+  margin: 0;
+  color: var(--sl-text-tertiary);
+  font-size: var(--sl-fs-12);
+  max-width: 60ch;
+}
+.sl-plan__note {
+  margin: var(--sl-sp-1) 0 0;
+  color: var(--sl-text-secondary);
+  font-size: var(--sl-fs-12);
+}
+.sl-plan__error {
+  margin: 0;
+  color: var(--sl-status-critical);
+  font-size: var(--sl-fs-13);
+}
+.sl-plan__empty {
+  margin: 0;
+  color: var(--sl-text-tertiary);
+  font-size: var(--sl-fs-13);
+}
+.sl-plan__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sl-sp-2);
+}
+.sl-plan__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sl-sp-4);
+  padding: var(--sl-sp-2) 0;
+  border-bottom: 1px solid var(--sl-border-subtle);
+}
+.sl-plan__row:last-child {
+  border-bottom: none;
+}
+.sl-plan__row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sl-plan__row-time {
+  font-size: var(--sl-fs-13);
+}
+.sl-plan__row-meta {
+  color: var(--sl-text-tertiary);
+  font-size: var(--sl-fs-12);
+}
+.sl-plan__row-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  max-width: 40ch;
+  text-align: end;
+}
+.sl-plan__row-reason {
+  color: var(--sl-text-tertiary);
+  font-size: var(--sl-fs-12);
 }
 
 .sl-inspector {

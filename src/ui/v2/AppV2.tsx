@@ -14,6 +14,7 @@ import { RailV2, type WorkspaceId } from './RailV2';
 import { InspectorV2 } from './InspectorV2';
 import { DockV2 } from './DockV2';
 import { GlobeExploreV2 } from './GlobeExploreV2';
+import { PlanV2 } from './PlanV2';
 import { TrainV2 } from './TrainV2';
 import { CommandPaletteV2 } from './CommandPaletteV2';
 
@@ -39,7 +40,7 @@ export function AppV2() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const dir = i18n.dir();
   const selectedId = useSelection((s) => s.selectedId);
 
@@ -120,7 +121,7 @@ export function AppV2() {
       <main className="sl-shell__main">
         {workspace === 'explore' && <GlobeExploreV2 />}
         {workspace === 'train' && <TrainV2 />}
-        {workspace === 'plan' && <div className="sl-shell__placeholder">{t('placeholder.plan')}</div>}
+        {workspace === 'plan' && <PlanV2 />}
       </main>
       <InspectorV2 drawerOpen={inspectorOpen} onCloseDrawer={() => setInspectorOpen(false)} />
       <DockV2 workspace={workspace} />
