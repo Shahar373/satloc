@@ -55,6 +55,36 @@ test('the language toggle switches to Hebrew and mirrors the layout', async ({ p
   expect(railBox?.x ?? 0).toBeGreaterThan(inspectorBox?.x ?? 0);
 });
 
+test('the Plan workspace lets an operator build a draft plan from real imaging opportunities', async ({ page }) => {
+  await page.goto(APP_URL);
+  await expect(page.getByTestId('globe')).toHaveAttribute('data-ready', 'true');
+
+  await page.getByRole('button', { name: /plan/i }).first().click();
+  await expect(page.locator('.sl-plan')).toBeVisible();
+
+  const rows = page.locator('.sl-plan__list-surface .sl-plan__row');
+  await expect(rows.first()).toBeVisible();
+
+  // The draft starts empty; adding a clean (nominal) opportunity moves it into the draft surface
+  // and the running storage total (evaluatePlanDraft's real accumulation) reflects it.
+  await expect(page.locator('.sl-plan__draft-surface .sl-plan__empty')).toBeVisible();
+  const nominalRow = rows.filter({ has: page.locator('.sl-pill--nominal') }).first();
+  await nominalRow.getByRole('button', { name: /add to plan/i }).click();
+
+  const draftRows = page.locator('.sl-plan__draft-surface .sl-plan__row');
+  await expect(draftRows).toHaveCount(1);
+  await expect(page.locator('.sl-plan__draft-storage')).toHaveText('1.2 / 6.0 GB');
+  await expect(draftRows.first().locator('.sl-plan__row-seq')).toContainText('#1');
+
+  // Removing it from the draft (either the browse row's toggle or the draft row's own button)
+  // clears the draft back to empty and the storage total resets.
+  await draftRows
+    .first()
+    .getByRole('button', { name: /remove/i })
+    .click();
+  await expect(page.locator('.sl-plan__draft-surface .sl-plan__empty')).toBeVisible();
+});
+
 test.describe("at 900x600 (the mandate's narrow mandatory resolution)", () => {
   test.use({ viewport: { width: 900, height: 600 } });
 
