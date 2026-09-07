@@ -2,6 +2,15 @@
 
 Each section becomes the release notes of that version (see scripts/release-notes.mjs).
 
+## 0.3.1
+
+Engineering stabilization: no new features, tightened security and testing groundwork for the next round of feature work.
+
+- Security: the app's Content Security Policy now also restricts `<base>` tag injection, form submission targets, and framing (`base-uri`, `form-action`, `frame-ancestors`).
+- Automation: the scheduled satellite-data refresh job can no longer write to any branch other than the release branch, even by mistake.
+- Contributor docs: a CONTRIBUTING guide, a security reporting policy (private GitHub advisories), an ADR template, and a PR template.
+- Testing: satellite-clock (GMST) and sun-elevation calculations are now checked against independently-implemented reference formulas, not just against themselves.
+
 ## 0.3.0
 
 Beta hardening: a full review of the project with about a hundred fixes. Highlights:
