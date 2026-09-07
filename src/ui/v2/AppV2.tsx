@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import './fonts';
 import './i18n';
@@ -37,18 +37,29 @@ export function AppV2() {
   const dir = i18n.dir();
   const selectedId = useSelection((s) => s.selectedId);
 
+  // Opens the palette and closes any open drawer first — the palette overlay's z-index sits
+  // below the drawer/backdrop stack (see shell.css), so leaving a drawer open would render the
+  // palette invisibly behind it. The top bar itself stays reachable while a drawer is open (its
+  // backdrop starts below the top bar — see .sl-drawer-backdrop), so this can genuinely happen
+  // via a real click, not just the keyboard shortcut below.
+  const openPalette = useCallback(() => {
+    setRailOpen(false);
+    setInspectorOpen(false);
+    setPaletteOpen(true);
+  }, []);
+
   // ⌘K/Ctrl+K opens the command palette from anywhere in the shell; the top bar's search button
   // is the other trigger (see TopBarV2's onOpenPalette).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setPaletteOpen(true);
+        openPalette();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [openPalette]);
 
   // Escape closes whichever drawer is open. Above the 1200px breakpoint this is inert (the
   // drawers render persistently there, ignoring railOpen/inspectorOpen — see shell.css).
@@ -81,7 +92,7 @@ export function AppV2() {
 
   return (
     <div className="sl-v2 sl-shell" dir={dir} lang={i18n.language}>
-      <TopBarV2 onOpenPalette={() => setPaletteOpen(true)} onOpenRailDrawer={() => setRailOpen(true)} />
+      <TopBarV2 onOpenPalette={openPalette} onOpenRailDrawer={() => setRailOpen(true)} />
       <RailV2
         workspace={workspace}
         onChange={setWorkspace}
