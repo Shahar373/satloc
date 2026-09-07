@@ -2,10 +2,11 @@
   SatLoc Shell V2 design tokens — the hybrid direction chosen in the Design Gate
   (docs/design/gate-01/DECISION.md): a calm, precise operations console.
 
-  Scoped under .sl-v2 (applied to Shell V2's root container) rather than :root, so V2 and the
-  current V1 shell (src/styles/global.css) can coexist behind the ?shell=v2 flag without either
-  set of custom properties bleeding into the other. All custom properties are prefixed --sl- for
-  the same reason. V1 is removed, and this can move to :root, once V2 becomes the only shell.
+  Scoped under .sl-v2 (applied to the shell's root container) rather than :root, and all custom
+  properties are prefixed --sl- for the same reason: src/styles/global.css (from the now-removed
+  Shell V1) still defines its own top-level custom properties, and this stays out of their way.
+  Could move to :root now that V2 is the only shell, but that's a separate cleanup, not bundled
+  into this file's current change.
 */
 .sl-v2 {
   /* Surfaces — deep, desaturated navy, not pure black */

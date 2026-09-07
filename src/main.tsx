@@ -18,25 +18,10 @@ void useCatalog.getState().load({ fixture: useOverrides.getState().catalogFixtur
 
 const root = createRoot(document.getElementById('root')!);
 
-// Shell V2 (docs/design/gate-01/DECISION.md) is now the default shell. Shell V1 — the original
-// UI — is kept available behind `?shell=v1` for one transition PR before removal, dynamically
-// imported so its bundle and load path cost nothing for the now-default V2 path.
-if (urlParams.get('shell') === 'v1') {
-  void import('./App').then(({ App }) => {
-    root.render(
-      <StrictMode>
-        <ErrorBoundary>
-          <App />
-        </ErrorBoundary>
-      </StrictMode>,
-    );
-  });
-} else {
-  root.render(
-    <StrictMode>
-      <ErrorBoundary>
-        <AppV2 />
-      </ErrorBoundary>
-    </StrictMode>,
-  );
-}
+root.render(
+  <StrictMode>
+    <ErrorBoundary>
+      <AppV2 />
+    </ErrorBoundary>
+  </StrictMode>,
+);

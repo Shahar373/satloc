@@ -5,7 +5,10 @@ import './i18n';
 import './tokens.css';
 import './primitives/primitives.css';
 import './shell.css';
+import { isTauri } from '../../platform/env';
+import { startAutoRefresh } from '../../state/catalog';
 import { useSelection } from '../../state/selection';
+import { useUpdates } from '../../state/updates';
 import { TopBarV2 } from './TopBarV2';
 import { RailV2, type WorkspaceId } from './RailV2';
 import { InspectorV2 } from './InspectorV2';
@@ -13,15 +16,17 @@ import { DockV2 } from './DockV2';
 import { GlobeExploreV2 } from './GlobeExploreV2';
 import { CommandPaletteV2 } from './CommandPaletteV2';
 
+const UPDATE_CHECK_DELAY_MS = 8_000;
+const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
 /**
  * Shell V2 root — the hybrid layout from the Design Gate (docs/design/gate-01/DECISION.md):
  * Variant A's persistent Top Bar + Rail + Inspector + Dock, with Variant B's command-palette
- * top-bar search and rail-label discoverability. Mounted only behind `?shell=v2` (see
- * src/main.tsx); Shell V1 is completely unaffected.
+ * top-bar search and rail-label discoverability.
  *
  * The Explore workspace renders the real Cesium globe (`GlobeExploreV2`), sharing the same
- * viewer-lifecycle hook as Shell V1's `GlobeView` (`useGlobeViewer`) without any of V1's own
- * chrome (Timeline, HoverTooltip) — those are separate, not-yet-scheduled task-list items.
+ * viewer-lifecycle hook Shell V1's `GlobeView` used (`useGlobeViewer`) — Shell V1 itself has
+ * been removed; its own chrome (Timeline, HoverTooltip) went with it.
  *
  * `dir`/`lang` follow `i18n.language` directly (English/LTR by default — see `i18n.ts`), so
  * switching language via `TopBarV2`'s toggle flips the whole shell's reading direction, and CSS
@@ -36,6 +41,23 @@ export function AppV2() {
   const { t, i18n } = useTranslation();
   const dir = i18n.dir();
   const selectedId = useSelection((s) => s.selectedId);
+
+  // Keeps the ISI element sets from going stale over a long session (was Shell V1's App.tsx
+  // effect, ported here — this is app-level background behavior, not shell-specific UI).
+  useEffect(() => startAutoRefresh(), []);
+
+  // Checks for a newer signed build shortly after startup and then periodically; UpdateBannerV2
+  // in TopBarV2 surfaces the result. Also ported from Shell V1's App.tsx — `useUpdates.check()`
+  // itself is a no-op outside Tauri, but the guard avoids scheduling pointless timers in a browser.
+  useEffect(() => {
+    if (!isTauri()) return;
+    const timer = setTimeout(() => void useUpdates.getState().check(), UPDATE_CHECK_DELAY_MS);
+    const interval = setInterval(() => void useUpdates.getState().check(), UPDATE_CHECK_INTERVAL_MS);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Opens the palette and closes any open drawer first — the palette overlay's z-index sits
   // below the drawer/backdrop stack (see shell.css), so leaving a drawer open would render the

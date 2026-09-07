@@ -72,6 +72,34 @@
   color: var(--sl-accent);
   font-weight: 600;
 }
+.sl-update-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sl-sp-2);
+  padding: 4px var(--sl-sp-2);
+  border-radius: var(--sl-radius-sm);
+  font-size: var(--sl-fs-12);
+  border: 1px solid transparent;
+}
+.sl-update-banner--nominal {
+  color: var(--sl-status-nominal);
+  border-color: var(--sl-status-nominal);
+  background: rgba(74, 222, 128, 0.1);
+}
+.sl-update-banner--warning {
+  color: var(--sl-status-warning);
+  border-color: var(--sl-status-warning);
+  background: rgba(245, 185, 66, 0.1);
+}
+.sl-update-banner__action {
+  font: inherit;
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
 .sl-topbar__lang {
   font: inherit;
   font-size: var(--sl-fs-12);

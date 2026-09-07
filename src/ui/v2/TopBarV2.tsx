@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useViewerStore } from '../../state/viewer';
 import { Icon } from './Icon';
+import { UpdateBannerV2 } from './UpdateBannerV2';
 
 function formatUtc(date: Date): string {
   return `${date.toISOString().slice(0, 10)} ${date.toISOString().slice(11, 19)} UTC`;
@@ -49,6 +50,7 @@ export function TopBarV2({ onOpenPalette, onOpenRailDrawer }: TopBarV2Props) {
         <span className="sl-bidi-isolate">{formatUtc(clock)}</span>
         {multiplier !== 1 && <span className="sl-topbar__rate"> · ×{multiplier}</span>}
       </div>
+      <UpdateBannerV2 />
       <button
         type="button"
         className="sl-topbar__lang"

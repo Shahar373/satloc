@@ -1,16 +1,21 @@
 import { useRef } from 'react';
 import { useViewerStore } from '../state/viewer';
+import { ObserverLayer } from './ObserverLayer';
+import { SatelliteLayerBridge } from './SatelliteLayerBridge';
+import { TargetLayer } from './TargetLayer';
 import { useGlobeViewer } from './useGlobeViewer';
 
 export interface GlobeCanvasProps {
-  /** Defaults to 'globe', the class V1's stylesheet targets for sizing/background. */
+  /** Defaults to 'globe', the stylesheet class used for sizing/background. */
   className?: string;
 }
 
 /**
- * The Cesium canvas alone — creation/teardown lifecycle only, no overlay chrome (no Timeline, no
- * HoverTooltip, no hint/error UI). `GlobeView` (Shell V1) renders those itself around its own
- * copy of this container; this component is for a shell that wants the globe without V1's chrome,
+ * The real globe: Cesium canvas lifecycle plus the three layers that actually draw satellites,
+ * the observer marker, and imaging targets onto it (`SatelliteLayerBridge`/`ObserverLayer`/
+ * `TargetLayer` — all pure Cesium-entity managers that render no DOM of their own, driven by the
+ * same `useViewerStore`/`useCatalog`/`useSelection`/etc. stores regardless of which shell mounts
+ * this). No overlay chrome (no hint/error UI, no Timeline/HoverTooltip) — that's the caller's job,
  * e.g. Shell V2's Explore workspace (`GlobeExploreV2`), which supplies its own status UI.
  */
 export function GlobeCanvas({ className }: GlobeCanvasProps) {
@@ -19,11 +24,16 @@ export function GlobeCanvas({ className }: GlobeCanvasProps) {
   const ready = useViewerStore((s) => s.ready);
 
   return (
-    <div
-      ref={containerRef}
-      className={className ?? 'globe'}
-      data-testid="globe"
-      data-ready={ready ? 'true' : 'false'}
-    />
+    <>
+      <div
+        ref={containerRef}
+        className={className ?? 'globe'}
+        data-testid="globe"
+        data-ready={ready ? 'true' : 'false'}
+      />
+      <SatelliteLayerBridge />
+      <ObserverLayer />
+      <TargetLayer />
+    </>
   );
 }
