@@ -139,7 +139,6 @@
   position: relative;
   overflow: auto;
 }
-.sl-shell__globe-placeholder,
 .sl-shell__placeholder {
   position: absolute;
   inset: 0;
@@ -152,13 +151,36 @@
   text-align: center;
   padding: var(--sl-sp-6);
 }
-.sl-shell__globe-placeholder p:first-child {
-  color: var(--sl-text-secondary);
-  font-size: var(--sl-fs-16);
+
+.sl-globe-explore {
+  position: absolute;
+  inset: 0;
 }
-.sl-shell__globe-placeholder-note {
+.sl-globe-canvas {
+  position: absolute;
+  inset: 0;
+  background: var(--sl-bg-inset);
+}
+.sl-globe-canvas > .cesium-viewer {
+  position: absolute;
+  inset: 0;
+}
+.sl-globe-status {
+  position: absolute;
+  top: var(--sl-sp-4);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: var(--sl-sp-2) var(--sl-sp-4);
+  border-radius: var(--sl-radius-md);
+  background: var(--sl-bg-panel-raised);
+  border: 1px solid var(--sl-border-subtle);
+  color: var(--sl-text-secondary);
   font-size: var(--sl-fs-12);
-  max-width: 360px;
+}
+.sl-globe-status--error {
+  color: var(--sl-status-critical);
+  border-color: var(--sl-status-critical);
 }
 
 .sl-inspector {

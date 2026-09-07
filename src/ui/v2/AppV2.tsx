@@ -7,6 +7,7 @@ import { TopBarV2 } from './TopBarV2';
 import { RailV2, type WorkspaceId } from './RailV2';
 import { InspectorV2 } from './InspectorV2';
 import { DockV2 } from './DockV2';
+import { GlobeExploreV2 } from './GlobeExploreV2';
 
 const PLACEHOLDER_COPY: Record<Exclude<WorkspaceId, 'explore'>, string> = {
   plan: 'Plan workspace lands with the operator-simulation vertical slice (Scenario 01).',
@@ -19,10 +20,9 @@ const PLACEHOLDER_COPY: Record<Exclude<WorkspaceId, 'explore'>, string> = {
  * top-bar search and rail-label discoverability. Mounted only behind `?shell=v2` (see
  * src/main.tsx); Shell V1 is completely unaffected.
  *
- * The globe canvas itself is a placeholder here, not a shortcut taken silently: GlobeView.tsx
- * bundles Shell V1's own Timeline/HoverTooltip overlays, so embedding it as-is would mix V1 and
- * V2 chrome. Wiring the real Cesium viewer into this shell is the next PR (Explore workspace on
- * V2), which needs a small GlobeView refactor to separate the canvas from V1's overlays first.
+ * The Explore workspace renders the real Cesium globe (`GlobeExploreV2`), sharing the same
+ * viewer-lifecycle hook as Shell V1's `GlobeView` (`useGlobeViewer`) without any of V1's own
+ * chrome (Timeline, HoverTooltip) — those are separate, not-yet-scheduled task-list items.
  */
 export function AppV2() {
   const [workspace, setWorkspace] = useState<WorkspaceId>('explore');
@@ -33,10 +33,7 @@ export function AppV2() {
       <RailV2 workspace={workspace} onChange={setWorkspace} />
       <main className="sl-shell__main">
         {workspace === 'explore' ? (
-          <div className="sl-shell__globe-placeholder">
-            <p>Globe view</p>
-            <p className="sl-shell__globe-placeholder-note">Cesium integration lands with Explore workspace wiring.</p>
-          </div>
+          <GlobeExploreV2 />
         ) : (
           <div className="sl-shell__placeholder">{PLACEHOLDER_COPY[workspace]}</div>
         )}
