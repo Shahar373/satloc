@@ -5,9 +5,9 @@ Status: Accepted
 
 ## Context
 
-SatLoc is moving from a satellite tracker toward a larger operator simulator (see the
-SatLoc upgrade plan). Along the way there will be decisions that introduce new
-architectural boundaries or change how core state is owned — for example a
+SatLoc is moving from a satellite tracker toward a larger operator simulator. Along
+the way there will be decisions that introduce new architectural boundaries or
+change how core state is owned — for example a
 `SimulationClock`, the split between Truth State and Operator Observables, or the
 event-log format. These need a durable written record of _why_, not just _what_, so a
 later contributor doesn't have to reverse-engineer intent from a diff or a chat log.

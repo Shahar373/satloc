@@ -2,21 +2,32 @@
 
 ## Reporting a vulnerability
 
-SatLoc does not yet have a dedicated private reporting channel — no security email,
-no separate contact form. If you find a security issue:
+Report security vulnerabilities privately through GitHub's Private Vulnerability
+Reporting for this repository:
 
-- Open an issue at https://github.com/Shahar373/satloc/issues, or contact the
-  maintainer ([@Shahar373](https://github.com/Shahar373)) directly through GitHub.
-- If the issue is sensitive (for example, exploitable before a fix ships), say so
-  without including exploit details, and wait for a response before disclosing
-  specifics publicly.
+https://github.com/Shahar373/satloc/security/advisories/new
+
+This creates a private advisory visible only to you and the maintainer — do not
+open a public issue for a vulnerability, and do not include exploit details in a
+public issue or PR.
+
+For general, non-sensitive security questions (for example, "does SatLoc do X"),
+a public issue at https://github.com/Shahar373/satloc/issues is fine.
 
 There is currently no formal response-time commitment — SatLoc is maintained by one
 person. This will be revisited as the project grows.
 
+## Supported versions
+
+SatLoc does not maintain long-term-support branches. Only the latest released
+version is supported with security fixes; older versions are not patched.
+
 ## Scope
 
 This covers the SatLoc application in this repository: the web core, the Tauri
-desktop shell, and the GitHub Actions workflows that build and release it. It does
-not cover third-party services SatLoc talks to (CelesTrak, the TLE mirror, imagery
-providers, GitHub itself) — report issues with those to their own maintainers.
+desktop shell, and the GitHub Actions workflows that build and release it. This
+includes vulnerabilities in how SatLoc integrates with a third-party service (for
+example, an SSRF or injection issue in how SatLoc calls CelesTrak, the TLE mirror,
+or an imagery provider). It does not cover a vulnerability in the third-party
+service itself (for example, a bug in CelesTrak's own infrastructure) — report
+those to that service's own maintainers.
