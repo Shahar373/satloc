@@ -188,6 +188,29 @@ the candidate's forecast opportunities as an already-computed input — the same
 `ImagingOpportunity[]` that `core/imaging/opportunities.ts`'s `findImagingOpportunities` produces
 — same pattern as `checkRollLimit` staying pure and time-independent.
 
+## Real Scenario 01 timeline
+
+`buildRealDemoTimeline` (`src/core/scenario/realDemoTimeline.ts`) computes Scenario 01's Capture ->
+Store -> Contact -> Downlink event sequence from genuine orbital geometry rather than the
+fixed-offset timeline `TrainV2`'s demo used through PR #35–#39: the first daylight imaging
+opportunity over Asteria-1's target (`findImagingOpportunities`), then the first subsequent
+GS-Home pass (`predictPasses`) long enough to actually clear the resulting product
+(`downlinkGB(profile, pass.durationS) >= productGB`). For the fixed Asteria-1 TLE and scenario
+`startTime`, that opportunity lands ~59 hours after scenario start (2026-09-09T10:55:53Z) — real
+SSO geometry, not a number anyone chose. It is a pure scheduler; it does not itself call any
+Validator rule. `realDemoTimeline.test.ts` proves the schedule it produces both runs cleanly
+through a real `ScenarioRunner` (Truth State ends with both tasks completed, the product
+downlinked, no contact left active) and passes all four Validator rules with zero `HardBlock`
+findings when re-evaluated against the same real geometry — the intended happy path for Scenario
+01; fault injection is Scenario 02's job (§ Roadmap, not built yet).
+
+**Not yet wired into `TrainV2`.** The real opportunity is ~59 hours out; reaching it at `TrainV2`'s
+current fastest rate (×60) means ~59 minutes of real wall-clock time, which is impractical for a
+live training console session. Wiring this in needs a UX decision this PR deliberately leaves
+open — a much higher rate preset, jumping the clock directly to the next scheduled event, or
+choosing a scenario `startTime` authored to sit close to a real opportunity — not a decision to
+make silently inside a scheduling-logic PR.
+
 ## What's not decided here
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
