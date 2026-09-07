@@ -14,6 +14,7 @@ import { RailV2, type WorkspaceId } from './RailV2';
 import { InspectorV2 } from './InspectorV2';
 import { DockV2 } from './DockV2';
 import { GlobeExploreV2 } from './GlobeExploreV2';
+import { TrainV2 } from './TrainV2';
 import { CommandPaletteV2 } from './CommandPaletteV2';
 
 const UPDATE_CHECK_DELAY_MS = 8_000;
@@ -105,11 +106,6 @@ export function AppV2() {
     if (selectedId != null) setInspectorOpen(true);
   }, [selectedId]);
 
-  const PLACEHOLDER_COPY: Record<Exclude<WorkspaceId, 'explore'>, string> = {
-    plan: t('placeholder.plan'),
-    train: t('placeholder.train'),
-  };
-
   const drawerOpen = railOpen || inspectorOpen;
 
   return (
@@ -122,11 +118,9 @@ export function AppV2() {
         onCloseDrawer={() => setRailOpen(false)}
       />
       <main className="sl-shell__main">
-        {workspace === 'explore' ? (
-          <GlobeExploreV2 />
-        ) : (
-          <div className="sl-shell__placeholder">{PLACEHOLDER_COPY[workspace]}</div>
-        )}
+        {workspace === 'explore' && <GlobeExploreV2 />}
+        {workspace === 'train' && <TrainV2 />}
+        {workspace === 'plan' && <div className="sl-shell__placeholder">{t('placeholder.plan')}</div>}
       </main>
       <InspectorV2 drawerOpen={inspectorOpen} onCloseDrawer={() => setInspectorOpen(false)} />
       <DockV2 workspace={workspace} />
