@@ -65,3 +65,14 @@ test('the app boots under the Tauri Content Security Policy', async ({ page }) =
   await expect(page.locator('#boot')).toHaveCount(0);
   expect(violations).toEqual([]);
 });
+
+test('the configured policy carries the hardening directives', () => {
+  const tauriConf = JSON.parse(readFileSync(join(process.cwd(), 'src-tauri', 'tauri.conf.json'), 'utf8')) as {
+    app: { security: { csp: string } };
+  };
+  const directives = tauriConf.app.security.csp.split(';').map((d) => d.trim());
+  expect(directives).toContain("base-uri 'self'");
+  expect(directives).toContain("form-action 'self'");
+  expect(directives).toContain("frame-ancestors 'none'");
+  expect(directives).toContain("object-src 'none'");
+});
