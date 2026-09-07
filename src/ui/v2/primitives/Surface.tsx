@@ -9,8 +9,7 @@ export interface SurfaceProps extends HTMLAttributes<HTMLDivElement> {
 
 /**
  * Base themed container — the building block behind task cards, findings, gauges, and other
- * bordered boxes throughout Shell V2. Not to be confused with `src/ui/Panel.tsx` (Shell V1's
- * collapsible sidebar section, a different concept).
+ * bordered boxes throughout Shell V2.
  */
 export function Surface({ raised = false, selected = false, className, ...rest }: SurfaceProps) {
   const classes = ['sl-surface', raised ? 'sl-surface--raised' : '', selected ? 'sl-surface--selected' : '', className]

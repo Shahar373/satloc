@@ -11,9 +11,8 @@ type Carried = { time: Date } & NonNullable<CreateViewerOptions['restore']>;
  * Owns the Cesium `Viewer` lifecycle against `containerRef`: creates it on mount and whenever
  * imagery/ion token/initial time change, destroys it on unmount or before re-creating, and
  * carries clock + camera state across an imagery swap so switching sources doesn't reset the
- * session. Publishes viewer/ready/error state to the shared `useViewerStore`, so it works the
- * same regardless of which shell (V1's `GlobeView` or V2's `GlobeCanvas`) mounts it — only one of
- * the two is ever mounted at a time, since `main.tsx` renders exactly one shell.
+ * session. Publishes viewer/ready/error state to the shared `useViewerStore`. Used by
+ * `GlobeCanvas`, Shell V2's globe primitive.
  */
 export function useGlobeViewer(containerRef: RefObject<HTMLDivElement | null>) {
   const carriedRef = useRef<Carried | null>(null);
