@@ -83,6 +83,15 @@ test('the Plan workspace lets an operator build a draft plan from real imaging o
     .getByRole('button', { name: /remove/i })
     .click();
   await expect(page.locator('.sl-plan__draft-surface .sl-plan__empty')).toBeVisible();
+
+  // An ELEMENTS_STALE opportunity (a WaivableWarning, not a HardBlock) still adds to the draft and
+  // still counts toward storage — only a HardBlock actually blocks that.
+  const warningRow = rows.filter({ has: page.locator('.sl-pill--warning') }).first();
+  await expect(warningRow.locator('.sl-pill--warning')).toHaveText('ELEMENTS_STALE');
+  await warningRow.getByRole('button', { name: /add to plan/i }).click();
+  await expect(draftRows).toHaveCount(1);
+  await expect(draftRows.first().locator('.sl-pill--warning')).toHaveText('ELEMENTS_STALE');
+  await expect(page.locator('.sl-plan__draft-storage')).toHaveText('1.2 / 6.0 GB');
 });
 
 test('the Debrief workspace replays the real Scenario 01 run and flags where Observables lag Truth', async ({

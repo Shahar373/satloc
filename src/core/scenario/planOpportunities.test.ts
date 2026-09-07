@@ -43,4 +43,21 @@ describe('evaluateImagingOpportunities', () => {
     const evaluated = evaluateImagingOpportunities(satrec(), ASTERIA_1_PROFILE, target, start, 30);
     expect(evaluated.every((e) => !e.findings.some((f) => f.code === 'IMG_OUTSIDE_WINDOW'))).toBe(true);
   });
+
+  it('flags ELEMENTS_STALE on real opportunities past 3 days, as a WaivableWarning that does not need to coincide with a roll finding', () => {
+    const [target] = ASTERIA_1_TARGETS;
+    if (!target) throw new Error('expected the asteria1 fixture to define an imaging target');
+    const evaluated = evaluateImagingOpportunities(satrec(), ASTERIA_1_PROFILE, target, start, 30);
+
+    // The scenario's TLE epoch equals its startTime (asteria1.test.ts), so most of a real 30-day
+    // search genuinely falls past the 3-day threshold — this is not a contrived example.
+    const stale = evaluated.filter((e) => e.findings.some((f) => f.code === 'ELEMENTS_STALE'));
+    expect(stale.length).toBeGreaterThan(0);
+    const finding = stale[0].findings.find((f) => f.code === 'ELEMENTS_STALE');
+    expect(finding).toMatchObject({ severity: 'WaivableWarning', waivable: true, source: 'rules/elements-stale@1' });
+
+    // Genuinely orthogonal to roll-limit: at least one real stale opportunity is otherwise clean.
+    const staleButRollOk = stale.some((e) => !e.findings.some((f) => f.code === 'IMG_ROLL_EXCEEDS_LIMIT'));
+    expect(staleButRollOk).toBe(true);
+  });
 });

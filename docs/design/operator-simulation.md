@@ -314,17 +314,45 @@ that fails if the real SGP4 geometry, the Asteria-1 profile, or the event-schedu
 changes what Scenario 01's run actually produces. See `docs/models/tolerances.md` for why this
 check uses an exact hash match rather than a numeric tolerance.
 
+## First WaivableWarning rule: ELEMENTS_STALE
+
+`checkElementsStale` (`src/core/validation/elementsStale.ts`) is the first rule at the
+`WaivableWarning` severity — every rule before it was `HardBlock`. It flags a candidate whose
+geometry was computed from an element set more than 3 days past its epoch (the original rule
+table's `ELEMENTS_STALE` entry): the prediction may have drifted from where the satellite actually
+is by the time the candidate executes, a growing risk rather than a physical impossibility, so it's
+`waivable: true` rather than blocking the candidate outright. Wired into both
+`evaluateImagingOpportunities` (browse mode) and `evaluatePlanDraft`'s imaging branch, using each
+opportunity's own age from the real Asteria-1 TLE epoch (`elementSetAgeDays`) — over a real 30-day
+search, most opportunities genuinely land past the 3-day threshold (the scenario's `startTime`
+equals the TLE epoch), and staleness is confirmed genuinely orthogonal to `checkRollLimit`: some
+real opportunities are roll-clean but elements-stale, and vice versa.
+
+Adding the first non-`HardBlock` rule surfaced a real bug in `evaluatePlanDraft`: its
+accumulation gate previously treated _any_ finding (`findings.length === 0`) as blocking storage/
+downlink counting, which would have made a `WaivableWarning` behave exactly like a `HardBlock` —
+wrong, since a stale-elements warning doesn't mean the capture didn't happen. Fixed to gate only on
+`finding.severity === 'HardBlock'`, so a candidate carrying only a `WaivableWarning` is still
+counted as captured (and can still be a downlink's target) while the warning stays visible.
+
+`PlanV2` now shows a `WaivableWarning` with its own pill tone (distinct from a `HardBlock`'s), for
+both the browse list and the draft — but there's no waiver _interaction_ yet: nothing lets an
+operator record the `WarningWaived` `OperatorAction` this rule's severity is named for
+(`src/contracts/events.ts` already defines the event; no UI produces it and no event log exists
+under the draft to record it in yet). That's separate follow-up work, same as the real commit flow.
+
 ## What's not decided here
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
 but not approved), Train console telemetry channels, and Scenario 02's fault injection are all
 still open — later PRs, not this document. All five HardBlock Validator rules this vertical slice
 has needed so far (storage, roll-limit, contact-timing, imaging-window, contact-capacity) are now
-built; `evaluatePlanDraft`'s accumulator supports both imaging and downlink candidates with causal
-ordering between them; a basic Debrief view exists (a fixed-run replay, not a session picker); and
-Scenario 01's full real-demo run is now proven deterministic with a golden-regression hash locking
-in its current behavior. What's still missing: a ground-contact browse/selection UI in `PlanV2` so
-an operator can actually build a downlink candidate (today only imaging candidates have a selection
-UI), a real committable-plan/commit flow producing real `DomainEvent`s (today's draft is local UI
-state only), and the waiver flow for `WaivableWarning` findings — no rule of that severity exists
-yet either.
+built, plus the first WaivableWarning rule (`ELEMENTS_STALE`); `evaluatePlanDraft`'s accumulator
+supports both imaging and downlink candidates with causal ordering between them and correctly gates
+only on `HardBlock` severity; a basic Debrief view exists (a fixed-run replay, not a session
+picker); and Scenario 01's full real-demo run is now proven deterministic with a golden-regression
+hash locking in its current behavior. What's still missing: a ground-contact browse/selection UI in
+`PlanV2` so an operator can actually build a downlink candidate (today only imaging candidates have
+a selection UI), a real committable-plan/commit flow producing real `DomainEvent`s (today's draft is
+local UI state only), and an actual waiver interaction/flow for `WaivableWarning` findings — the
+rule exists now, but nothing lets an operator waive one yet.

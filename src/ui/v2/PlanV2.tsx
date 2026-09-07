@@ -2,34 +2,48 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ASTERIA_1_PROFILE, ASTERIA_1_SCENARIO, ASTERIA_1_TARGETS, ASTERIA_1_TLE } from '../../contracts';
 import { usableStorageGB } from '../../contracts/domain';
+import type { ValidationFinding } from '../../contracts/validation';
 import { evaluateImagingOpportunities, type EvaluatedOpportunity } from '../../core/scenario/planOpportunities';
 import { evaluatePlanDraft, type ImagingPlanCandidate } from '../../core/scenario/planDraft';
-import { tleToElementSet } from '../../core/tle/omm';
+import { elementSetAgeDays, satrecEpochDate, tleToElementSet } from '../../core/tle/omm';
 import { Button } from './primitives/Button';
-import { Pill } from './primitives/Pill';
+import { Pill, type PillTone } from './primitives/Pill';
 import { Surface } from './primitives/Surface';
 
 const SEARCH_DAYS = 30;
 
+/** The most severe finding to headline a row with: a HardBlock outranks a WaivableWarning. */
+function headlineFinding(findings: ValidationFinding[]): ValidationFinding | undefined {
+  return findings.find((f) => f.severity === 'HardBlock') ?? findings.find((f) => f.severity === 'WaivableWarning');
+}
+
+function toneFor(finding: ValidationFinding | undefined): PillTone {
+  if (!finding) return 'nominal';
+  return finding.severity === 'HardBlock' ? 'critical' : 'warning';
+}
+
 /**
  * Plan workspace: real imaging opportunities for Asteria-1's target (`evaluateImagingOpportunities`
  * — genuine `findImagingOpportunities` output, each evaluated against `checkRollLimit`/
- * `checkImagingWindow`) that an operator can add to an ordered draft plan. The draft itself is
- * evaluated with `evaluatePlanDraft` (PR #44) — the first real multi-candidate use of the
- * Validator rules, so storage accumulates across the whole sequence via the real `TruthState`
- * fold rather than each candidate being checked in isolation.
+ * `checkImagingWindow`/`checkElementsStale`) that an operator can add to an ordered draft plan. The
+ * draft itself is evaluated with `evaluatePlanDraft` — a real multi-candidate use of the Validator
+ * rules, so storage accumulates across the whole sequence via the real `TruthState` fold rather
+ * than each candidate being checked in isolation. A row's pill shows its most severe finding — a
+ * `HardBlock` outranks a `WaivableWarning` (e.g. `ELEMENTS_STALE`), which itself outranks a clean
+ * row — but only a `HardBlock` actually stops the candidate from being counted as captured.
  *
  * Still short of a real, committable plan (docs/design/operator-simulation.md): there's no
  * `CommandSubmitted`/plan data model or commit flow yet, so adding/removing candidates here is
- * local component state, not anything recorded to an event log. Imaging-only, same as
- * `evaluatePlanDraft` itself — no downlink candidates.
+ * local component state, not anything recorded to an event log, and there's no waiver interaction
+ * for a `WaivableWarning` yet either — it's shown, not yet actionable. Imaging-only selection UI,
+ * same as before — no downlink-candidate browse/selection UI.
  */
 export function PlanV2() {
   const { t } = useTranslation();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draftIds, setDraftIds] = useState<string[]>([]);
 
-  const context = useMemo<{ evaluated: EvaluatedOpportunity[]; targetId: string | null }>(() => {
+  const context = useMemo<{ evaluated: EvaluatedOpportunity[]; targetId: string | null; epoch: Date | null }>(() => {
     try {
       const { satrec } = tleToElementSet(ASTERIA_1_TLE.line1, ASTERIA_1_TLE.line2, ASTERIA_1_TLE.name);
       const [target] = ASTERIA_1_TARGETS;
@@ -41,13 +55,13 @@ export function PlanV2() {
         new Date(ASTERIA_1_SCENARIO.startTime),
         SEARCH_DAYS,
       );
-      return { evaluated, targetId: target.id };
+      return { evaluated, targetId: target.id, epoch: satrecEpochDate(satrec) };
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : String(error));
-      return { evaluated: [], targetId: null };
+      return { evaluated: [], targetId: null, epoch: null };
     }
   }, []);
-  const { evaluated, targetId } = context;
+  const { evaluated, targetId, epoch } = context;
 
   const opportunityById = useMemo(() => {
     const map = new Map<string, EvaluatedOpportunity>();
@@ -56,15 +70,22 @@ export function PlanV2() {
   }, [evaluated]);
 
   const draftCandidates = useMemo<ImagingPlanCandidate[]>(() => {
-    if (targetId === null) return [];
+    if (targetId === null || epoch === null) return [];
     const candidates: ImagingPlanCandidate[] = [];
     for (const id of draftIds) {
       const item = opportunityById.get(id);
       if (!item) continue;
-      candidates.push({ kind: 'imaging', id, targetId, opportunity: item.opportunity, mode: 'PAN' });
+      candidates.push({
+        kind: 'imaging',
+        id,
+        targetId,
+        opportunity: item.opportunity,
+        mode: 'PAN',
+        elementSetAgeDays: elementSetAgeDays({ epoch }, item.opportunity.time),
+      });
     }
     return candidates;
-  }, [draftIds, opportunityById, targetId]);
+  }, [draftIds, opportunityById, targetId, epoch]);
 
   const draftEvaluated = useMemo(() => evaluatePlanDraft(ASTERIA_1_PROFILE, draftCandidates), [draftCandidates]);
 
@@ -96,7 +117,7 @@ export function PlanV2() {
           <ul className="sl-plan__list">
             {evaluated.map(({ opportunity, findings }) => {
               const id = opportunity.start.toISOString();
-              const blocked = findings.find((finding) => finding.severity === 'HardBlock');
+              const headline = headlineFinding(findings);
               const inDraft = draftIds.includes(id);
               return (
                 <li key={id} className="sl-plan__row">
@@ -108,8 +129,8 @@ export function PlanV2() {
                     </span>
                   </div>
                   <div className="sl-plan__row-status">
-                    <Pill tone={blocked ? 'critical' : 'nominal'}>{blocked ? blocked.code : t('plan.clean')}</Pill>
-                    {blocked && <span className="sl-plan__row-reason">{blocked.message}</span>}
+                    <Pill tone={toneFor(headline)}>{headline ? headline.code : t('plan.clean')}</Pill>
+                    {headline && <span className="sl-plan__row-reason">{headline.message}</span>}
                     <Button variant={inDraft ? 'default' : 'ghost'} onClick={() => toggleDraft(id)}>
                       {inDraft ? t('plan.removeFromDraft') : t('plan.addToDraft')}
                     </Button>
@@ -137,7 +158,7 @@ export function PlanV2() {
               // downlink-candidate selection UI exists yet — so this narrows evaluatePlanDraft's
               // general PlanCandidate union back down for the imaging-specific fields below.
               if (candidate.kind !== 'imaging') return null;
-              const blocked = findings.find((finding) => finding.severity === 'HardBlock');
+              const headline = headlineFinding(findings);
               return (
                 <li key={candidate.id} className="sl-plan__row">
                   <div className="sl-plan__row-main">
@@ -155,8 +176,8 @@ export function PlanV2() {
                     </span>
                   </div>
                   <div className="sl-plan__row-status">
-                    <Pill tone={blocked ? 'critical' : 'nominal'}>{blocked ? blocked.code : t('plan.clean')}</Pill>
-                    {blocked && <span className="sl-plan__row-reason">{blocked.message}</span>}
+                    <Pill tone={toneFor(headline)}>{headline ? headline.code : t('plan.clean')}</Pill>
+                    {headline && <span className="sl-plan__row-reason">{headline.message}</span>}
                     <Button variant="ghost" onClick={() => toggleDraft(candidate.id)}>
                       {t('plan.removeFromDraft')}
                     </Button>

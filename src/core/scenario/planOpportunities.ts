@@ -4,6 +4,8 @@ import type { ValidationFinding } from '../../contracts/validation';
 import type { ImagingOpportunity } from '../imaging/opportunities';
 import { findImagingOpportunities } from '../imaging/opportunities';
 import type { TargetPoint } from '../imaging/geometry';
+import { elementSetAgeDays, satrecEpochDate } from '../tle/omm';
+import { checkElementsStale } from '../validation/elementsStale';
 import { checkImagingWindow } from '../validation/imagingWindow';
 import { checkRollLimit } from '../validation/rollLimit';
 
@@ -26,6 +28,10 @@ const deg2rad = (d: number) => (d * Math.PI) / 180;
  * evaluated alone against an empty Truth State would always trivially fit) for storage, and a
  * real domain event log with recorded contact acquisition for timing. Both stay meaningful only
  * once a real Plan/commit flow exists to evaluate against, which this module doesn't build.
+ *
+ * Does evaluate `checkElementsStale`: unlike storage/contact-timing, it needs nothing beyond
+ * `satrec`'s own epoch (already an input here) and each opportunity's own time, so a single
+ * candidate can be checked in isolation just like roll-limit/imaging-window.
  */
 export function evaluateImagingOpportunities(
   satrec: SatRec,
@@ -40,23 +46,32 @@ export function evaluateImagingOpportunities(
     heightKm: 0,
   };
   const opportunities = findImagingOpportunities(satrec, targetPoint, searchStart, days, { maxOffNadirDeg: 45 });
+  const epoch = satrecEpochDate(satrec);
 
   return opportunities.map((opportunity) => {
     const findings: ValidationFinding[] = [];
+    const taskId = `candidate-${opportunity.start.toISOString()}`;
 
     const rollFinding = checkRollLimit(profile, {
-      taskId: `candidate-${opportunity.start.toISOString()}`,
+      taskId,
       targetId: target.id,
       offNadirAngleRad: deg2rad(opportunity.offNadirDeg),
     });
     if (rollFinding) findings.push(rollFinding);
 
     const windowFinding = checkImagingWindow(opportunities, {
-      taskId: `candidate-${opportunity.start.toISOString()}`,
+      taskId,
       targetId: target.id,
       simTime: opportunity.time,
     });
     if (windowFinding) findings.push(windowFinding);
+
+    const staleFinding = checkElementsStale({
+      taskId,
+      targetId: target.id,
+      ageDays: elementSetAgeDays({ epoch }, opportunity.time),
+    });
+    if (staleFinding) findings.push(staleFinding);
 
     return { opportunity, findings };
   });

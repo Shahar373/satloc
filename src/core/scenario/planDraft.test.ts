@@ -34,8 +34,15 @@ function fakeOpportunity(offNadirDeg: number, offsetS: number): ImagingOpportuni
   };
 }
 
-function candidate(id: string, offNadirDeg: number, offsetS: number): ImagingPlanCandidate {
-  return { kind: 'imaging', id, targetId: 'target-1', opportunity: fakeOpportunity(offNadirDeg, offsetS), mode: 'PAN' };
+function candidate(id: string, offNadirDeg: number, offsetS: number, elementSetAgeDays = 0): ImagingPlanCandidate {
+  return {
+    kind: 'imaging',
+    id,
+    targetId: 'target-1',
+    opportunity: fakeOpportunity(offNadirDeg, offsetS),
+    mode: 'PAN',
+    elementSetAgeDays,
+  };
 }
 
 function downlink(
@@ -113,6 +120,7 @@ describe('evaluatePlanDraft', () => {
       targetId: target.id,
       opportunity,
       mode: 'PAN',
+      elementSetAgeDays: 0,
     }));
     const evaluated = evaluatePlanDraft(ASTERIA_1_PROFILE, candidates);
 
@@ -182,6 +190,38 @@ describe('evaluatePlanDraft', () => {
 
     expect(evaluated[1].findings).toEqual([]);
     expect(evaluated[2].findings[0]).toMatchObject({ code: 'DOWNLINK_PRODUCT_MISSING' });
+  });
+
+  it('an ELEMENTS_STALE WaivableWarning is reported but does not block storage counting', () => {
+    // 4 days old, past the 3-day default threshold — a real WaivableWarning, not a HardBlock.
+    const candidates = [candidate('c1', 5, 0, 4)];
+    const evaluated = evaluatePlanDraft(ASTERIA_1_PROFILE, candidates);
+
+    expect(evaluated[0].findings).toHaveLength(1);
+    expect(evaluated[0].findings[0]).toMatchObject({ code: 'ELEMENTS_STALE', severity: 'WaivableWarning' });
+    // Unlike a HardBlock, the candidate's product is still counted as captured.
+    expect(evaluated[0].cumulativeStorageUsedGB).toBeCloseTo(1.2, 5);
+  });
+
+  it('a downlink can still clear a product from an imaging candidate carrying only a WaivableWarning', () => {
+    const candidates: PlanCandidate[] = [
+      candidate('img-1', 5, 0, 4), // stale elements, but not roll/window/storage-blocked
+      downlink('dl-1', 'contact-1', 435.9, ['img-1']),
+    ];
+    const evaluated = evaluatePlanDraft(ASTERIA_1_PROFILE, candidates);
+
+    expect(evaluated[0].findings[0]).toMatchObject({ code: 'ELEMENTS_STALE' });
+    expect(evaluated[1].findings).toEqual([]);
+    expect(evaluated[1].cumulativeStorageUsedGB).toBe(0);
+  });
+
+  it('a HardBlock finding still blocks storage counting even alongside a WaivableWarning on the same candidate', () => {
+    // Roll-blocked (HardBlock) AND stale elements (WaivableWarning) on the same real-shaped candidate.
+    const candidates = [candidate('blocked', 40, 0, 4)];
+    const evaluated = evaluatePlanDraft(ASTERIA_1_PROFILE, candidates);
+
+    expect(evaluated[0].findings.map((f) => f.code).sort()).toEqual(['ELEMENTS_STALE', 'IMG_ROLL_EXCEEDS_LIMIT']);
+    expect(evaluated[0].cumulativeStorageUsedGB).toBe(0);
   });
 
   it('real-integration: a real predictPasses pass over GS-Home genuinely clears a real captured product', () => {
