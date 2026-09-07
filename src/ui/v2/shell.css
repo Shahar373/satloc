@@ -86,6 +86,21 @@
   color: var(--sl-text-primary);
   border-color: var(--sl-border-strong);
 }
+.sl-topbar__menu {
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid var(--sl-border-subtle);
+  border-radius: var(--sl-radius-sm);
+  color: var(--sl-text-secondary);
+  cursor: pointer;
+}
+.sl-topbar__menu:hover {
+  color: var(--sl-text-primary);
+  border-color: var(--sl-border-strong);
+}
 
 .sl-rail {
   grid-area: rail;
@@ -146,6 +161,19 @@
 .sl-rail__item:focus-visible {
   outline: 2px solid var(--sl-accent);
   outline-offset: -2px;
+}
+
+/* Rail/Inspector drawer-close buttons and the Rail's menu toggle only exist below the 1200px
+   breakpoint (see the media query further down) — hidden here so they take no space and have no
+   effect above it, where the Rail and Inspector are persistent, not drawers. */
+.sl-topbar__menu,
+.sl-rail__drawer-close,
+.sl-inspector__drawer-close {
+  display: none;
+}
+
+.sl-drawer-backdrop {
+  display: none;
 }
 
 .sl-shell__main {
@@ -369,4 +397,118 @@
 }
 .sl-palette__result-id {
   color: var(--sl-text-tertiary);
+}
+
+/* Below 1200px (the Design Gate's already-decided breakpoint), the Rail and Inspector stop being
+   persistent grid columns and become on-demand drawers instead — opened via the Rail's menu
+   toggle in TopBarV2, or automatically on selection for the Inspector (see AppV2). Both slide in
+   from their natural edge using a plain transform (flipped under RTL below), not a percentage
+   inset, so the offscreen distance is exact regardless of the drawer's own width. */
+@media (max-width: 1199px) {
+  .sl-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'topbar'
+      'main'
+      'dock';
+  }
+
+  .sl-topbar__menu {
+    display: inline-flex;
+  }
+
+  .sl-rail {
+    grid-area: unset;
+    position: fixed;
+    inset-block: var(--sl-topbar-h) 0;
+    inset-inline-start: 0;
+    width: 240px;
+    max-width: 80vw;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 20;
+  }
+  .sl-rail[data-open='true'] {
+    transform: translateX(0);
+  }
+  .sl-v2[dir='rtl'] .sl-rail {
+    transform: translateX(100%);
+  }
+  .sl-v2[dir='rtl'] .sl-rail[data-open='true'] {
+    transform: translateX(0);
+  }
+  .sl-rail__drawer-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-end;
+    width: 32px;
+    height: 32px;
+    margin: 0 var(--sl-sp-2) var(--sl-sp-2);
+    background: transparent;
+    border: none;
+    color: var(--sl-text-tertiary);
+    cursor: pointer;
+  }
+  .sl-rail__drawer-close:hover {
+    color: var(--sl-text-primary);
+  }
+  /* The drawer is already wide enough that labels don't need the hover-to-reveal trick. */
+  .sl-rail__item,
+  .sl-rail__item:hover,
+  .sl-rail__item:focus-visible {
+    width: 100%;
+    min-width: 0;
+    padding-inline: var(--sl-sp-4);
+    box-shadow: none;
+  }
+  .sl-rail__label {
+    opacity: 1;
+  }
+
+  .sl-inspector {
+    grid-area: unset;
+    position: fixed;
+    inset-block: var(--sl-topbar-h) 0;
+    inset-inline-end: 0;
+    width: min(var(--sl-inspector-w), 90vw);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+    transform: translateX(100%);
+    transition: transform 0.2s ease;
+    z-index: 20;
+  }
+  .sl-inspector[data-open='true'] {
+    transform: translateX(0);
+  }
+  .sl-v2[dir='rtl'] .sl-inspector {
+    transform: translateX(-100%);
+  }
+  .sl-v2[dir='rtl'] .sl-inspector[data-open='true'] {
+    transform: translateX(0);
+  }
+  .sl-inspector__drawer-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-inline-start: auto;
+    margin-bottom: var(--sl-sp-3);
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    color: var(--sl-text-tertiary);
+    cursor: pointer;
+  }
+  .sl-inspector__drawer-close:hover {
+    color: var(--sl-text-primary);
+  }
+
+  .sl-drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: var(--sl-topbar-h) 0 0 0;
+    background: rgba(2, 4, 8, 0.5);
+    z-index: 15;
+  }
 }

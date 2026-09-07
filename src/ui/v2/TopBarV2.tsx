@@ -21,15 +21,21 @@ function useDisplayClock(): Date {
 
 export interface TopBarV2Props {
   onOpenPalette: () => void;
+  /** Opens the Rail as a drawer below the 1200px breakpoint (see shell.css's media query and
+   *  RailV2Props.drawerOpen) — the button itself is CSS-hidden above the breakpoint. */
+  onOpenRailDrawer: () => void;
 }
 
-export function TopBarV2({ onOpenPalette }: TopBarV2Props) {
+export function TopBarV2({ onOpenPalette, onOpenRailDrawer }: TopBarV2Props) {
   const clock = useDisplayClock();
   const multiplier = useViewerStore((s) => s.multiplier);
   const { t, i18n } = useTranslation();
 
   return (
     <div className="sl-topbar">
+      <button type="button" className="sl-topbar__menu" onClick={onOpenRailDrawer} aria-label={t('rail.label')}>
+        <Icon name="menu" size={18} />
+      </button>
       <div className="sl-topbar__brand">
         <span className="sl-topbar__mark" aria-hidden="true" />
         SatLoc

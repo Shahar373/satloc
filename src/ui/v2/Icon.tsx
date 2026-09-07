@@ -21,6 +21,7 @@ import {
   Battery,
   HardDrive,
   Command,
+  Menu,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -53,6 +54,7 @@ const REGISTRY = {
   battery: Battery,
   storage: HardDrive,
   command: Command,
+  menu: Menu,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof REGISTRY;
