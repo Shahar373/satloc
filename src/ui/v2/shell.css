@@ -162,6 +162,13 @@
   white-space: nowrap;
   overflow: hidden;
 }
+.sl-rail__item .sl-icon {
+  /* Flex items get an automatic min-width of 0 (not their content size) whenever the flex
+     container's overflow isn't visible — true here (overflow: hidden above) — so without this,
+     the icon and the always-present-but-invisible label compete for the item's 56px resting
+     width and the icon can get squeezed down to 0 visible width. The icon must never shrink. */
+  flex-shrink: 0;
+}
 .sl-rail__item--active {
   background: var(--sl-accent-wash);
   color: var(--sl-accent);
