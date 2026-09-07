@@ -1,0 +1,249 @@
+/* Shell V2 layout — the hybrid from docs/design/gate-01/DECISION.md. Below --sl-drawer-breakpoint
+   the Rail and Inspector become on-demand overlays (per the Design Gate's already-decided
+   responsive rule); that collapse behavior lands with the real Explore workspace PR, alongside
+   the Cesium canvas — this file establishes the >=1200px baseline grid only. */
+
+.sl-shell {
+  display: grid;
+  grid-template-columns: var(--sl-rail-w) 1fr var(--sl-inspector-w);
+  grid-template-rows: var(--sl-topbar-h) 1fr var(--sl-dock-h);
+  grid-template-areas:
+    'topbar topbar topbar'
+    'rail main inspector'
+    'rail dock dock';
+  height: 100vh;
+  width: 100vw;
+}
+
+.sl-topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  gap: var(--sl-sp-4);
+  padding: 0 var(--sl-sp-4);
+  background: var(--sl-bg-panel);
+  border-bottom: 1px solid var(--sl-border-subtle);
+}
+.sl-topbar__brand {
+  font-weight: 700;
+  font-size: var(--sl-fs-14);
+  display: flex;
+  align-items: center;
+  gap: var(--sl-sp-2);
+}
+.sl-topbar__mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: conic-gradient(from 210deg, var(--sl-accent), #1c4560, var(--sl-accent));
+}
+.sl-topbar__cmdk {
+  flex: 1;
+  max-width: 420px;
+  margin: 0 auto;
+  background: var(--sl-bg-inset);
+  border: 1px solid var(--sl-border-subtle);
+  border-radius: var(--sl-radius-md);
+  padding: 6px var(--sl-sp-3);
+  color: var(--sl-text-tertiary);
+  font-size: var(--sl-fs-12);
+  display: flex;
+  align-items: center;
+  gap: var(--sl-sp-2);
+  cursor: pointer;
+  font-family: inherit;
+}
+.sl-topbar__cmdk span {
+  flex: 1;
+  text-align: start;
+}
+.sl-topbar__cmdk kbd {
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-fs-11);
+  border: 1px solid var(--sl-border-strong);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+.sl-topbar__clock {
+  font-size: var(--sl-fs-13);
+  color: var(--sl-text-secondary);
+}
+.sl-topbar__rate {
+  color: var(--sl-accent);
+  font-weight: 600;
+}
+
+.sl-rail {
+  grid-area: rail;
+  background: var(--sl-bg-panel);
+  border-right: 1px solid var(--sl-border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding-top: var(--sl-sp-3);
+  gap: var(--sl-sp-1);
+  overflow: visible;
+}
+.sl-rail__item {
+  /* Fixed at the rail's own track width normally; on hover/focus this item alone grows to fit
+     its label and overflows past the 56px track (the rail's "overflow: visible" lets it show),
+     rather than pushing the grid layout or being clipped by the button's own box. */
+  width: var(--sl-rail-w);
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--sl-text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: var(--sl-sp-3);
+  padding-inline-start: calc((var(--sl-rail-w) - 40px) / 2 + 11px);
+  border-radius: 0;
+  cursor: pointer;
+  position: relative;
+  font-family: inherit;
+  font-size: var(--sl-fs-13);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sl-rail__item--active {
+  background: var(--sl-accent-wash);
+  color: var(--sl-accent);
+}
+.sl-rail__item:hover,
+.sl-rail__item:focus-visible {
+  width: auto;
+  min-width: var(--sl-rail-w);
+  overflow: visible;
+  padding-inline-end: var(--sl-sp-4);
+  background: var(--sl-bg-panel-raised);
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
+}
+.sl-rail__item--active:hover,
+.sl-rail__item--active:focus-visible {
+  background: var(--sl-accent-wash);
+}
+.sl-rail__label {
+  opacity: 0;
+}
+.sl-rail__item:hover .sl-rail__label,
+.sl-rail__item:focus-visible .sl-rail__label {
+  opacity: 1;
+}
+.sl-rail__item:focus-visible {
+  outline: 2px solid var(--sl-accent);
+  outline-offset: -2px;
+}
+
+.sl-shell__main {
+  grid-area: main;
+  position: relative;
+  overflow: auto;
+}
+.sl-shell__globe-placeholder,
+.sl-shell__placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sl-sp-2);
+  color: var(--sl-text-tertiary);
+  text-align: center;
+  padding: var(--sl-sp-6);
+}
+.sl-shell__globe-placeholder p:first-child {
+  color: var(--sl-text-secondary);
+  font-size: var(--sl-fs-16);
+}
+.sl-shell__globe-placeholder-note {
+  font-size: var(--sl-fs-12);
+  max-width: 360px;
+}
+
+.sl-inspector {
+  grid-area: inspector;
+  background: var(--sl-bg-panel);
+  border-left: 1px solid var(--sl-border-subtle);
+  padding: var(--sl-sp-4);
+  overflow-y: auto;
+}
+.sl-inspector--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sl-text-tertiary);
+  font-size: var(--sl-fs-13);
+  text-align: center;
+  padding: var(--sl-sp-6);
+}
+.sl-inspector__title {
+  font-size: var(--sl-fs-16);
+  margin: 0 0 2px;
+}
+.sl-inspector__sub {
+  color: var(--sl-text-tertiary);
+  font-size: var(--sl-fs-12);
+  margin-bottom: var(--sl-sp-4);
+}
+.sl-inspector__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sl-sp-3);
+  margin-bottom: var(--sl-sp-5);
+}
+.sl-inspector__section-title {
+  font-size: var(--sl-fs-12);
+  text-transform: uppercase;
+  color: var(--sl-text-tertiary);
+  margin: var(--sl-sp-5) 0 var(--sl-sp-2);
+  border-bottom: 1px solid var(--sl-border-subtle);
+  padding-bottom: var(--sl-sp-2);
+}
+.sl-inspector__toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: var(--sl-fs-13);
+  color: var(--sl-text-secondary);
+}
+
+.sl-dock {
+  grid-area: dock;
+  background: var(--sl-bg-panel);
+  border-top: 1px solid var(--sl-border-subtle);
+  overflow-y: auto;
+  padding: var(--sl-sp-3) var(--sl-sp-4);
+}
+.sl-dock--empty {
+  padding: 0;
+}
+.sl-dock__title {
+  font-size: var(--sl-fs-11);
+  text-transform: uppercase;
+  color: var(--sl-text-tertiary);
+  letter-spacing: 0.03em;
+  margin-bottom: var(--sl-sp-2);
+}
+.sl-dock__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sl-fs-12);
+}
+.sl-dock__row {
+  cursor: pointer;
+}
+.sl-dock__row:hover {
+  background: var(--sl-bg-panel-raised);
+}
+.sl-dock__row--selected {
+  background: var(--sl-accent-wash);
+}
+.sl-dock__row td {
+  padding: 4px var(--sl-sp-2);
+  border-bottom: 1px solid var(--sl-bg-inset);
+}
+.sl-dock__row-name {
+  font-family: var(--sl-font-ui);
+}
