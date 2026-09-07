@@ -226,11 +226,12 @@ for Asteria-1's target over the next 30 days and evaluates each one against `che
 real Asteria-1 geometry this genuinely produces a mix of clean and roll-limited candidates (10 of
 27 over a real 30-day window at the time this was written), not a contrived example.
 
-Deliberately **read-only** and does not evaluate `checkStorageBudget` or `checkContactTiming`:
-both need state this module has no access to (an accumulated plan — unmodeled so far — for
-storage; a real domain event log with recorded contact acquisition for timing), and picking an
-opportunity to build an actual committable plan needs a `CommandSubmitted`/plan data model this
-codebase doesn't have yet. That's the Plan workspace's next PR, not this one.
+Deliberately does not evaluate `checkStorageBudget` or `checkContactTiming` on its own: both need
+state a single-candidate browse view has no access to in isolation (an accumulated plan for
+storage; a real domain event log with recorded contact acquisition for timing). `PlanV2` closes
+that gap for storage by running the browse list's candidates through `evaluatePlanDraft` (below)
+when an operator adds one to a draft — `checkContactTiming` still has nothing to evaluate here,
+since imaging candidates carry no contact.
 
 ## Plan draft accumulator (imaging only)
 
@@ -239,17 +240,23 @@ Validator rules: given an ordered list of imaging candidates (each carrying the 
 `ImagingOpportunity` chosen for it), it runs `checkRollLimit`/`checkImagingWindow` per candidate
 and folds `checkStorageBudget` across the whole sequence via the real `applyDomainEvent` — as if
 every earlier accepted candidate actually happened — rather than each candidate seeing an empty or
-already-current Truth State in isolation, which is what `PlanV2`'s browse mode and `TrainV2`'s
-fixed demo both still do. A candidate with any finding does not count toward storage for the
-candidates after it (a plan that can't commit a capture doesn't actually put anything in storage
-for it).
+already-current Truth State in isolation. A candidate with any finding does not count toward
+storage for the candidates after it (a plan that can't commit a capture doesn't actually put
+anything in storage for it). Proven against real Asteria-1 geometry: six real clean opportunities
+over 30 days genuinely exhaust the 6 GB budget on the sixth, the same `maxProducts(PAN) = 5` figure
+from the storage model above.
 
 Deliberately **imaging-only**: downlink candidates need a chosen ground contact's real capacity
 (`CONTACT_TOO_SHORT_FOR_PRODUCT` — listed in the original plan's rule table, but not yet a built
-rule) and causal ordering against the imaging candidates that produced what they'd downlink. Not
-wired into `PlanV2` yet either — this PR is the accumulator only, proven against real Asteria-1
-geometry (six real clean opportunities over 30 days genuinely exhaust the 6 GB budget on the
-sixth, the same `maxProducts(PAN) = 5` figure from the storage model above), not a UI.
+rule) and causal ordering against the imaging candidates that produced what they'd downlink.
+
+`PlanV2` now wires this accumulator into the browse list itself: an "Add to plan"/"Remove" toggle
+on each opportunity row builds an ordered draft (its own surface below the browse list), each
+draft row showing its own findings and the running storage total after it, and a header showing
+the plan's total usage against `usableStorageGB`. This is still **local component state, not a
+real committable plan** — there's no `CommandSubmitted`/plan data model or commit flow yet, so
+adding/removing a candidate here records nothing to an event log and produces no `DomainEvent`.
+That commit flow is the Plan workspace's next real step.
 
 ## What's not decided here
 
@@ -257,7 +264,8 @@ Session persistence's schema-validation approach (hand-rolled shape checks today
 but not approved), Train console telemetry channels, and Scenario 02's fault injection are all
 still open — later PRs, not this document. All four originally-planned HardBlock Validator rules
 (storage, roll-limit, contact-timing, imaging-window) are now built and live in both `TrainV2` and
-the Plan workspace's browse mode, and multi-candidate accumulation exists for imaging; what's still
-missing is downlink candidates (contact capacity + causal ordering), a real committable-plan UI
-(picking opportunities in `PlanV2`, a commit flow producing real `DomainEvent`s), and the waiver
-flow for `WaivableWarning` findings — no rule of that severity exists yet either.
+the Plan workspace, and multi-candidate accumulation exists for imaging and is wired into `PlanV2`
+as a draft-building UI; what's still missing is downlink candidates (contact capacity + causal
+ordering), a real committable-plan/commit flow producing real `DomainEvent`s (today's draft is
+local UI state only), a Debrief view, and the waiver flow for `WaivableWarning` findings — no rule
+of that severity exists yet either.

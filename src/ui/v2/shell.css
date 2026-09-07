@@ -412,6 +412,27 @@
   color: var(--sl-text-tertiary);
   font-size: var(--sl-fs-12);
 }
+.sl-plan__row-status .sl-button {
+  margin-top: var(--sl-sp-1);
+}
+.sl-plan__row-seq {
+  color: var(--sl-text-tertiary);
+  font-size: var(--sl-fs-12);
+}
+.sl-plan__draft-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sl-sp-4);
+}
+.sl-plan__draft-header h2 {
+  margin: 0;
+  font-size: var(--sl-fs-16);
+}
+.sl-plan__draft-storage {
+  color: var(--sl-text-secondary);
+  font-size: var(--sl-fs-13);
+}
 
 .sl-inspector {
   grid-area: inspector;

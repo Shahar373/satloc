@@ -72,6 +72,11 @@ const resources = {
         clean: 'OK',
         loadError: "Couldn't compute imaging opportunities: {{message}}",
         empty: 'No imaging opportunities found in the search window.',
+        addToDraft: 'Add to plan',
+        removeFromDraft: 'Remove',
+        draftTitle: 'Draft plan',
+        draftEmpty: 'No candidates added yet — add opportunities above to build a draft plan.',
+        storageUsed: '{{used}} / {{total}} GB',
       },
       train: {
         title: 'Scenario 01',
@@ -156,6 +161,11 @@ const resources = {
         clean: 'תקין',
         loadError: 'חישוב הזדמנויות הצילום נכשל: {{message}}',
         empty: 'לא נמצאו הזדמנויות צילום בחלון החיפוש.',
+        addToDraft: 'הוסף לתוכנית',
+        removeFromDraft: 'הסר',
+        draftTitle: 'טיוטת תוכנית',
+        draftEmpty: 'לא נוספו עדיין מועמדים — הוסף הזדמנויות למעלה כדי לבנות טיוטת תוכנית.',
+        storageUsed: '{{used}} / {{total}} GB',
       },
       train: {
         title: 'תרחיש 01',
