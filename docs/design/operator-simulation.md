@@ -60,8 +60,15 @@ some fields flagged "hidden":
 - **Operator Observables** is what the operator can currently _see_ — which may lag Truth State
   (a contact not yet confirmed on the ground-station link), omit parts of it (storage internals
   the operator's console doesn't expose), or add operator-only annotations (a waived warning).
-  Not implemented yet; a later Plan/Train PR derives it from Truth State plus what the operator's
-  instruments would realistically report.
+  `computeOperatorObservables` (`src/core/observables/OperatorObservables.ts`) implements the
+  first of these: a contact only appears in `confirmedContactIds` once
+  `profile.downlink.acquisitionS` seconds of simulated time have passed since its
+  `ContactAcquired@1` — the same real lock-on delay `downlinkGB` already subtracts from a
+  contact's useful duration, reused rather than inventing a new assumed constant. It is not a
+  fold like `TruthState`'s (state alone isn't enough — confirmation is relative to a point in
+  time), so it takes `(records, profile, atSimTime)` and recomputes from the full domain stream
+  each call. Storage-internals omission and waived-warning annotations remain unmodeled until a
+  real Plan/Debrief PR actually needs them.
 
 The split matters because a Debrief view needs to show both — what really happened, and what the
 operator actually knew at each moment — side by side, and conflating them would make that
