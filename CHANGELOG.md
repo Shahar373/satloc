@@ -2,6 +2,20 @@
 
 Each section becomes the release notes of that version (see scripts/release-notes.mjs).
 
+## 0.5.0
+
+Operator-simulation vertical slice: a first, real end-to-end training scenario (Asteria-1, a
+fictional satellite invented for this) — plan an imaging pass, watch it execute, and see what the
+operator actually knew versus what really happened.
+
+- Simulation core: an event-sourced foundation (`EventEnvelope`, three streams — domain/operator/run-control), an independent simulation clock, a background forecast worker, session persistence, and a Truth State reducer that folds the event log into ground truth.
+- Scenario: a fully-specified fictional satellite (Asteria-1) with a documented storage/downlink model, a synthetic ground-verified TLE, and a training scenario definition — clearly disclaimed everywhere it appears as simulated, not real ImageSat International telemetry.
+- Validation: five hard-block rules (storage budget, roll limit, contact timing, imaging window, ground-contact capacity) and the first waivable rule (stale orbital elements), each checked against real orbital geometry, not fabricated examples.
+- Train: a console that runs the scenario against real orbital mechanics — the actual next daylight imaging opportunity and ground contact for the target, not a scripted timeline — with play/pause/rate controls and a live storage gauge.
+- Plan: real imaging opportunities for the scenario's target, with an ordered draft you can build by adding and removing candidates, real validator findings, and running storage that accounts for both captures and downlinks.
+- Debrief: replays a full run and shows Truth State next to what the operator's console would have shown at each moment, including the real confirmation delay after a ground contact begins.
+- Testing: a deterministic, semantic-replay check locks in the scenario's behavior end to end, on top of the existing per-module test coverage.
+
 ## 0.4.0
 
 A new, product-grade desktop UI (Shell V2) replaces the original interface everywhere.
