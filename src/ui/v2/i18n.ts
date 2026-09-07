@@ -63,7 +63,27 @@ const resources = {
       },
       placeholder: {
         plan: 'Plan workspace lands with the operator-simulation vertical slice (Scenario 01).',
-        train: 'Train console lands with the operator-simulation vertical slice (Scenario 01).',
+      },
+      train: {
+        title: 'Scenario 01',
+        disclaimer:
+          'Asteria-1 is a fictional satellite invented for training. Its orbit, storage/downlink figures, and ground stations are simulated or assumed, not real telemetry from any ImageSat International satellite.',
+        play: 'Play',
+        pause: 'Pause',
+        rate: 'Rate',
+        storage: 'Storage',
+        tasks: 'Tasks',
+        noTasksYet: 'No tasks yet — waiting for the scenario to start.',
+        taskStatus: {
+          planned: 'Planned',
+          active: 'Active',
+          completed: 'Done',
+          failed: 'Failed',
+        },
+        taskLabels: {
+          'capture-1': 'Imaging — PAN',
+          'downlink-1': 'Downlink — GS-Home',
+        },
       },
       globe: {
         starting: 'Starting the 3D globe…',
@@ -117,7 +137,27 @@ const resources = {
       },
       placeholder: {
         plan: 'סביבת התכנון תופעל עם פרוסת סימולציית המפעיל (תרחיש 01).',
-        train: 'מסוף האימון יופעל עם פרוסת סימולציית המפעיל (תרחיש 01).',
+      },
+      train: {
+        title: 'תרחיש 01',
+        disclaimer:
+          'Asteria-1 הוא לוויין בדיוני שהומצא לצורכי אימון. המסלול, נתוני האחסון/הורדה ותחנות הקרקע שלו מדומים או מונחים, ואינם טלמטריה אמיתית מלוויין כלשהו של ImageSat International.',
+        play: 'הפעל',
+        pause: 'השהה',
+        rate: 'קצב',
+        storage: 'אחסון',
+        tasks: 'משימות',
+        noTasksYet: 'אין עדיין משימות — ממתין להתחלת התרחיש.',
+        taskStatus: {
+          planned: 'מתוזמן',
+          active: 'פעיל',
+          completed: 'בוצע',
+          failed: 'נכשל',
+        },
+        taskLabels: {
+          'capture-1': 'צילום — PAN',
+          'downlink-1': 'הורדה — GS-Home',
+        },
       },
       globe: {
         starting: 'מפעיל את הגלובוס…',
