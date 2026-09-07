@@ -1,0 +1,102 @@
+/*
+  SatLoc Shell V2 design tokens — the hybrid direction chosen in the Design Gate
+  (docs/design/gate-01/DECISION.md): a calm, precise operations console.
+
+  Scoped under .sl-v2 (applied to Shell V2's root container) rather than :root, so V2 and the
+  current V1 shell (src/styles/global.css) can coexist behind the ?shell=v2 flag without either
+  set of custom properties bleeding into the other. All custom properties are prefixed --sl- for
+  the same reason. V1 is removed, and this can move to :root, once V2 becomes the only shell.
+*/
+.sl-v2 {
+  /* Surfaces — deep, desaturated navy, not pure black */
+  --sl-bg-app: #05070d;
+  --sl-bg-panel: #0b0f18;
+  --sl-bg-panel-raised: #10151f;
+  --sl-bg-inset: #070a11;
+  --sl-border-subtle: #1c2433;
+  --sl-border-strong: #2a3346;
+
+  /* Text */
+  --sl-text-primary: #e6ebf5;
+  --sl-text-secondary: #97a3b8;
+  --sl-text-tertiary: #5d6a82;
+  --sl-text-on-accent: #04202a;
+
+  /* Accent — a controlled teal, used sparingly */
+  --sl-accent: #3ecfc4;
+  --sl-accent-dim: #1f5a56;
+  --sl-accent-wash: rgba(62, 207, 196, 0.12);
+
+  /* Status */
+  --sl-status-nominal: #4ade80;
+  --sl-status-warning: #f5b942;
+  --sl-status-critical: #f0655a;
+  --sl-status-info: #6ea8e6;
+
+  /* Typography */
+  --sl-font-ui: 'Inter', -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --sl-font-ui-he: 'Noto Sans Hebrew', 'Segoe UI', Arial, sans-serif;
+  --sl-font-mono: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+
+  --sl-fs-11: 0.6875rem;
+  --sl-fs-12: 0.75rem;
+  --sl-fs-13: 0.8125rem;
+  --sl-fs-14: 0.875rem;
+  --sl-fs-16: 1rem;
+  --sl-fs-20: 1.25rem;
+
+  /* Spacing (8px grid) */
+  --sl-sp-1: 4px;
+  --sl-sp-2: 8px;
+  --sl-sp-3: 12px;
+  --sl-sp-4: 16px;
+  --sl-sp-5: 20px;
+  --sl-sp-6: 24px;
+  --sl-sp-8: 32px;
+
+  --sl-radius-sm: 4px;
+  --sl-radius-md: 6px;
+
+  --sl-topbar-h: 44px;
+  --sl-rail-w: 56px;
+  --sl-inspector-w: 340px;
+  --sl-dock-h: 200px;
+
+  /* The breakpoint below which the sidebar/Inspector become on-demand overlays
+     (Design Gate decision: "drawer behavior under 1200px"). */
+  --sl-drawer-breakpoint: 1200px;
+
+  background: var(--sl-bg-app);
+  color: var(--sl-text-primary);
+  font-family: var(--sl-font-ui);
+  font-size: var(--sl-fs-13);
+  -webkit-font-smoothing: antialiased;
+}
+
+.sl-v2 * {
+  box-sizing: border-box;
+}
+
+.sl-v2[dir='rtl'],
+.sl-v2 .sl-lang-he {
+  font-family: var(--sl-font-ui-he);
+}
+
+.sl-v2 .sl-mono,
+.sl-v2 .sl-tabular {
+  font-family: var(--sl-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A number embedded in RTL text stays LTR and doesn't get bidi-scrambled. */
+.sl-v2 .sl-bidi-isolate {
+  unicode-bidi: isolate;
+  direction: ltr;
+  display: inline-block;
+}
+
+/* Directional icons (arrows, chevrons meaning "forward"/"expand") mirror under RTL; icons whose
+   meaning doesn't depend on reading direction (clock, globe, satellite) never do — see Icon.tsx. */
+.sl-v2[dir='rtl'] .sl-icon--directional {
+  transform: scaleX(-1);
+}
