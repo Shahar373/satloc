@@ -51,6 +51,11 @@ const resources = {
         starting: 'Starting the 3D globe…',
         error: 'The 3D globe could not start: {{message}}',
       },
+      palette: {
+        label: 'Jump to satellite',
+        close: 'Close',
+        noResults: 'No satellites match.',
+      },
     },
   },
   he: {
@@ -90,6 +95,11 @@ const resources = {
       globe: {
         starting: 'מפעיל את הגלובוס…',
         error: 'הפעלת הגלובוס נכשלה: {{message}}',
+      },
+      palette: {
+        label: 'קפיצה ללוויין',
+        close: 'סגור',
+        noResults: 'לא נמצאו לוויינים תואמים.',
       },
     },
   },

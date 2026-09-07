@@ -19,7 +19,11 @@ function useDisplayClock(): Date {
   return simTime ?? wallClock;
 }
 
-export function TopBarV2() {
+export interface TopBarV2Props {
+  onOpenPalette: () => void;
+}
+
+export function TopBarV2({ onOpenPalette }: TopBarV2Props) {
   const clock = useDisplayClock();
   const multiplier = useViewerStore((s) => s.multiplier);
   const { t, i18n } = useTranslation();
@@ -30,7 +34,7 @@ export function TopBarV2() {
         <span className="sl-topbar__mark" aria-hidden="true" />
         SatLoc
       </div>
-      <button type="button" className="sl-topbar__cmdk">
+      <button type="button" className="sl-topbar__cmdk" onClick={onOpenPalette}>
         <Icon name="search" size={14} />
         <span>{t('topbar.searchPlaceholder')}</span>
         <kbd>⌘K</kbd>

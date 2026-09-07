@@ -283,3 +283,90 @@
 .sl-dock__row-name {
   font-family: var(--sl-font-ui);
 }
+
+.sl-palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: rgba(2, 4, 8, 0.6);
+  display: flex;
+  justify-content: center;
+  padding-top: 12vh;
+}
+.sl-palette {
+  width: min(560px, 90vw);
+  max-height: 60vh;
+  background: var(--sl-bg-panel-raised);
+  border: 1px solid var(--sl-border-strong);
+  border-radius: var(--sl-radius-md);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sl-palette__input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sl-sp-2);
+  padding: var(--sl-sp-3) var(--sl-sp-4);
+  border-bottom: 1px solid var(--sl-border-subtle);
+}
+.sl-palette__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font: inherit;
+  font-size: var(--sl-fs-14);
+  color: var(--sl-text-primary);
+}
+.sl-palette__input::placeholder {
+  color: var(--sl-text-tertiary);
+}
+.sl-palette__close {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: var(--sl-text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+}
+.sl-palette__close:hover {
+  color: var(--sl-text-primary);
+}
+.sl-palette__results {
+  list-style: none;
+  margin: 0;
+  padding: var(--sl-sp-2);
+  overflow-y: auto;
+}
+.sl-palette__empty {
+  padding: var(--sl-sp-3) var(--sl-sp-2);
+  color: var(--sl-text-tertiary);
+  font-size: var(--sl-fs-13);
+  text-align: center;
+}
+.sl-palette__result {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sl-sp-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--sl-radius-sm);
+  padding: var(--sl-sp-2) var(--sl-sp-3);
+  font: inherit;
+  font-size: var(--sl-fs-13);
+  color: var(--sl-text-primary);
+  cursor: pointer;
+  text-align: start;
+}
+.sl-palette__result--active,
+.sl-palette__result:hover {
+  background: var(--sl-accent-wash);
+}
+.sl-palette__result-id {
+  color: var(--sl-text-tertiary);
+}
