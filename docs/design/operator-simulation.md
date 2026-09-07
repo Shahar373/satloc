@@ -153,13 +153,21 @@ interface ValidationFinding {
 The first concrete rule, `checkStorageBudget` (`src/core/validation/storageBudget.ts`), composes a
 `SatelliteProfile` and the current `TruthState` to decide whether storing a candidate `DataProduct`
 would push onboard storage past `usableStorageGB(profile)` — a `STORAGE_INSUFFICIENT` `HardBlock`
-if so, `null` if there's room (the budget is inclusive: exactly at the limit is fine). Deliberately
-narrow: imaging-window, roll-limit, and contact-timing rules need `ForecastService`/imaging-geometry
-integration and belong in their own future rule modules, not bolted onto this one.
+if so, `null` if there's room (the budget is inclusive: exactly at the limit is fine).
+
+The second, `checkRollLimit` (`src/core/validation/rollLimit.ts`), decides whether an imaging
+candidate's off-nadir angle exceeds `profile.imaging.maxRollDeg` — an `IMG_ROLL_EXCEEDS_LIMIT`
+`HardBlock` if so (there is no waiver for a physically unreachable roll angle), `null` if within
+limit (inclusive). It takes the off-nadir angle as an already-computed input (radians, the same
+quantity `core/imaging/geometry.ts`'s `offNadirAngle` and `core/imaging/opportunities.ts`'s
+`ImagingOpportunity.offNadirDeg` produce from a propagated satellite position and a target) rather
+than propagating the satellite itself — that stays `ForecastService`/`findImagingOpportunities`'s
+job, keeping this rule module pure and time-independent like `checkStorageBudget`. Imaging-window
+and contact-timing rules still need that same integration and remain future rule modules.
 
 ## What's not decided here
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
-but not approved), the remaining Validator rules (imaging windows, roll limits, contact timing),
-Train console telemetry channels, and Scenario 02's fault injection are all still open — later
-PRs, not this document.
+but not approved), the remaining Validator rules (imaging windows, contact timing), Train console
+telemetry channels, and Scenario 02's fault injection are all still open — later PRs, not this
+document.
