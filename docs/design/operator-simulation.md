@@ -295,6 +295,25 @@ an effect for the same reason — computing it synchronously during render would
 committing anything else in that update (e.g. a Rail drawer close transition triggered by the same
 navigation) until the whole replay finished.
 
+## Scenario 01 golden replay (determinism)
+
+`canonicalDomainHash`/`canonicalDomainProjection` (`src/core/replay/canonicalDomain.ts`) implement
+the "EventLog determinism" check this document has referenced since the event-envelope model was
+introduced: a domain event stream stripped of everything that legitimately varies between runs
+(`recordId`, `recordedAt`, `globalSequence` — replaced by a 1-based position within the domain-only
+projection), reduced to a short deterministic hash (FNV-1a, written from scratch the same way
+`src/contracts/ulid.ts` was, rather than adding a hashing dependency).
+
+`scenario01.golden.test.ts` uses this for two things: proving Scenario 01's real demo timeline
+(`buildRealDemoTimeline` run through a real `ScenarioRunner` to completion) is genuinely
+deterministic — two independent runs, each with a different random seed/ULID and real wall-clock
+`recordedAt` values, project to byte-identical canonical output — and a **Golden Regression** test
+(per `CONTRIBUTING.md`'s "Testing orbital, RF, and simulation logic": no independent oracle for
+"the right event log" exists, so this locks in current behavior rather than proving correctness)
+that fails if the real SGP4 geometry, the Asteria-1 profile, or the event-scheduling logic ever
+changes what Scenario 01's run actually produces. See `docs/models/tolerances.md` for why this
+check uses an exact hash match rather than a numeric tolerance.
+
 ## What's not decided here
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
@@ -302,8 +321,10 @@ but not approved), Train console telemetry channels, and Scenario 02's fault inj
 still open — later PRs, not this document. All five HardBlock Validator rules this vertical slice
 has needed so far (storage, roll-limit, contact-timing, imaging-window, contact-capacity) are now
 built; `evaluatePlanDraft`'s accumulator supports both imaging and downlink candidates with causal
-ordering between them; a basic Debrief view exists (a fixed-run replay, not a session picker).
-What's still missing: a ground-contact browse/selection UI in `PlanV2` so an operator can actually
-build a downlink candidate (today only imaging candidates have a selection UI), a real
-committable-plan/commit flow producing real `DomainEvent`s (today's draft is local UI state only),
-and the waiver flow for `WaivableWarning` findings — no rule of that severity exists yet either.
+ordering between them; a basic Debrief view exists (a fixed-run replay, not a session picker); and
+Scenario 01's full real-demo run is now proven deterministic with a golden-regression hash locking
+in its current behavior. What's still missing: a ground-contact browse/selection UI in `PlanV2` so
+an operator can actually build a downlink candidate (today only imaging candidates have a selection
+UI), a real committable-plan/commit flow producing real `DomainEvent`s (today's draft is local UI
+state only), and the waiver flow for `WaivableWarning` findings — no rule of that severity exists
+yet either.
