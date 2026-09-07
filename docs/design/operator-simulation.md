@@ -233,22 +233,34 @@ that gap for storage by running the browse list's candidates through `evaluatePl
 when an operator adds one to a draft — `checkContactTiming` still has nothing to evaluate here,
 since imaging candidates carry no contact.
 
-## Plan draft accumulator (imaging only)
+## Plan draft accumulator
 
 `evaluatePlanDraft` (`src/core/scenario/planDraft.ts`) is the first real multi-candidate use of the
-Validator rules: given an ordered list of imaging candidates (each carrying the specific real
-`ImagingOpportunity` chosen for it), it runs `checkRollLimit`/`checkImagingWindow` per candidate
-and folds `checkStorageBudget` across the whole sequence via the real `applyDomainEvent` — as if
-every earlier accepted candidate actually happened — rather than each candidate seeing an empty or
-already-current Truth State in isolation. A candidate with any finding does not count toward
-storage for the candidates after it (a plan that can't commit a capture doesn't actually put
-anything in storage for it). Proven against real Asteria-1 geometry: six real clean opportunities
-over 30 days genuinely exhaust the 6 GB budget on the sixth, the same `maxProducts(PAN) = 5` figure
-from the storage model above.
+Validator rules: given an ordered list of `PlanCandidate`s — imaging and downlink — it evaluates
+each in sequence against a running `TruthState` fold, as if every earlier accepted candidate
+actually happened, rather than each candidate seeing an empty or already-current Truth State in
+isolation.
 
-Deliberately **imaging-only**: downlink candidates need a chosen ground contact's real capacity
-(`CONTACT_TOO_SHORT_FOR_PRODUCT` — listed in the original plan's rule table, but not yet a built
-rule) and causal ordering against the imaging candidates that produced what they'd downlink.
+An **imaging candidate** (each carrying the specific real `ImagingOpportunity` chosen for it) runs
+`checkRollLimit`/`checkImagingWindow`, then folds `checkStorageBudget` via the real
+`applyDomainEvent`. A candidate with any finding does not count toward storage for the candidates
+after it (a plan that can't commit a capture doesn't actually put anything in storage for it).
+Proven against real Asteria-1 geometry: six real clean opportunities over 30 days genuinely exhaust
+the 6 GB budget on the sixth, the same `maxProducts(PAN) = 5` figure from the storage model above.
+
+A **downlink candidate** (a real ground contact's duration plus the ids of earlier imaging
+candidates in the same draft whose products it's assigned to clear) runs the new
+`checkContactCapacity` rule (`src/core/validation/contactCapacity.ts`, `CONTACT_TOO_SHORT_FOR_PRODUCT`
+— the last of the codes the original plan's rule table listed) against those products' real total
+size and the contact's real `downlinkGB` capacity, plus a causal-ordering check this accumulator
+owns directly (`DOWNLINK_PRODUCT_MISSING`): a referenced product must actually be onboard at that
+point in the sequence — never captured, blocked by an earlier finding, or already cleared by an
+earlier downlink candidate in the same draft all fail identically, since none of them leaves
+anything to actually downlink. A cleared product's storage is freed via the real
+`DownlinkCompleted@1` event, the same way `TruthState` already models it. Proven against real
+`predictPasses` output over GS-Home: real passes exist on both sides of a 6 GB (5-PAN) load's real
+capacity threshold, and a short real pass (157.5 s, ≈2.578 GB capacity) genuinely cannot clear
+products a longer real pass (435.9 s, ≈7.799 GB) clears without issue.
 
 `PlanV2` now wires this accumulator into the browse list itself: an "Add to plan"/"Remove" toggle
 on each opportunity row builds an ordered draft (its own surface below the browse list), each
@@ -256,7 +268,9 @@ draft row showing its own findings and the running storage total after it, and a
 the plan's total usage against `usableStorageGB`. This is still **local component state, not a
 real committable plan** — there's no `CommandSubmitted`/plan data model or commit flow yet, so
 adding/removing a candidate here records nothing to an event log and produces no `DomainEvent`.
-That commit flow is the Plan workspace's next real step.
+That commit flow is the Plan workspace's next real step. `PlanV2`'s selection UI is itself still
+**imaging-only**: `evaluatePlanDraft` supports downlink candidates now, but there's no ground-contact
+browse/selection UI yet to build one from — that UI is separate follow-up work, not this section.
 
 ## Debrief view
 
@@ -285,10 +299,11 @@ navigation) until the whole replay finished.
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
 but not approved), Train console telemetry channels, and Scenario 02's fault injection are all
-still open — later PRs, not this document. All four originally-planned HardBlock Validator rules
-(storage, roll-limit, contact-timing, imaging-window) are now built and live in both `TrainV2` and
-the Plan workspace, multi-candidate accumulation exists for imaging and is wired into `PlanV2` as a
-draft-building UI, and a basic Debrief view exists (a fixed-run replay, not a session picker);
-what's still missing is downlink candidates (contact capacity + causal ordering), a real
+still open — later PRs, not this document. All five HardBlock Validator rules this vertical slice
+has needed so far (storage, roll-limit, contact-timing, imaging-window, contact-capacity) are now
+built; `evaluatePlanDraft`'s accumulator supports both imaging and downlink candidates with causal
+ordering between them; a basic Debrief view exists (a fixed-run replay, not a session picker).
+What's still missing: a ground-contact browse/selection UI in `PlanV2` so an operator can actually
+build a downlink candidate (today only imaging candidates have a selection UI), a real
 committable-plan/commit flow producing real `DomainEvent`s (today's draft is local UI state only),
 and the waiver flow for `WaivableWarning` findings — no rule of that severity exists yet either.
