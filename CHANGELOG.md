@@ -2,6 +2,17 @@
 
 Each section becomes the release notes of that version (see scripts/release-notes.mjs).
 
+## 0.4.0
+
+A new, product-grade desktop UI (Shell V2) replaces the original interface everywhere.
+
+- Design: two full-mockup design alternatives compared and merged into a hybrid direction — a persistent Top Bar, workspace rail, Inspector, and Dock, chosen for a calm, precise operations-console feel over a document-browser layout.
+- Globe: the real Cesium globe, satellites, orbit paths, ground tracks, footprints, and the observer marker all render in the new interface exactly as before.
+- Language: full English/Hebrew interface with right-to-left layout mirroring (verified pixel-for-pixel, not just visually) and a language toggle that remembers your choice between sessions.
+- Search: a command palette (⌘K / Ctrl+K) finds and jumps to any satellite by name or NORAD ID.
+- Small screens: the workspace rail and Inspector collapse into on-demand panels below 1200 px wide, so the app stays usable on an 900×600 window.
+- Updates: the "a new version is available" notice moved to the new interface, unchanged in what it does.
+
 ## 0.3.1
 
 Engineering stabilization: no new features, tightened security and testing groundwork for the next round of feature work.
