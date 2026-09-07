@@ -48,6 +48,33 @@ queues a `DomainEvent`, `advanceTo(simTime)` fires everything now due by appendi
 `EventLog`. No domain logic (task progression, command validation, storage accounting) lives here
 — that is the Plan workspace's and Train console's job, in PRs that build on this.
 
+## Truth State vs Operator Observables
+
+Two distinct views of a running scenario, kept structurally separate rather than one object with
+some fields flagged "hidden":
+
+- **Truth State** (`src/core/truth/TruthState.ts`) is what actually happened, folded
+  deterministically from the `DomainEvent` stream: task status, command status, data products
+  currently stored onboard, storage used, and active ground contacts. Pure — `applyDomainEvent`/
+  `foldTruthState` take state and events in, return new state out, nothing else.
+- **Operator Observables** is what the operator can currently _see_ — which may lag Truth State
+  (a contact not yet confirmed on the ground-station link), omit parts of it (storage internals
+  the operator's console doesn't expose), or add operator-only annotations (a waived warning).
+  Not implemented yet; a later Plan/Train PR derives it from Truth State plus what the operator's
+  instruments would realistically report.
+
+The split matters because a Debrief view needs to show both — what really happened, and what the
+operator actually knew at each moment — side by side, and conflating them would make that
+comparison impossible.
+
+`TruthState` only tracks what `src/contracts/events.ts`'s current `DomainEvent` set actually
+conveys. In particular there is no `TaskCreated`/`TaskPlanned` event yet, so a task only appears in
+`taskStatus` once `TaskStarted`/`TaskCompleted` has actually fired for it — a future PR that adds
+task-creation as its own event should extend the reducer, not have it guess a task into existence
+from nothing. Storage accounting assumes a downlinked product is removed from onboard storage
+(freeing its space), since there is no `DataProductDeleted` event to model an explicit, separate
+deletion step in this version.
+
 ## Satellite storage/downlink model
 
 All GB fields are decimal (10⁹ bytes); the UI may offer GiB as a display-only conversion.
