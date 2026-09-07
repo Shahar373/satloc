@@ -1,0 +1,122 @@
+/* Shell V2 primitives — styles for Button, Surface, Field, Pill, Switch (Icon.tsx's styling
+   lives in ../tokens.css next to the RTL mirroring rule it's paired with). Scoped under .sl-v2
+   the same way tokens.css is; relies on the --sl-* custom properties defined there. */
+
+.sl-v2 .sl-button {
+  font-family: inherit;
+  font-size: var(--sl-fs-13);
+  color: var(--sl-text-primary);
+  background: var(--sl-bg-panel-raised);
+  border: 1px solid var(--sl-border-strong);
+  border-radius: var(--sl-radius-sm);
+  padding: 6px var(--sl-sp-3);
+  cursor: pointer;
+}
+.sl-v2 .sl-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.sl-v2 .sl-button--primary {
+  background: var(--sl-accent);
+  color: var(--sl-text-on-accent);
+  border-color: var(--sl-accent);
+  font-weight: 600;
+}
+.sl-v2 .sl-button--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--sl-text-secondary);
+}
+.sl-v2 .sl-button:focus-visible {
+  outline: 2px solid var(--sl-accent);
+  outline-offset: 2px;
+}
+
+.sl-v2 .sl-surface {
+  background: var(--sl-bg-panel);
+  border: 1px solid var(--sl-border-subtle);
+  border-radius: var(--sl-radius-md);
+  padding: var(--sl-sp-3) var(--sl-sp-4);
+}
+.sl-v2 .sl-surface--raised {
+  background: var(--sl-bg-panel-raised);
+}
+.sl-v2 .sl-surface--selected {
+  border-color: var(--sl-accent-dim);
+  background: var(--sl-accent-wash);
+}
+
+.sl-v2 .sl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sl-v2 .sl-field__label {
+  color: var(--sl-text-tertiary);
+  font-size: var(--sl-fs-11);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.sl-v2 .sl-field__value {
+  font-size: var(--sl-fs-14);
+}
+
+.sl-v2 .sl-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--sl-sp-2);
+  border-radius: var(--sl-radius-sm);
+  font-size: var(--sl-fs-11);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.sl-v2 .sl-pill--nominal {
+  background: rgba(74, 222, 128, 0.14);
+  color: var(--sl-status-nominal);
+}
+.sl-v2 .sl-pill--warning {
+  background: rgba(245, 185, 66, 0.14);
+  color: var(--sl-status-warning);
+}
+.sl-v2 .sl-pill--critical {
+  background: rgba(240, 101, 90, 0.14);
+  color: var(--sl-status-critical);
+}
+.sl-v2 .sl-pill--info {
+  background: rgba(110, 168, 230, 0.14);
+  color: var(--sl-status-info);
+}
+
+.sl-v2 .sl-switch {
+  width: 30px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: var(--sl-border-strong);
+  position: relative;
+  cursor: pointer;
+}
+.sl-v2 .sl-switch::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--sl-text-secondary);
+  top: 2px;
+  inset-inline-start: 2px;
+  transition: inset-inline-start 0.1s ease-out;
+}
+.sl-v2 .sl-switch--on {
+  background: var(--sl-accent-dim);
+}
+.sl-v2 .sl-switch--on::after {
+  background: var(--sl-accent);
+  inset-inline-start: 16px;
+}
+.sl-v2 .sl-switch:focus-visible {
+  outline: 2px solid var(--sl-accent);
+  outline-offset: 2px;
+}
