@@ -153,13 +153,24 @@ interface ValidationFinding {
 The first concrete rule, `checkStorageBudget` (`src/core/validation/storageBudget.ts`), composes a
 `SatelliteProfile` and the current `TruthState` to decide whether storing a candidate `DataProduct`
 would push onboard storage past `usableStorageGB(profile)` — a `STORAGE_INSUFFICIENT` `HardBlock`
-if so, `null` if there's room (the budget is inclusive: exactly at the limit is fine). Deliberately
-narrow: imaging-window, roll-limit, and contact-timing rules need `ForecastService`/imaging-geometry
-integration and belong in their own future rule modules, not bolted onto this one.
+if so, `null` if there's room (the budget is inclusive: exactly at the limit is fine).
+
+`checkContactTiming` (`src/core/validation/contactTiming.ts`) decides whether a candidate
+command's `simTime` falls inside its target contact's actual acquisition window. It scans the
+domain event log for that `contactId`'s `ContactAcquired@1`/`ContactLost@1` pair rather than
+reading a precomputed forecast window, so it always reflects what really happened (a contact can
+end early — a real `ContactLost@1` — not just what was predicted). Returns `CMD_BEFORE_AOS` when
+the contact hasn't been acquired yet at `simTime`, `CMD_AFTER_LOS` when it has already ended
+(inclusive — loss itself already ends the window), or `null` when `simTime` falls inside the
+acquired-but-not-yet-lost window. Neither is waivable — there is no uplink outside an actual RF
+contact.
+
+Imaging-window and roll-limit rules need `ForecastService`/imaging-geometry integration and belong
+in their own future rule modules, not bolted onto either of these.
 
 ## What's not decided here
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
-but not approved), the remaining Validator rules (imaging windows, roll limits, contact timing),
-Train console telemetry channels, and Scenario 02's fault injection are all still open — later
-PRs, not this document.
+but not approved), the remaining Validator rules (imaging windows, roll limits), Train console
+telemetry channels, and Scenario 02's fault injection are all still open — later PRs, not this
+document.
