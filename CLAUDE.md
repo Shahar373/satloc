@@ -11,6 +11,7 @@ algorithms, milestones (M0-M7) and the reasons behind them.
 
 - `npm install` — also copies Cesium runtime assets to `public/cesium` (gitignored).
 - `npm run dev` — browser at http://localhost:5173. `?imagery=offline` forces bundled tiles.
+- `npm run lint` / `npm run format` (`format:check` for CI-style, no-write checking)
 - `npm run typecheck` / `npm test` / `npm run build`
 - `npm run test:e2e` — Playwright smoke test; screenshot lands in `test-results/globe.png`.
 - `npm run tauri dev` / `npm run tauri build` — desktop app (needs Rust + WebView2 on Windows).
