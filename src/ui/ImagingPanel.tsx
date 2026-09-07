@@ -55,7 +55,11 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
       return {
         opportunities: findImagingOpportunities(
           set.satrec,
-          { latitude: (target.latitudeDeg * Math.PI) / 180, longitude: (target.longitudeDeg * Math.PI) / 180, heightKm: 0 },
+          {
+            latitude: (target.latitudeDeg * Math.PI) / 180,
+            longitude: (target.longitudeDeg * Math.PI) / 180,
+            heightKm: 0,
+          },
           windowStart,
           forecastDays,
           { maxOffNadirDeg, minSunElevationDeg },
@@ -209,9 +213,19 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
       {coordsError && <p className="panel__hint panel__hint--warn">{coordsError}</p>}
 
       <div className="toggles" role="group" aria-label="Imaging constraints">
-        <label className="topbar__dim" title="Largest roll (off-nadir angle) the satellite may use to look at the target">
+        <label
+          className="topbar__dim"
+          title="Largest roll (off-nadir angle) the satellite may use to look at the target"
+        >
           roll ≤&nbsp;
-          <NumberField value={maxOffNadirDeg} min={5} max={70} step={5} onCommit={setMaxOffNadir} aria-label="Maximum off-nadir angle" />
+          <NumberField
+            value={maxOffNadirDeg}
+            min={5}
+            max={70}
+            step={5}
+            onCommit={setMaxOffNadir}
+            aria-label="Maximum off-nadir angle"
+          />
           °
         </label>
         <label
@@ -219,11 +233,23 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
           title="Sun elevation at the target above which an opportunity counts as daylight (night opportunities are still listed)"
         >
           sun ≥&nbsp;
-          <NumberField value={minSunElevationDeg} min={-10} max={60} step={5} onCommit={setMinSunElevation} aria-label="Minimum Sun elevation" />
+          <NumberField
+            value={minSunElevationDeg}
+            min={-10}
+            max={60}
+            step={5}
+            onCommit={setMinSunElevation}
+            aria-label="Minimum Sun elevation"
+          />
           °
         </label>
         <label className="topbar__dim" title="How far ahead to look for opportunities">
-          <select className="select" aria-label="Forecast days" value={forecastDays} onChange={(e) => setForecastDays(Number(e.target.value))}>
+          <select
+            className="select"
+            aria-label="Forecast days"
+            value={forecastDays}
+            onChange={(e) => setForecastDays(Number(e.target.value))}
+          >
             {[1, 3, 7, 14].map((d) => (
               <option key={d} value={d}>
                 {d} d
@@ -265,8 +291,8 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
       )}
       {set && target && opportunities && !forecast?.error && opportunities.length === 0 && (
         <p className="panel__hint">
-          No access to {target.name} within {forecastDays} day{forecastDays > 1 ? 's' : ''} at roll ≤ {maxOffNadirDeg}°. Try a
-          longer forecast or a larger roll.
+          No access to {target.name} within {forecastDays} day{forecastDays > 1 ? 's' : ''} at roll ≤ {maxOffNadirDeg}°.
+          Try a longer forecast or a larger roll.
         </p>
       )}
       {set && target && opportunities && opportunities.length > 0 && (
@@ -286,7 +312,9 @@ export function ImagingPanel({ set }: { set: ElementSet | undefined }) {
                   <span className="pass__when">
                     {formatUtcShort(o.time)} UTC
                     <span className="topbar__dim"> · {formatLocalBeside(o.time)} local</span>
-                    <span className={`badge badge--inline${o.daylight ? ' badge--ok' : ' badge--warn'}`}>{o.daylight ? 'daylight' : 'night'}</span>
+                    <span className={`badge badge--inline${o.daylight ? ' badge--ok' : ' badge--warn'}`}>
+                      {o.daylight ? 'daylight' : 'night'}
+                    </span>
                   </span>
                   <span className="pass__facts">
                     roll {o.offNadirDeg.toFixed(1)}° {o.side} · sun {o.sunElevationDeg.toFixed(0)}° · {o.direction}

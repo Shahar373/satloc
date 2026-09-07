@@ -75,7 +75,8 @@ export function validateTleLine(line: string, lineNumber: 1 | 2): void {
   if (line[0] !== String(lineNumber)) throw new Error(`TLE line ${lineNumber} starts with "${line[0]}"`);
   const expected = Number(line[68]);
   const actual = tleChecksum(line);
-  if (expected !== actual) throw new Error(`TLE line ${lineNumber} checksum mismatch (line says ${line[68]}, computed ${actual})`);
+  if (expected !== actual)
+    throw new Error(`TLE line ${lineNumber} checksum mismatch (line says ${line[68]}, computed ${actual})`);
 }
 
 /** Classic two-line element set; `name` is the optional "line 0". Lines are checksum-verified first. */
@@ -106,7 +107,16 @@ export function tleToElementSet(line1: string, line2: string, name?: string): El
  * propagates to NaN positions silently. Reject it up front.
  */
 function assertUsable(satrec: SatRec, name: string): void {
-  const fields = [satrec.jdsatepoch, satrec.no, satrec.ecco, satrec.inclo, satrec.nodeo, satrec.argpo, satrec.mo, satrec.bstar];
+  const fields = [
+    satrec.jdsatepoch,
+    satrec.no,
+    satrec.ecco,
+    satrec.inclo,
+    satrec.nodeo,
+    satrec.argpo,
+    satrec.mo,
+    satrec.bstar,
+  ];
   if (!fields.every(Number.isFinite) || satrec.no <= 0 || satrec.ecco < 0 || satrec.ecco >= 1) {
     throw new Error(`Element set for ${name.trim()} is malformed (missing or non-numeric orbital elements)`);
   }

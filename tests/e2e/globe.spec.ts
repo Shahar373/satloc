@@ -38,10 +38,16 @@ test('the globe renders and a satellite can be selected', async ({ page }) => {
 
   // Catalogue: display the fixture constellation as points, then find one by name and select it.
   await page.getByTestId('catalog').getByRole('button', { name: 'groups' }).click();
-  await page.getByTestId('groups').getByLabel(/Fixture constellation/).check();
+  await page
+    .getByTestId('groups')
+    .getByLabel(/Fixture constellation/)
+    .check();
   await expect(page.getByTestId('groups')).toContainText('300');
   await page.getByLabel('Search satellites').fill('FIX-042');
-  await page.getByTestId('search-results').getByRole('button', { name: /FIX-042/ }).click();
+  await page
+    .getByTestId('search-results')
+    .getByRole('button', { name: /FIX-042/ })
+    .click();
   await expect(page.getByTestId('details')).toContainText('FIX-042');
   await expect(page.getByTestId('altitude')).toContainText(/\d{3,5}\.\d km/);
   await page.getByRole('button', { name: /pin/ }).click();
@@ -49,7 +55,10 @@ test('the globe renders and a satellite can be selected', async ({ page }) => {
   await page.waitForTimeout(1000);
   await page.screenshot({ path: 'test-results/globe-catalog.png' });
   // Back to the fixture satellite for the rest of the checks.
-  await page.getByTestId('satlist').getByRole('button', { name: /EROS-LIKE/ }).click();
+  await page
+    .getByTestId('satlist')
+    .getByRole('button', { name: /EROS-LIKE/ })
+    .click();
   await expect(page.getByTestId('details')).toContainText('EROS-LIKE');
 
   // Imaging opportunities over the default target (Tel Aviv): add a second target by coordinates,

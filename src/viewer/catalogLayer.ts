@@ -118,7 +118,8 @@ export class CatalogLayer {
    */
   async setRecords(records: OmmRecord[], tles: TleRecord[], maxPoints: number): Promise<void> {
     const last = this.lastRequested;
-    if (last && last.maxPoints === maxPoints && sameElements(last.records, records) && sameElements(last.tles, tles)) return;
+    if (last && last.maxPoints === maxPoints && sameElements(last.records, records) && sameElements(last.tles, tles))
+      return;
     this.lastRequested = { records, tles, maxPoints };
 
     const generation = ++this.generation;
@@ -138,7 +139,9 @@ export class CatalogLayer {
 
     const rejectedSet = new Set(loaded.rejected);
     const wanted = new Map<number, string>();
-    for (const r of keptRecords) if (!rejectedSet.has(r.NORAD_CAT_ID) && !wanted.has(r.NORAD_CAT_ID)) wanted.set(r.NORAD_CAT_ID, r.OBJECT_NAME.trim());
+    for (const r of keptRecords)
+      if (!rejectedSet.has(r.NORAD_CAT_ID) && !wanted.has(r.NORAD_CAT_ID))
+        wanted.set(r.NORAD_CAT_ID, r.OBJECT_NAME.trim());
     for (const t of keptTles) if (!rejectedSet.has(t.noradId) && !wanted.has(t.noradId)) wanted.set(t.noradId, t.name);
 
     // Diff instead of rebuilding: points that stay keep their last position until the next tick,
@@ -152,7 +155,13 @@ export class CatalogLayer {
     for (const [id, name] of wanted) {
       this.names.set(id, name);
       if (this.byId.has(id)) continue;
-      const point = this.points.add({ id, position: Cartesian3.ZERO, pixelSize: POINT_SIZE, color: POINT_COLOR, show: false });
+      const point = this.points.add({
+        id,
+        position: Cartesian3.ZERO,
+        pixelSize: POINT_SIZE,
+        color: POINT_COLOR,
+        show: false,
+      });
       this.byId.set(id, point);
     }
     this.applyExclusions();
@@ -227,7 +236,7 @@ export class CatalogLayer {
 
   private pickId(position: Cartesian2): number | null {
     const picked: unknown = this.viewer.scene.pick(position);
-    const primitive = (picked as { primitive?: unknown; id?: unknown } | undefined);
+    const primitive = picked as { primitive?: unknown; id?: unknown } | undefined;
     if (primitive && primitive.primitive instanceof PointPrimitive && typeof primitive.id === 'number') {
       const point = this.byId.get(primitive.id);
       if (point && point.show) return primitive.id;

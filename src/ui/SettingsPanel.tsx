@@ -46,7 +46,9 @@ export function SettingsPanel() {
 
   const resetEverything = async () => {
     for (const key of listStorageKeys()) getStorage().removeItem(key);
-    await getKeyValueStore().clear().catch(() => undefined);
+    await getKeyValueStore()
+      .clear()
+      .catch(() => undefined);
     window.location.reload();
   };
 
@@ -138,20 +140,33 @@ export function SettingsPanel() {
           {isTauri() && (
             <>
               <div className="toggles">
-                <button type="button" className="btn" disabled={updateStatus === 'checking' || updateStatus === 'installing'} onClick={() => void checkUpdates()}>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={updateStatus === 'checking' || updateStatus === 'installing'}
+                  onClick={() => void checkUpdates()}
+                >
                   {updateStatus === 'checking' ? 'Checking…' : 'Check for updates'}
                 </button>
                 {updateStatus === 'available' && update && (
-                  <button type="button" className="btn btn--on" onClick={() => void installUpdate()} title="Downloads the update and restarts SatLoc">
+                  <button
+                    type="button"
+                    className="btn btn--on"
+                    onClick={() => void installUpdate()}
+                    title="Downloads the update and restarts SatLoc"
+                  >
                     Install {update.version} and restart
                   </button>
                 )}
               </div>
               <span className="panel__hint">
                 {updateStatus === 'upToDate' && `Up to date (${APP_VERSION}).`}
-                {updateStatus === 'available' && update && `Version ${update.version} is available; you have ${update.currentVersion}.`}
+                {updateStatus === 'available' &&
+                  update &&
+                  `Version ${update.version} is available; you have ${update.currentVersion}.`}
                 {updateStatus === 'available' && updateError && ` ${updateError}`}
-                {updateStatus === 'installing' && `Downloading${updateProgress !== null ? ` ${Math.round(updateProgress * 100)}%` : '…'} The app restarts when done.`}
+                {updateStatus === 'installing' &&
+                  `Downloading${updateProgress !== null ? ` ${Math.round(updateProgress * 100)}%` : '…'} The app restarts when done.`}
                 {updateStatus === 'error' && `Could not check: ${updateError}`}
                 {updateStatus === 'unsupported' && 'Updates are only available in the installed desktop app.'}
                 {updateStatus === 'idle' && 'Checked automatically a few seconds after start-up and every 6 hours.'}
@@ -174,7 +189,9 @@ export function SettingsPanel() {
               </div>
             ))}
           </dl>
-          <span className="panel__hint">On the timeline: ← → step a minute (Shift: 10), PgUp/PgDn an hour, Home = now.</span>
+          <span className="panel__hint">
+            On the timeline: ← → step a minute (Shift: 10), PgUp/PgDn an hour, Home = now.
+          </span>
         </section>
 
         <section className="field">
@@ -193,7 +210,12 @@ export function SettingsPanel() {
               {clearing ? 'Clearing…' : 'Clear downloaded catalogue'}
             </button>
             {!resetArmed ? (
-              <button type="button" className="btn" onClick={() => setResetArmed(true)} title="Targets, observer, pins, imagery choice, token, everything">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setResetArmed(true)}
+                title="Targets, observer, pins, imagery choice, token, everything"
+              >
                 Reset all settings…
               </button>
             ) : (
@@ -209,7 +231,8 @@ export function SettingsPanel() {
           </div>
           {resetArmed && (
             <span className="panel__hint panel__hint--warn">
-              This removes targets, the observer, pinned satellites, the imagery choice and the Ion token, and restarts SatLoc.
+              This removes targets, the observer, pinned satellites, the imagery choice and the Ion token, and restarts
+              SatLoc.
             </span>
           )}
         </section>
@@ -218,19 +241,29 @@ export function SettingsPanel() {
           <span className="field__label">About</span>
           <p className="panel__hint">
             SatLoc {APP_VERSION}. Orbital elements from CelesTrak (celestrak.org) with tle.ivanstanojevic.me as
-            fallback; positions by SGP4 (satellite.js). Imagery: Esri World Imagery, NASA GIBS, Natural Earth II;
-            globe by CesiumJS. Satellite positions carry the usual SGP4 error of a few kilometres and grow with the age
-            of the element set.
+            fallback; positions by SGP4 (satellite.js). Imagery: Esri World Imagery, NASA GIBS, Natural Earth II; globe
+            by CesiumJS. Satellite positions carry the usual SGP4 error of a few kilometres and grow with the age of the
+            element set.
           </p>
           <p className="panel__hint">
             Built with CesiumJS (Apache-2.0), satellite.js (MIT), React (MIT), zustand (MIT) and Tauri (MIT/Apache-2.0).
             Natural Earth II tiles are public domain; Esri and NASA GIBS imagery under their terms of use.
           </p>
           <div className="toggles">
-            <button type="button" className="btn" onClick={() => void copy()} title="Copies a plain-text state summary (no token) for a bug report">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void copy()}
+              title="Copies a plain-text state summary (no token) for a bug report"
+            >
               {copied === 'done' ? 'Copied ✓' : copied === 'failed' ? 'Copy failed' : 'Copy diagnostics'}
             </button>
-            <button type="button" className="btn" onClick={() => void openExternal(ISSUES_URL)} title="Opens GitHub in your browser; paste the diagnostics there">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void openExternal(ISSUES_URL)}
+              title="Opens GitHub in your browser; paste the diagnostics there"
+            >
               Report a problem
             </button>
           </div>

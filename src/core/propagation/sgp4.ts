@@ -1,11 +1,4 @@
-import {
-  eciToEcf,
-  eciToGeodetic,
-  gstime,
-  propagate,
-  type EciVec3,
-  type SatRec,
-} from 'satellite.js';
+import { eciToEcf, eciToGeodetic, gstime, propagate, type EciVec3, type SatRec } from 'satellite.js';
 
 /** Position (km) and velocity (km/s) in the TEME inertial frame. */
 export interface TemeState {

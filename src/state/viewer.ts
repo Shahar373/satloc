@@ -74,7 +74,15 @@ export const useViewerStore = create<ViewerState>()((set, get) => {
       removeRender?.();
       removeTick = undefined;
       removeRender = undefined;
-      set({ viewer: null, imagery: null, imageryPending: false, ready: false, simTime: null, multiplier: 1, animating: true });
+      set({
+        viewer: null,
+        imagery: null,
+        imageryPending: false,
+        ready: false,
+        simTime: null,
+        multiplier: 1,
+        animating: true,
+      });
     },
 
     setError(message) {

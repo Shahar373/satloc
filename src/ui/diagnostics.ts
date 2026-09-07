@@ -16,7 +16,9 @@ function webglRenderer(): string {
     const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
     if (!gl) return 'no WebGL context';
     const info = gl.getExtension('WEBGL_debug_renderer_info');
-    const renderer = info ? (gl.getParameter(info.UNMASKED_RENDERER_WEBGL) as string) : (gl.getParameter(gl.RENDERER) as string);
+    const renderer = info
+      ? (gl.getParameter(info.UNMASKED_RENDERER_WEBGL) as string)
+      : (gl.getParameter(gl.RENDERER) as string);
     return `${renderer} (${gl instanceof WebGL2RenderingContext ? 'WebGL 2' : 'WebGL 1'})`;
   } catch {
     return 'unknown';

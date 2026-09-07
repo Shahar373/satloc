@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { EROS_LIKE_OMM } from './fixtures';
-import { elementSetAgeDays, ommToElementSet, satrecEpochDate, tleToElementSet, tleChecksum, validateTleLine } from './omm';
+import {
+  elementSetAgeDays,
+  ommToElementSet,
+  satrecEpochDate,
+  tleToElementSet,
+  tleChecksum,
+  validateTleLine,
+} from './omm';
 
 describe('ommToElementSet', () => {
   it('builds a propagatable element set with metadata', () => {
@@ -16,7 +23,9 @@ describe('ommToElementSet', () => {
 
   it('rejects malformed element sets instead of producing NaN positions', () => {
     expect(() => ommToElementSet({ ...EROS_LIKE_OMM, MEAN_MOTION: Number.NaN })).toThrow(/malformed/);
-    expect(() => ommToElementSet({ ...EROS_LIKE_OMM, INCLINATION: undefined as unknown as number })).toThrow(/malformed/);
+    expect(() => ommToElementSet({ ...EROS_LIKE_OMM, INCLINATION: undefined as unknown as number })).toThrow(
+      /malformed/,
+    );
     expect(() => ommToElementSet({ ...EROS_LIKE_OMM, ECCENTRICITY: 1.2 })).toThrow();
   });
 

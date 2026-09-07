@@ -43,7 +43,10 @@ export function PassesPanel({ set }: { set: ElementSet | undefined }) {
       heightKm: heightM / 1000,
     };
     try {
-      return { passes: predictPasses(set.satrec, observer, windowStart, WINDOW_HOURS, { minElevationDeg }), error: null };
+      return {
+        passes: predictPasses(set.satrec, observer, windowStart, WINDOW_HOURS, { minElevationDeg }),
+        error: null,
+      };
     } catch (err) {
       return { passes: [], error: err instanceof Error ? err.message : String(err) };
     }
@@ -107,7 +110,13 @@ export function PassesPanel({ set }: { set: ElementSet | undefined }) {
         >
           {picking ? 'Click the globe…' : 'Pick on globe'}
         </button>
-        <button type="button" className="btn" disabled={locating} onClick={useDeviceLocation} title="Use the device's location">
+        <button
+          type="button"
+          className="btn"
+          disabled={locating}
+          onClick={useDeviceLocation}
+          title="Use the device's location"
+        >
           {locating ? 'Locating…' : 'My location'}
         </button>
         <label className="topbar__dim" title="Passes are listed only when the satellite rises above this elevation">
@@ -134,13 +143,20 @@ export function PassesPanel({ set }: { set: ElementSet | undefined }) {
         </p>
       )}
       {set && passes && !forecast?.error && passes.length === 0 && (
-        <p className="panel__hint">No passes above {minElevationDeg}° in the next {WINDOW_HOURS} h.</p>
+        <p className="panel__hint">
+          No passes above {minElevationDeg}° in the next {WINDOW_HOURS} h.
+        </p>
       )}
       {set && passes && passes.length > 0 && (
         <ol className="passes" data-testid="pass-list">
           {passes.map((pass) => (
             <li key={pass.aos.getTime()}>
-              <button type="button" className="pass" onClick={() => jumpToPass(pass)} title="Jump to 30 s before this pass and look at the observer">
+              <button
+                type="button"
+                className="pass"
+                onClick={() => jumpToPass(pass)}
+                title="Jump to 30 s before this pass and look at the observer"
+              >
                 <span className="pass__when">
                   {formatUtcShort(pass.aos)} UTC
                   <span className="topbar__dim"> · {formatLocalBeside(pass.aos)} local</span>

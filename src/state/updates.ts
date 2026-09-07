@@ -58,7 +58,11 @@ export const useUpdates = create<UpdatesState>()((set, get) => ({
       // The app relaunches; nothing to do if we get here.
     } catch (err) {
       // Stay 'available' so the user can retry; the error is shown next to the offer.
-      set({ status: 'available', progress: null, error: `Install failed: ${err instanceof Error ? err.message : String(err)}` });
+      set({
+        status: 'available',
+        progress: null,
+        error: `Install failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
     }
   },
 

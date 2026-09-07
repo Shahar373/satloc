@@ -24,7 +24,9 @@ async function get(url) {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   const text = (await res.text()).trim();
-  console.log(`[update-snapshot] GET ${url} -> ${res.status}${res.ok ? '' : ` ${text.slice(0, 200).replace(/\s+/g, ' ')}`}`);
+  console.log(
+    `[update-snapshot] GET ${url} -> ${res.status}${res.ok ? '' : ` ${text.slice(0, 200).replace(/\s+/g, ' ')}`}`,
+  );
   return { ok: res.ok, status: res.status, text };
 }
 
@@ -103,7 +105,9 @@ for (const list of [records, tles]) {
   for (let i = list.length - 1; i >= 0; i--) {
     const old = previousById.get(idOf(list[i]));
     if (old && epochMs(old) > epochMs(list[i])) {
-      console.log(`[update-snapshot] ${idOf(list[i])}: fetched epoch is older than the bundled one, keeping the bundled entry`);
+      console.log(
+        `[update-snapshot] ${idOf(list[i])}: fetched epoch is older than the bundled one, keeping the bundled entry`,
+      );
       list.splice(i, 1);
       (old.EPOCH ? records : tles).push(old);
     }
@@ -117,8 +121,5 @@ if (unchanged) {
   process.exit(0);
 }
 
-writeFileSync(
-  snapshotPath,
-  JSON.stringify({ fetchedAt: new Date().toISOString(), records, tles }, null, 2) + '\n',
-);
+writeFileSync(snapshotPath, JSON.stringify({ fetchedAt: new Date().toISOString(), records, tles }, null, 2) + '\n');
 console.log(`[update-snapshot] wrote ${records.length} OMM + ${tles.length} TLE records to ${snapshotPath}`);

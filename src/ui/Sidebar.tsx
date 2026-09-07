@@ -48,7 +48,8 @@ export function Sidebar() {
   const addFavorite = useSettings((s) => s.addFavorite);
   const [undo, offerUndo] = useUndo();
   // `groups`/`favorites` are dependencies because findSet reads them.
-  const selected = selectedId === null ? undefined : (sets.find((s) => s.noradId === selectedId) ?? findSet(selectedId));
+  const selected =
+    selectedId === null ? undefined : (sets.find((s) => s.noradId === selectedId) ?? findSet(selectedId));
   void groups;
 
   const unpin = (noradId: number) => {
@@ -93,8 +94,7 @@ export function Sidebar() {
         </ul>
         <p className="panel__hint">
           Elements: {SOURCE_LABELS[source]}
-          {fetchedAt && ` · ${fetchedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC`}
-          {' '}
+          {fetchedAt && ` · ${fetchedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC`}{' '}
           <button
             type="button"
             className="link"
@@ -106,7 +106,9 @@ export function Sidebar() {
           </button>
         </p>
         {notice && <p className="panel__hint">{notice}</p>}
-        {error && sets.length > 0 && <p className="panel__hint panel__hint--warn">Refresh failed, showing the last known elements: {error}</p>}
+        {error && sets.length > 0 && (
+          <p className="panel__hint panel__hint--warn">Refresh failed, showing the last known elements: {error}</p>
+        )}
         {ISI_PRESET.historical && ISI_PRESET.historical.length > 0 && (
           <details className="history">
             <summary className="panel__hint">History (re-entered, no orbit to show)</summary>
@@ -146,7 +148,13 @@ export function Sidebar() {
                     <span className="satlist__name">{f.name}</span>
                     <span className="satlist__meta">{f.noradId}</span>
                   </button>
-                  <button type="button" className="link" title="Unpin" aria-label={`Unpin ${f.name}`} onClick={() => unpin(f.noradId)}>
+                  <button
+                    type="button"
+                    className="link"
+                    title="Unpin"
+                    aria-label={`Unpin ${f.name}`}
+                    onClick={() => unpin(f.noradId)}
+                  >
                     ×
                   </button>
                 </li>
@@ -211,7 +219,13 @@ function SatelliteDetails({ set, onUnpin }: { set: ElementSet; onUnpin(noradId: 
               {isFavorite ? '★ pinned' : '☆ pin'}
             </button>
           )}{' '}
-          <button type="button" className="link" onClick={() => select(null)} title="Deselect (Esc)" aria-label="Deselect">
+          <button
+            type="button"
+            className="link"
+            onClick={() => select(null)}
+            title="Deselect (Esc)"
+            aria-label="Deselect"
+          >
             ×
           </button>
         </>
@@ -238,7 +252,13 @@ function SatelliteDetails({ set, onUnpin }: { set: ElementSet; onUnpin(noradId: 
         </button>
       </div>
       <div className="toggles" role="group" aria-label="Overlays">
-        <button type="button" className={`btn${showOrbit ? ' btn--on' : ''}`} aria-pressed={showOrbit} onClick={toggleOrbit} title="One orbit in inertial space">
+        <button
+          type="button"
+          className={`btn${showOrbit ? ' btn--on' : ''}`}
+          aria-pressed={showOrbit}
+          onClick={toggleOrbit}
+          title="One orbit in inertial space"
+        >
           Orbit
         </button>
         <button
@@ -274,7 +294,9 @@ function SatelliteDetails({ set, onUnpin }: { set: ElementSet; onUnpin(noradId: 
       {live?.error && <p className="panel__hint panel__hint--warn">Propagation failed: {live.error}</p>}
       <dl className="facts">
         <dt>Altitude</dt>
-        <dd data-testid="altitude">{live && Number.isFinite(live.altitudeKm) ? `${live.altitudeKm.toFixed(1)} km` : '–'}</dd>
+        <dd data-testid="altitude">
+          {live && Number.isFinite(live.altitudeKm) ? `${live.altitudeKm.toFixed(1)} km` : '–'}
+        </dd>
         <dt>Speed</dt>
         <dd>{live && Number.isFinite(live.speedKmS) ? `${live.speedKmS.toFixed(2)} km/s` : '–'}</dd>
         <dt>Latitude</dt>

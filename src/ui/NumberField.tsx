@@ -16,7 +16,16 @@ interface NumberFieldProps {
  * typed (so the spinner works), anything else waits for blur/Enter and is then clamped, instead of
  * being clamped keystroke by keystroke ("30" turning into 50 because "3" was clamped to 5 first).
  */
-export function NumberField({ value, min, max, step, onCommit, title, className, 'aria-label': ariaLabel }: NumberFieldProps) {
+export function NumberField({
+  value,
+  min,
+  max,
+  step,
+  onCommit,
+  title,
+  className,
+  'aria-label': ariaLabel,
+}: NumberFieldProps) {
   const [text, setText] = useState(String(value));
   const [focused, setFocused] = useState(false);
   const cancelled = useRef(false);
@@ -51,7 +60,8 @@ export function NumberField({ value, min, max, step, onCommit, title, className,
         const raw = e.target.value;
         setText(raw);
         const parsed = Number(raw);
-        if (raw.trim() !== '' && Number.isFinite(parsed) && parsed >= min && parsed <= max && parsed !== value) onCommit(parsed);
+        if (raw.trim() !== '' && Number.isFinite(parsed) && parsed >= min && parsed <= max && parsed !== value)
+          onCommit(parsed);
       }}
       onBlur={(e) => {
         setFocused(false);

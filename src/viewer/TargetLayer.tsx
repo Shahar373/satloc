@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Cartesian2, Cartesian3, Color, ConstantPositionProperty, ConstantProperty, Entity, LabelStyle, VerticalOrigin, type Viewer } from 'cesium';
+import {
+  Cartesian2,
+  Cartesian3,
+  Color,
+  ConstantPositionProperty,
+  ConstantProperty,
+  Entity,
+  LabelStyle,
+  VerticalOrigin,
+  type Viewer,
+} from 'cesium';
 import { usePicking } from '../state/picking';
 import { nextTargetName, useTargets, type ImagingTarget } from '../state/targets';
 import { useViewerStore } from '../state/viewer';

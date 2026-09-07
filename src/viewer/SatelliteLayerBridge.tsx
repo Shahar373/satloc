@@ -123,7 +123,19 @@ export function SatelliteLayerBridge() {
       target,
       maxOffNadirDeg,
     });
-  }, [viewer, tier1, selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, showReach, cameraMode, target, maxOffNadirDeg]);
+  }, [
+    viewer,
+    tier1,
+    selectedId,
+    showOrbit,
+    showGroundTrack,
+    showFootprint,
+    showSwath,
+    showReach,
+    cameraMode,
+    target,
+    maxOffNadirDeg,
+  ]);
 
   return null;
 }

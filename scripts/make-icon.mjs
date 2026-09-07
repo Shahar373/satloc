@@ -33,10 +33,7 @@ const SAT_R = 26;
 const cosA = Math.cos(RING_ANGLE);
 const sinA = Math.sin(RING_ANGLE);
 const satLocal = [RING_A * Math.cos(SAT_T), RING_B * Math.sin(SAT_T)];
-const satPos = [
-  satLocal[0] * cosA - satLocal[1] * sinA,
-  satLocal[0] * sinA + satLocal[1] * cosA,
-];
+const satPos = [satLocal[0] * cosA - satLocal[1] * sinA, satLocal[0] * sinA + satLocal[1] * cosA];
 
 function shade(x, y) {
   // Returns [r, g, b, a] for a point in centred coordinates.

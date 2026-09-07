@@ -114,11 +114,7 @@ export function bodyOrientationAt(set: ElementSet, time: JulianDate, out?: Quate
     const vel = Cartesian3.normalize(new Cartesian3(v.x, v.y, v.z), new Cartesian3());
     const across = Cartesian3.normalize(Cartesian3.cross(up, vel, new Cartesian3()), new Cartesian3());
     const back = Cartesian3.negate(vel, new Cartesian3());
-    const m = new Matrix3(
-      across.x, back.x, up.x,
-      across.y, back.y, up.y,
-      across.z, back.z, up.z,
-    );
+    const m = new Matrix3(across.x, back.x, up.x, across.y, back.y, up.y, across.z, back.z, up.z);
     return Quaternion.fromRotationMatrix(m, out);
   } catch {
     return undefined;
@@ -320,7 +316,11 @@ export class SatelliteLayer {
           false,
         ),
         orientation: hasModel
-          ? new CallbackProperty((time, result) => bodyOrientationAt(tracked.set, time ?? this.viewer.clock.currentTime, result as Quaternion | undefined), false)
+          ? new CallbackProperty(
+              (time, result) =>
+                bodyOrientationAt(tracked.set, time ?? this.viewer.clock.currentTime, result as Quaternion | undefined),
+              false,
+            )
           : undefined,
         model: hasModel
           ? {
@@ -335,7 +335,9 @@ export class SatelliteLayer {
           color: MARKER_COLOR,
           outlineColor: Color.BLACK,
           outlineWidth: 1,
-          distanceDisplayCondition: hasModel ? new DistanceDisplayCondition(MODEL_RANGE_M, Number.POSITIVE_INFINITY) : undefined,
+          distanceDisplayCondition: hasModel
+            ? new DistanceDisplayCondition(MODEL_RANGE_M, Number.POSITIVE_INFINITY)
+            : undefined,
         },
         label: {
           text: set.name,
@@ -399,7 +401,8 @@ export class SatelliteLayer {
   }
 
   private applySelection(): void {
-    const { selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, showReach, cameraMode, target } = this.selection;
+    const { selectedId, showOrbit, showGroundTrack, showFootprint, showSwath, showReach, cameraMode, target } =
+      this.selection;
     const selected = selectedId === null ? undefined : this.tracked.get(selectedId);
     const hasSwath = selected ? presetSatellite(selected.set.noradId)?.sat.swathKm !== undefined : false;
 
@@ -444,7 +447,13 @@ export class SatelliteLayer {
         const teme = sampleOrbitTeme(selected.set.satrec, new Date(nowMs), ORBIT_SAMPLES);
         // Perturbations leave a small gap after one revolution; close the loop visually.
         teme[teme.length - 1] = teme[0]!;
-        this.orbitCache = { id: selected.set.noradId, sampledAtMs: nowMs, periodMs, teme, fixed: teme.map(() => new Cartesian3()) };
+        this.orbitCache = {
+          id: selected.set.noradId,
+          sampledAtMs: nowMs,
+          periodMs,
+          teme,
+          fixed: teme.map(() => new Cartesian3()),
+        };
       } catch {
         this.orbitCache = null;
         return [];
@@ -478,7 +487,8 @@ export class SatelliteLayer {
     if (
       cache &&
       cache.id === selected.set.noradId &&
-      (Math.abs(nowMs - cache.fromMs) <= TRACK_STALE_S * 1000 || performance.now() - cache.builtAt < TRACK_MIN_REBUILD_MS)
+      (Math.abs(nowMs - cache.fromMs) <= TRACK_STALE_S * 1000 ||
+        performance.now() - cache.builtAt < TRACK_MIN_REBUILD_MS)
     ) {
       return cache;
     }
@@ -491,8 +501,12 @@ export class SatelliteLayer {
       const future = futureSamples.map((s) => s.point);
       const swathKm = presetSatellite(selected.set.noradId)?.sat.swathKm;
       const edges = swathKm ? stripEdges(future, (swathKm * 1000) / EARTH_MEAN_RADIUS_M) : { left: [], right: [] };
-      const meanHeightM = (futureSamples.reduce((acc, s) => acc + s.point.heightKm, 0) / Math.max(1, futureSamples.length)) * 1000;
-      const reach = stripEdges(future, 2 * reachCentralAngle(meanHeightM, (this.selection.maxOffNadirDeg * Math.PI) / 180));
+      const meanHeightM =
+        (futureSamples.reduce((acc, s) => acc + s.point.heightKm, 0) / Math.max(1, futureSamples.length)) * 1000;
+      const reach = stripEdges(
+        future,
+        2 * reachCentralAngle(meanHeightM, (this.selection.maxOffNadirDeg * Math.PI) / 180),
+      );
       this.trackCache = {
         id: selected.set.noradId,
         fromMs: nowMs,
@@ -541,12 +555,16 @@ export class SatelliteLayer {
     try {
       const state = propagateTeme(selected.set.satrec, date);
       const satEcf = temeToEcf(state.position, gmstAt(date));
-      const tgtEcf = targetEcfKm({ latitude: (target.latitudeDeg * Math.PI) / 180, longitude: (target.longitudeDeg * Math.PI) / 180, heightKm: 0 });
+      const tgtEcf = targetEcfKm({
+        latitude: (target.latitudeDeg * Math.PI) / 180,
+        longitude: (target.longitudeDeg * Math.PI) / 180,
+        heightKm: 0,
+      });
       const altitudeM = (vec.norm(satEcf) - EARTH_MEAN_RADIUS_M / 1000) * 1000;
       const lambda = centralAngle(satEcf, tgtEcf);
       this.targetInReach = lambda <= reachCentralAngle(altitudeM, (this.selection.maxOffNadirDeg * Math.PI) / 180);
       // Hide the line when the target is beyond the horizon (it would pass through the Earth).
-      if (lambda > Math.acos((EARTH_MEAN_RADIUS_M / 1000) / vec.norm(satEcf))) return [];
+      if (lambda > Math.acos(EARTH_MEAN_RADIUS_M / 1000 / vec.norm(satEcf))) return [];
       return [kmToCartesian(satEcf), kmToCartesian(tgtEcf)];
     } catch {
       return [];
@@ -559,7 +577,11 @@ export class SatelliteLayer {
     if (!selected) return [];
     const date = JulianDate.toDate(time);
     const nowMs = date.getTime();
-    if (this.footprintCache && this.footprintCache.id === selected.set.noradId && Math.abs(this.footprintCache.atMs - nowMs) < FOOTPRINT_STALE_MS) {
+    if (
+      this.footprintCache &&
+      this.footprintCache.id === selected.set.noradId &&
+      Math.abs(this.footprintCache.atMs - nowMs) < FOOTPRINT_STALE_MS
+    ) {
       return this.footprintCache.ring;
     }
     try {
@@ -590,7 +612,10 @@ export class SatelliteLayer {
       return;
     }
     const targetPos = Cartesian3.fromDegrees(target.longitudeDeg, target.latitudeDeg, 0);
-    const direction = Cartesian3.normalize(Cartesian3.subtract(targetPos, position, new Cartesian3()), new Cartesian3());
+    const direction = Cartesian3.normalize(
+      Cartesian3.subtract(targetPos, position, new Cartesian3()),
+      new Cartesian3(),
+    );
     // "Up" for the view: away from the Earth centre, made orthogonal to the viewing direction.
     const outward = Cartesian3.normalize(position, new Cartesian3());
     const up = Cartesian3.subtract(

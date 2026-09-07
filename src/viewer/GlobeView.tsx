@@ -115,12 +115,7 @@ export function GlobeView() {
   const showHint = !error && !ready && !hintExpired;
 
   return (
-    <div
-      ref={containerRef}
-      className="globe"
-      data-testid="globe"
-      data-ready={ready ? 'true' : 'false'}
-    >
+    <div ref={containerRef} className="globe" data-testid="globe" data-ready={ready ? 'true' : 'false'}>
       <Timeline />
       <HoverTooltip />
       {showHint && (
@@ -132,7 +127,8 @@ export function GlobeView() {
       {ready && !hintDismissed && (
         <div className="globe__hint" role="note" data-testid="first-run-hint">
           <span>
-            Click a satellite in the list or on the globe · drag the timeline to move in time · ⚙ lists the keyboard shortcuts
+            Click a satellite in the list or on the globe · drag the timeline to move in time · ⚙ lists the keyboard
+            shortcuts
           </span>
           <button type="button" className="link" onClick={dismissHint} aria-label="Dismiss hint" title="Dismiss">
             ×
@@ -142,7 +138,12 @@ export function GlobeView() {
       {cameraMode !== 'free' && (
         <div className="globe__mode" role="status" data-testid="camera-mode">
           Camera: {CAMERA_MODE_LABELS[cameraMode]}
-          <button type="button" className="link" onClick={() => useSelection.getState().setCameraMode('free')} title="Release the camera (Esc)">
+          <button
+            type="button"
+            className="link"
+            onClick={() => useSelection.getState().setCameraMode('free')}
+            title="Release the camera (Esc)"
+          >
             release
           </button>
         </div>
@@ -157,7 +158,11 @@ export function GlobeView() {
               <button type="button" className="btn" onClick={() => window.location.reload()}>
                 Try again
               </button>
-              <button type="button" className="btn" onClick={() => void copyDiagnostics(`Globe start-up error: ${error}`)}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void copyDiagnostics(`Globe start-up error: ${error}`)}
+              >
                 Copy diagnostics
               </button>
             </p>

@@ -106,13 +106,16 @@ export function CatalogPanel() {
       )}
       {truncated && (
         <p className="panel__hint panel__hint--warn" data-testid="catalog-truncated">
-          Showing {pointStats.shown.toLocaleString()} of {pointStats.total.toLocaleString()} satellites. Raise the points limit in
-          Settings to see them all.
+          Showing {pointStats.shown.toLocaleString()} of {pointStats.total.toLocaleString()} satellites. Raise the
+          points limit in Settings to see them all.
         </p>
       )}
       {(open || displayedGroups.length > 0) && (
         <ul className="groups" data-testid="groups">
-          {[...(groups['fixture'] ? [{ id: 'fixture', name: groups['fixture'].name, approxCount: 300 }] : []), ...GROUP_ROWS]
+          {[
+            ...(groups['fixture'] ? [{ id: 'fixture', name: groups['fixture'].name, approxCount: 300 }] : []),
+            ...GROUP_ROWS,
+          ]
             .filter((g) => open || displayedGroups.includes(g.id))
             .map((g) => {
               const state = groups[g.id];
@@ -135,7 +138,10 @@ export function CatalogPanel() {
                       {state?.status === 'loading' && (g.id === ISRAEL_GROUP_ID ? 'loading active…' : 'loading…')}
                       {state?.status === 'error' && <span className="panel__hint--warn">failed</span>}
                       {count !== undefined && `${count}`}
-                      {count === undefined && state?.status !== 'loading' && state?.status !== 'error' && `~${g.approxCount}`}
+                      {count === undefined &&
+                        state?.status !== 'loading' &&
+                        state?.status !== 'error' &&
+                        `~${g.approxCount}`}
                     </span>
                   </label>
                   {state?.error && displayed && (
