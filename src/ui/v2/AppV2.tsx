@@ -5,6 +5,7 @@ import './i18n';
 import './tokens.css';
 import './primitives/primitives.css';
 import './shell.css';
+import { useSelection } from '../../state/selection';
 import { TopBarV2 } from './TopBarV2';
 import { RailV2, type WorkspaceId } from './RailV2';
 import { InspectorV2 } from './InspectorV2';
@@ -30,8 +31,11 @@ import { CommandPaletteV2 } from './CommandPaletteV2';
 export function AppV2() {
   const [workspace, setWorkspace] = useState<WorkspaceId>('explore');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [railOpen, setRailOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const { t, i18n } = useTranslation();
   const dir = i18n.dir();
+  const selectedId = useSelection((s) => s.selectedId);
 
   // ⌘K/Ctrl+K opens the command palette from anywhere in the shell; the top bar's search button
   // is the other trigger (see TopBarV2's onOpenPalette).
@@ -46,15 +50,44 @@ export function AppV2() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Escape closes whichever drawer is open. Above the 1200px breakpoint this is inert (the
+  // drawers render persistently there, ignoring railOpen/inspectorOpen — see shell.css).
+  useEffect(() => {
+    if (!railOpen && !inspectorOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setRailOpen(false);
+        setInspectorOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [railOpen, inspectorOpen]);
+
+  // The Inspector is "on-demand" below the breakpoint (Design Gate decision): selecting a
+  // satellite is the demand signal, so open it automatically rather than requiring an extra
+  // manual toggle. Above the breakpoint this has no visible effect (the Inspector is already
+  // persistently visible there).
+  useEffect(() => {
+    if (selectedId != null) setInspectorOpen(true);
+  }, [selectedId]);
+
   const PLACEHOLDER_COPY: Record<Exclude<WorkspaceId, 'explore'>, string> = {
     plan: t('placeholder.plan'),
     train: t('placeholder.train'),
   };
 
+  const drawerOpen = railOpen || inspectorOpen;
+
   return (
     <div className="sl-v2 sl-shell" dir={dir} lang={i18n.language}>
-      <TopBarV2 onOpenPalette={() => setPaletteOpen(true)} />
-      <RailV2 workspace={workspace} onChange={setWorkspace} />
+      <TopBarV2 onOpenPalette={() => setPaletteOpen(true)} onOpenRailDrawer={() => setRailOpen(true)} />
+      <RailV2
+        workspace={workspace}
+        onChange={setWorkspace}
+        drawerOpen={railOpen}
+        onCloseDrawer={() => setRailOpen(false)}
+      />
       <main className="sl-shell__main">
         {workspace === 'explore' ? (
           <GlobeExploreV2 />
@@ -62,9 +95,19 @@ export function AppV2() {
           <div className="sl-shell__placeholder">{PLACEHOLDER_COPY[workspace]}</div>
         )}
       </main>
-      <InspectorV2 />
+      <InspectorV2 drawerOpen={inspectorOpen} onCloseDrawer={() => setInspectorOpen(false)} />
       <DockV2 workspace={workspace} />
       <CommandPaletteV2 open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      {drawerOpen && (
+        <div
+          className="sl-drawer-backdrop"
+          role="presentation"
+          onClick={() => {
+            setRailOpen(false);
+            setInspectorOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
