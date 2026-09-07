@@ -174,11 +174,19 @@ when the contact hasn't been acquired yet at `simTime`, `CMD_AFTER_LOS` when it 
 acquired-but-not-yet-lost window. Neither is waivable — there is no uplink outside an actual RF
 contact.
 
-Only the imaging-window rule remains: it needs `ForecastService`/imaging-geometry integration and
-belongs in its own future rule module, not bolted onto any of these three.
+The fourth, `checkImagingWindow` (`src/core/validation/imagingWindow.ts`), completes the original
+HardBlock code list: does a candidate imaging command's `simTime` fall inside one of the
+satellite's actual access windows for that target? Returns an `IMG_OUTSIDE_WINDOW` `HardBlock`
+finding if not (not waivable — an access window is physical geometry, not a judgment call), `null`
+if `simTime` falls inside any `ImagingOpportunity`'s `[start, end]` window (inclusive). It takes
+the candidate's forecast opportunities as an already-computed input — the same
+`ImagingOpportunity[]` that `core/imaging/opportunities.ts`'s `findImagingOpportunities` produces
+— same pattern as `checkRollLimit` staying pure and time-independent.
 
 ## What's not decided here
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
-but not approved), the remaining Validator rule (imaging windows), Train console telemetry
-channels, and Scenario 02's fault injection are all still open — later PRs, not this document.
+but not approved), Train console telemetry channels, and Scenario 02's fault injection are all
+still open — later PRs, not this document. All four originally-planned HardBlock Validator rules
+(storage, roll-limit, contact-timing, imaging-window) are now built; none of them are wired into
+TrainV2's demo timeline or a real Plan workspace yet — that wiring is separate work.
