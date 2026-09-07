@@ -61,7 +61,7 @@ export function PlanV2() {
     for (const id of draftIds) {
       const item = opportunityById.get(id);
       if (!item) continue;
-      candidates.push({ id, targetId, opportunity: item.opportunity, mode: 'PAN' });
+      candidates.push({ kind: 'imaging', id, targetId, opportunity: item.opportunity, mode: 'PAN' });
     }
     return candidates;
   }, [draftIds, opportunityById, targetId]);
@@ -133,6 +133,10 @@ export function PlanV2() {
         ) : (
           <ul className="sl-plan__list">
             {draftEvaluated.map(({ candidate, findings, cumulativeStorageUsedGB }, index) => {
+              // PlanV2 only ever builds imaging candidates today (see draftCandidates above) — no
+              // downlink-candidate selection UI exists yet — so this narrows evaluatePlanDraft's
+              // general PlanCandidate union back down for the imaging-specific fields below.
+              if (candidate.kind !== 'imaging') return null;
               const blocked = findings.find((finding) => finding.severity === 'HardBlock');
               return (
                 <li key={candidate.id} className="sl-plan__row">
