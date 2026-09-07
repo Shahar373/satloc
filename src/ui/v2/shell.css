@@ -279,6 +279,11 @@
   font-size: var(--sl-fs-12);
   max-width: 60ch;
 }
+.sl-train__error {
+  margin: 0;
+  color: var(--sl-status-critical);
+  font-size: var(--sl-fs-13);
+}
 .sl-train__clock {
   display: flex;
   align-items: center;

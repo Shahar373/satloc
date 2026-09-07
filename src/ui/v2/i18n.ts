@@ -74,6 +74,7 @@ const resources = {
         storage: 'Storage',
         tasks: 'Tasks',
         noTasksYet: 'No tasks yet — waiting for the scenario to start.',
+        timelineError: "Couldn't compute this run's schedule: {{message}}",
         taskStatus: {
           planned: 'Planned',
           active: 'Active',
@@ -148,6 +149,7 @@ const resources = {
         storage: 'אחסון',
         tasks: 'משימות',
         noTasksYet: 'אין עדיין משימות — ממתין להתחלת התרחיש.',
+        timelineError: 'חישוב לוח הזמנים של ההרצה נכשל: {{message}}',
         taskStatus: {
           planned: 'מתוזמן',
           active: 'פעיל',

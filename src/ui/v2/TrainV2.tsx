@@ -1,45 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ASTERIA_1_PROFILE, ASTERIA_1_SCENARIO, generateUlid, usableStorageGB } from '../../contracts';
+import { ASTERIA_1_PROFILE, ASTERIA_1_SCENARIO, ASTERIA_1_TLE, generateUlid, usableStorageGB } from '../../contracts';
+import { buildRealDemoTimeline } from '../../core/scenario/realDemoTimeline';
 import { ScenarioRunner } from '../../core/scenario/ScenarioRunner';
+import { tleToElementSet } from '../../core/tle/omm';
 import { initialTruthState, type TruthState } from '../../core/truth/TruthState';
 import { Button } from './primitives/Button';
 import { Pill, type PillTone } from './primitives/Pill';
 import { Surface } from './primitives/Surface';
 
 const TICK_MS = 250; // matches the ~4Hz refresh convention useViewerStore already uses for simTime
-const RATES = [1, 10, 60] as const;
-
-/**
- * A minimal, fixed timeline standing in for a real Plan workspace (not built yet): one imaging
- * task, one data product, one downlink contact — Scenario 01's Capture -> Store -> Contact ->
- * Downlink shape (docs/design/operator-simulation.md), simplified to prove the pipeline visibly
- * does something as the clock runs, not to be a real planned scenario.
- */
-function scheduleDemoTimeline(runner: ScenarioRunner, start: Date): void {
-  const at = (offsetS: number) => new Date(start.getTime() + offsetS * 1000);
-  runner.schedule(at(10), { type: 'TaskStarted@1', taskId: 'capture-1' });
-  runner.schedule(at(30), {
-    type: 'DataProductStored@1',
-    dataProduct: {
-      id: 'product-1',
-      taskId: 'capture-1',
-      mode: 'PAN',
-      sizeGB: ASTERIA_1_PROFILE.storage.productGB.PAN,
-    },
-  });
-  runner.schedule(at(35), { type: 'TaskCompleted@1', taskId: 'capture-1', outcome: 'success' });
-  runner.schedule(at(60), { type: 'ContactAcquired@1', stationId: 'gs-home', contactId: 'contact-1' });
-  runner.schedule(at(90), { type: 'TaskStarted@1', taskId: 'downlink-1' });
-  runner.schedule(at(120), {
-    type: 'DownlinkCompleted@1',
-    contactId: 'contact-1',
-    dataProductId: 'product-1',
-    mode: 'PAN',
-  });
-  runner.schedule(at(125), { type: 'TaskCompleted@1', taskId: 'downlink-1', outcome: 'success' });
-  runner.schedule(at(150), { type: 'ContactLost@1', stationId: 'gs-home', contactId: 'contact-1' });
-}
+// ×3600 ("1 hour per second") is the default: buildRealDemoTimeline's first real event is
+// typically many hours past scenario start (real orbital geometry, not an authored offset — see
+// docs/design/operator-simulation.md's "Real Scenario 01 timeline" section), so a slower default
+// would leave the console looking idle for most of a session. ×1/×10/×60 stay available for
+// operators who want to inspect the run at finer granularity once something is happening.
+const RATES = [1, 10, 60, 3600] as const;
+const DEFAULT_RATE = 3600;
 
 const TASK_STATUS_TONE: Record<string, PillTone> = {
   planned: 'info',
@@ -49,24 +26,34 @@ const TASK_STATUS_TONE: Record<string, PillTone> = {
 };
 
 /**
- * Train console: runs the Asteria-1 scenario headlessly (`ScenarioRunner`) against the demo
- * timeline above, ticking every `TICK_MS` while playing. First real (not placeholder) content in
- * Shell V2's Train workspace — deliberately basic per the roadmap ("Train console בסיסי"): a
- * clock with play/pause/rate, a storage gauge, and a task list. No telemetry channels, alarms, or
- * procedure checklists yet — those are later PRs.
+ * Train console: runs the Asteria-1 scenario headlessly (`ScenarioRunner`) against a schedule
+ * computed from real orbital geometry (`buildRealDemoTimeline` — the actual next daylight imaging
+ * opportunity and ground contact, not an authored timeline), ticking every `TICK_MS` while
+ * playing. First real (not placeholder) content in Shell V2's Train workspace — deliberately
+ * basic per the roadmap ("Train console בסיסי"): a clock with play/pause/rate, a storage gauge,
+ * and a task list. No telemetry channels, alarms, or procedure checklists yet — those are later
+ * PRs. No real Plan workspace exists yet either, so this always runs the same Scenario 01 story,
+ * not an operator-authored plan.
  */
 export function TrainV2() {
   const { t } = useTranslation();
   const runnerRef = useRef<ScenarioRunner | null>(null);
   const [running, setRunning] = useState(true);
-  const [rate, setRate] = useState<number>(60);
+  const [rate, setRate] = useState<number>(DEFAULT_RATE);
   const [simTime, setSimTime] = useState<Date>(() => new Date(ASTERIA_1_SCENARIO.startTime));
   const [truth, setTruth] = useState<TruthState>(initialTruthState);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
 
   useEffect(() => {
     const runner = new ScenarioRunner(ASTERIA_1_SCENARIO, generateUlid());
     runnerRef.current = runner;
-    scheduleDemoTimeline(runner, new Date(ASTERIA_1_SCENARIO.startTime));
+    try {
+      const { satrec } = tleToElementSet(ASTERIA_1_TLE.line1, ASTERIA_1_TLE.line2, ASTERIA_1_TLE.name);
+      const timeline = buildRealDemoTimeline(satrec, new Date(ASTERIA_1_SCENARIO.startTime));
+      for (const { simTime: eventTime, event } of timeline) runner.schedule(eventTime, event);
+    } catch (error) {
+      setTimelineError(error instanceof Error ? error.message : String(error));
+    }
     return () => {
       runnerRef.current = null;
     };
@@ -99,6 +86,12 @@ export function TrainV2() {
         <p className="sl-train__disclaimer">{t('train.disclaimer')}</p>
       </header>
 
+      {timelineError && (
+        <p className="sl-train__error" role="alert">
+          {t('train.timelineError', { message: timelineError })}
+        </p>
+      )}
+
       <Surface raised className="sl-train__clock">
         <span className="sl-mono sl-tabular sl-train__clock-value">{simTime.toISOString().slice(0, 19)}Z</span>
         <div className="sl-train__controls">
@@ -108,7 +101,7 @@ export function TrainV2() {
           <div className="sl-train__rates" role="group" aria-label={t('train.rate')}>
             {RATES.map((r) => (
               <Button key={r} variant={rate === r ? 'primary' : 'ghost'} onClick={() => setRate(r)}>
-                ×{r}
+                <span className="sl-bidi-isolate">×{r}</span>
               </Button>
             ))}
           </div>
