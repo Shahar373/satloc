@@ -73,7 +73,10 @@ export const Timeline = memo(function Timeline() {
     [window, width],
   );
 
-  const ticks = useMemo(() => (window && width > 0 ? computeTicks(window.startMs, window.endMs, width) : null), [window, width]);
+  const ticks = useMemo(
+    () => (window && width > 0 ? computeTicks(window.startMs, window.endMs, width) : null),
+    [window, width],
+  );
 
   const setTime = (ms: number) => {
     if (viewer) setSimulationTime(viewer, JulianDate.fromDate(new Date(ms)));
@@ -201,7 +204,11 @@ export const Timeline = memo(function Timeline() {
           {/* ticks */}
           {ticks.ticks.map((t) => (
             <g key={t.timeMs} transform={`translate(${xOf(t.timeMs)},0)`}>
-              <line y1={t.major ? 0 : 6} y2={24} className={`timeline__tick${t.major ? ' timeline__tick--major' : ''}`} />
+              <line
+                y1={t.major ? 0 : 6}
+                y2={24}
+                className={`timeline__tick${t.major ? ' timeline__tick--major' : ''}`}
+              />
               <text y={20} x={3} className="timeline__label">
                 {t.label}
               </text>

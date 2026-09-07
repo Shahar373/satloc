@@ -3,7 +3,22 @@
 const MIN = 60_000;
 const HOUR = 3_600_000;
 const DAY = 86_400_000;
-export const TICK_STEPS_MS = [MIN, 2 * MIN, 5 * MIN, 10 * MIN, 15 * MIN, 30 * MIN, HOUR, 2 * HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY, 2 * DAY, 7 * DAY];
+export const TICK_STEPS_MS = [
+  MIN,
+  2 * MIN,
+  5 * MIN,
+  10 * MIN,
+  15 * MIN,
+  30 * MIN,
+  HOUR,
+  2 * HOUR,
+  3 * HOUR,
+  6 * HOUR,
+  12 * HOUR,
+  DAY,
+  2 * DAY,
+  7 * DAY,
+];
 
 export interface Tick {
   timeMs: number;

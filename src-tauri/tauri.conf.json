@@ -28,21 +28,8 @@
   "bundle": {
     "active": true,
     "publisher": "Shahar373",
-    "targets": [
-      "nsis",
-      "msi",
-      "app",
-      "dmg",
-      "appimage",
-      "deb"
-    ],
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
+    "targets": ["nsis", "msi", "app", "dmg", "appimage", "deb"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "category": "Education",
     "shortDescription": "Earth from space with satellites in real time",
     "windows": {
@@ -55,9 +42,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlGMThFNjg1MDkxNkQzQ0YKUldUUDB4WUpoZVlZbjU5cUFGUy9UU01ON3lJUmNpeFpLV29MNHA3Y3pRN2VKM1Z2WXM0UG9iS3QK",
-      "endpoints": [
-        "https://github.com/Shahar373/satloc/releases/latest/download/latest.json"
-      ],
+      "endpoints": ["https://github.com/Shahar373/satloc/releases/latest/download/latest.json"],
       "windows": {
         "installMode": "passive"
       }

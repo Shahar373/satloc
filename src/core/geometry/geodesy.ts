@@ -31,8 +31,7 @@ export function destinationPoint(start: LatLon, bearing: number, angularDistance
   const sinD = Math.sin(angularDistance);
   const cosD = Math.cos(angularDistance);
   const lat = Math.asin(sinLat * cosD + cosLat * sinD * Math.cos(bearing));
-  const lon =
-    start.longitude + Math.atan2(Math.sin(bearing) * sinD * cosLat, cosD - sinLat * Math.sin(lat));
+  const lon = start.longitude + Math.atan2(Math.sin(bearing) * sinD * cosLat, cosD - sinLat * Math.sin(lat));
   return { latitude: lat, longitude: wrapLongitude(lon) };
 }
 
@@ -41,8 +40,7 @@ export function initialBearing(from: LatLon, to: LatLon): number {
   const dLon = to.longitude - from.longitude;
   const y = Math.sin(dLon) * Math.cos(to.latitude);
   const x =
-    Math.cos(from.latitude) * Math.sin(to.latitude) -
-    Math.sin(from.latitude) * Math.cos(to.latitude) * Math.cos(dLon);
+    Math.cos(from.latitude) * Math.sin(to.latitude) - Math.sin(from.latitude) * Math.cos(to.latitude) * Math.cos(dLon);
   return Math.atan2(y, x);
 }
 
@@ -50,9 +48,7 @@ export function initialBearing(from: LatLon, to: LatLon): number {
 export function angularDistance(a: LatLon, b: LatLon): number {
   const dLat = b.latitude - a.latitude;
   const dLon = b.longitude - a.longitude;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(a.latitude) * Math.cos(b.latitude) * Math.sin(dLon / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.latitude) * Math.cos(b.latitude) * Math.sin(dLon / 2) ** 2;
   return 2 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
@@ -77,8 +73,7 @@ export function stripEdges(path: LatLon[], angularWidth: number): { left: LatLon
   const half = angularWidth / 2;
   for (let i = 0; i < path.length; i++) {
     const here = path[i]!;
-    const bearing =
-      i < path.length - 1 ? initialBearing(here, path[i + 1]!) : initialBearing(path[i - 1]!, here);
+    const bearing = i < path.length - 1 ? initialBearing(here, path[i + 1]!) : initialBearing(path[i - 1]!, here);
     left.push(destinationPoint(here, bearing - Math.PI / 2, half));
     right.push(destinationPoint(here, bearing + Math.PI / 2, half));
   }

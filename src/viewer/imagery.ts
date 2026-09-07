@@ -32,10 +32,7 @@ export function createEsriLayer(): ImageryLayer {
   const provider = new UrlTemplateImageryProvider({
     url: ESRI_WORLD_IMAGERY,
     maximumLevel: 19,
-    credit: new Credit(
-      'Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community',
-      true,
-    ),
+    credit: new Credit('Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community', true),
   });
   return new ImageryLayer(provider);
 }
@@ -61,9 +58,7 @@ export function createGibsBlueMarbleLayer(): ImageryLayer {
 
 /** Natural Earth II tiles bundled with Cesium: low resolution, but works with no network at all. */
 export async function createOfflineLayer(): Promise<ImageryLayer> {
-  const provider = await TileMapServiceImageryProvider.fromUrl(
-    buildModuleUrl('Assets/Textures/NaturalEarthII'),
-  );
+  const provider = await TileMapServiceImageryProvider.fromUrl(buildModuleUrl('Assets/Textures/NaturalEarthII'));
   return new ImageryLayer(provider);
 }
 

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatAgeSince, formatClockOffset, formatDuration, formatLocalBeside, formatLocalDateTime, formatUtcShort } from './format';
+import {
+  formatAgeSince,
+  formatClockOffset,
+  formatDuration,
+  formatLocalBeside,
+  formatLocalDateTime,
+  formatUtcShort,
+} from './format';
 
 describe('formatDuration', () => {
   it('never prints 60 seconds', () => {

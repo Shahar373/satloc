@@ -35,8 +35,12 @@ describe('predictPasses', () => {
       // TCA is the maximum: neighbours are lower.
       const tcaEl = toDeg(lookAnglesAt(satrec, TEL_AVIV, p.tca).elevation);
       expect(tcaEl).toBeCloseTo(p.maxElevationDeg, 6);
-      expect(toDeg(lookAnglesAt(satrec, TEL_AVIV, new Date(p.tca.getTime() - 20_000)).elevation)).toBeLessThanOrEqual(tcaEl + 1e-6);
-      expect(toDeg(lookAnglesAt(satrec, TEL_AVIV, new Date(p.tca.getTime() + 20_000)).elevation)).toBeLessThanOrEqual(tcaEl + 1e-6);
+      expect(toDeg(lookAnglesAt(satrec, TEL_AVIV, new Date(p.tca.getTime() - 20_000)).elevation)).toBeLessThanOrEqual(
+        tcaEl + 1e-6,
+      );
+      expect(toDeg(lookAnglesAt(satrec, TEL_AVIV, new Date(p.tca.getTime() + 20_000)).elevation)).toBeLessThanOrEqual(
+        tcaEl + 1e-6,
+      );
 
       if (i > 0) expect(p.aos.getTime()).toBeGreaterThan(passes[i - 1]!.los.getTime());
     }

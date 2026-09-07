@@ -30,7 +30,11 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
             <button type="button" className="btn" onClick={() => window.location.reload()}>
               Reload
             </button>
-            <button type="button" className="btn" onClick={() => void copyDiagnostics(`Crash: ${error.stack ?? error.message}`)}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void copyDiagnostics(`Crash: ${error.stack ?? error.message}`)}
+            >
               Copy diagnostics
             </button>
           </p>

@@ -14,7 +14,11 @@ let body = `SatLoc ${version}.`;
 if (start !== -1) {
   let end = lines.findIndex((l, i) => i > start && l.startsWith('## '));
   if (end === -1) end = lines.length;
-  body = lines.slice(start + 1, end).join('\n').trim() || body;
+  body =
+    lines
+      .slice(start + 1, end)
+      .join('\n')
+      .trim() || body;
 }
 
 console.log(`${body}

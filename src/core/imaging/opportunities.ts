@@ -136,10 +136,23 @@ export function findImagingOpportunities(
     const outsideAfter = sampledInside ? (k < n - 1 ? times[k + 1]! : null) : i < n - 1 ? times[i + 1]! : lastMs;
     const insideStart = sampledInside ? times[j]! : bestMs;
     const insideEnd = sampledInside ? times[k]! : bestMs;
-    const windowStart = outsideBefore === null || outsideBefore >= insideStart ? insideStart : bisect(outsideBefore, insideStart, 0, gapAt, true);
-    const windowEnd = outsideAfter === null || outsideAfter <= insideEnd ? insideEnd : bisect(insideEnd, outsideAfter, 0, gapAt, false);
+    const windowStart =
+      outsideBefore === null || outsideBefore >= insideStart
+        ? insideStart
+        : bisect(outsideBefore, insideStart, 0, gapAt, true);
+    const windowEnd =
+      outsideAfter === null || outsideAfter <= insideEnd ? insideEnd : bisect(insideEnd, outsideAfter, 0, gapAt, false);
     opportunities.push(
-      buildOpportunity(satrec, target, targetEcf, windowStart, windowEnd, bestMs, minSun, outsideAfter === null && scanComplete),
+      buildOpportunity(
+        satrec,
+        target,
+        targetEcf,
+        windowStart,
+        windowEnd,
+        bestMs,
+        minSun,
+        outsideAfter === null && scanComplete,
+      ),
     );
     i = Math.max(k, i) + 1;
   }
@@ -199,7 +212,10 @@ function buildOpportunity(
   const state = propagateTeme(satrec, date);
   const satEcf = temeToEcf(state.position, gmst);
   const velEcf = temeToEcf(state.velocity, gmst); // rotation only; the Earth-rotation term does not change the side
-  const later = temeToGroundPoint(propagateTeme(satrec, new Date(bestMs + 1000)).position, gmstAt(new Date(bestMs + 1000)));
+  const later = temeToGroundPoint(
+    propagateTeme(satrec, new Date(bestMs + 1000)).position,
+    gmstAt(new Date(bestMs + 1000)),
+  );
   const now = temeToGroundPoint(state.position, gmst);
   const sunEcf = sunDirectionEcf(date, gmst);
   const sunElevation = sunElevationAt(target, sunEcf);

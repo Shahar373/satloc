@@ -12,10 +12,16 @@ describe('describeCelestrakFailure', () => {
 
 describe('describeCelestrakFailure wording', () => {
   it('recognises the timeout and reqwest messages seen on Windows', () => {
-    expect(describeCelestrakFailure('Timed out after 20 s for https://celestrak.org/x')).toMatch(/could not be reached/);
-    expect(describeCelestrakFailure('error sending request for url (https://celestrak.org/x)')).toMatch(/could not be reached/);
+    expect(describeCelestrakFailure('Timed out after 20 s for https://celestrak.org/x')).toMatch(
+      /could not be reached/,
+    );
+    expect(describeCelestrakFailure('error sending request for url (https://celestrak.org/x)')).toMatch(
+      /could not be reached/,
+    );
     expect(describeCelestrakFailure('HTTP 404 Not Found for x', 'this group')).toMatch(/no record for this group/);
-    expect(describeCelestrakFailure('CelesTrak returned a web page instead of data (captive portal or block?)')).toMatch(/web page/);
+    expect(
+      describeCelestrakFailure('CelesTrak returned a web page instead of data (captive portal or block?)'),
+    ).toMatch(/web page/);
   });
 });
 

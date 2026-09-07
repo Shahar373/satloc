@@ -8,7 +8,10 @@
     var el = document.getElementById('boot');
     if (!el) return;
     el.className = 'boot boot--error';
-    el.textContent = 'SatLoc could not start.\n\n' + message + '\n\nPress Ctrl+Shift+I for details, and report this at github.com/Shahar373/satloc.';
+    el.textContent =
+      'SatLoc could not start.\n\n' +
+      message +
+      '\n\nPress Ctrl+Shift+I for details, and report this at github.com/Shahar373/satloc.';
   }
   // Capture phase: a script/link/img that fails to load fires 'error' on the element only.
   window.addEventListener(
@@ -29,7 +32,13 @@
     show(reason && reason.stack ? reason.stack : String(reason));
   });
   window.addEventListener('securitypolicyviolation', function (event) {
-    show('Content Security Policy blocked ' + event.violatedDirective + ' for ' + (event.blockedURI || 'inline code') + '.');
+    show(
+      'Content Security Policy blocked ' +
+        event.violatedDirective +
+        ' for ' +
+        (event.blockedURI || 'inline code') +
+        '.',
+    );
   });
   // The React app removes the placeholder on mount; if it never does, say so after a while.
   setTimeout(function () {

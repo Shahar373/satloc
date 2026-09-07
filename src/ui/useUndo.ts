@@ -30,8 +30,11 @@ export function useUndo(): [UndoOffer | null, (offer: UndoOffer) => void, () => 
     },
     [clear],
   );
-  useEffect(() => () => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    },
+    [],
+  );
   return [offer, propose, clear];
 }

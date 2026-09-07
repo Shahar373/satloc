@@ -21,10 +21,6 @@ export function footprintCentralAngle(
 }
 
 /** Radius of the footprint circle measured along the ground, metres. */
-export function footprintRadiusM(
-  altitudeM: number,
-  minElevationRad = 0,
-  earthRadiusM = EARTH_MEAN_RADIUS_M,
-): number {
+export function footprintRadiusM(altitudeM: number, minElevationRad = 0, earthRadiusM = EARTH_MEAN_RADIUS_M): number {
   return earthRadiusM * footprintCentralAngle(altitudeM, minElevationRad, earthRadiusM);
 }

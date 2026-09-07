@@ -19,9 +19,18 @@ export function UpdateBanner() {
   }
   if (status !== 'available' || !update || dismissed) return null;
   return (
-    <span className={`badge update-banner${error ? ' badge--warn' : ' badge--ok'}`} data-testid="update-banner" title={error ?? undefined}>
+    <span
+      className={`badge update-banner${error ? ' badge--warn' : ' badge--ok'}`}
+      data-testid="update-banner"
+      title={error ?? undefined}
+    >
       {error ? `Update to ${update.version} failed` : `SatLoc ${update.version} is available`}{' '}
-      <button type="button" className="link" onClick={() => void install()} title="Downloads the update and restarts SatLoc">
+      <button
+        type="button"
+        className="link"
+        onClick={() => void install()}
+        title="Downloads the update and restarts SatLoc"
+      >
         {error ? 'retry' : 'install & restart'}
       </button>{' '}
       <button type="button" className="link" onClick={dismiss} aria-label="Dismiss update notice">

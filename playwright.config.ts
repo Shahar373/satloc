@@ -4,8 +4,7 @@ import { defineConfig } from '@playwright/test';
 // The remote dev sandbox ships a Chromium build at /opt/pw-browsers/chromium.
 // CI installs its own via `npx playwright install chromium`.
 const sandboxChromium = '/opt/pw-browsers/chromium';
-const executablePath =
-  process.env.PW_CHROMIUM_PATH ?? (existsSync(sandboxChromium) ? sandboxChromium : undefined);
+const executablePath = process.env.PW_CHROMIUM_PATH ?? (existsSync(sandboxChromium) ? sandboxChromium : undefined);
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -19,12 +18,7 @@ export default defineConfig({
     launchOptions: {
       executablePath,
       // Software WebGL so the globe renders on headless runners without a GPU.
-      args: [
-        '--use-gl=angle',
-        '--use-angle=swiftshader',
-        '--enable-unsafe-swiftshader',
-        '--ignore-gpu-blocklist',
-      ],
+      args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
     },
   },
   webServer: {

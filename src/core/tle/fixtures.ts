@@ -47,7 +47,7 @@ export function syntheticConstellation(count: number): OmmRecord[] {
       MEAN_MOTION: shell.meanMotion,
       INCLINATION: shell.inclination,
       RA_OF_ASC_NODE: (plane * 30 + (i % 7) * 2) % 360,
-      MEAN_ANOMALY: ((i * 137.5) % 360),
+      MEAN_ANOMALY: (i * 137.5) % 360,
       ARG_OF_PERICENTER: (i * 53) % 360,
       ECCENTRICITY: 0.0005,
       BSTAR: 0.00001,

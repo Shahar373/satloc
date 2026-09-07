@@ -1,0 +1,6 @@
+# Commits listed here are ignored by `git blame` (git >= 2.23: `git config blame.ignoreRevsFile
+# .git-blame-ignore-revs`, or GitHub's own automatic honoring of this file).
+# Format-only changes; the real author of each line is the commit before this file was updated.
+
+# style: format-only (Prettier) — PR-01B, applies the PR-01A Prettier config to the whole codebase.
+cc09338d6913ea6a5948a2518afe49896b288e45

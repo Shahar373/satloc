@@ -74,10 +74,16 @@ function hash(x, y, seed) {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 function valueNoise(x, y, cell, seed) {
-  const gx = Math.floor(x / cell), gy = Math.floor(y / cell);
-  const fx = x / cell - gx, fy = y / cell - gy;
-  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
-  const a = hash(gx, gy, seed), b = hash(gx + 1, gy, seed), c = hash(gx, gy + 1, seed), d = hash(gx + 1, gy + 1, seed);
+  const gx = Math.floor(x / cell),
+    gy = Math.floor(y / cell);
+  const fx = x / cell - gx,
+    fy = y / cell - gy;
+  const sx = fx * fx * (3 - 2 * fx),
+    sy = fy * fy * (3 - 2 * fy);
+  const a = hash(gx, gy, seed),
+    b = hash(gx + 1, gy, seed),
+    c = hash(gx, gy + 1, seed),
+    d = hash(gx + 1, gy + 1, seed);
   return (a * (1 - sx) + b * sx) * (1 - sy) + (c * (1 - sx) + d * sx) * sy;
 }
 const clamp255 = (v) => Math.max(0, Math.min(255, Math.round(v)));
@@ -85,7 +91,9 @@ const clamp255 = (v) => Math.max(0, Math.min(255, Math.round(v)));
 const TEX = 256;
 const goldTexture = encodePng(TEX, (x, y) => {
   // Crinkled foil: fine creases (ridges of a noise field) over a gentle large-scale variation.
-  const n1 = valueNoise(x, y, 12, 7), n2 = valueNoise(x, y, 5, 11), n3 = valueNoise(x, y, 40, 19);
+  const n1 = valueNoise(x, y, 12, 7),
+    n2 = valueNoise(x, y, 5, 11),
+    n3 = valueNoise(x, y, 40, 19);
   const ridge = 1 - Math.abs(n1 * 2 - 1); // bright along creases
   const shade = 0.78 + 0.22 * (0.5 * ridge + 0.3 * n2 + 0.2 * n3) - 0.06;
   return [clamp255(236 * shade), clamp255(176 * shade), clamp255(62 * shade)];
@@ -96,13 +104,16 @@ const solarTexture = encodePng(TEX, (x, y) => {
   if (onGrid) return [196, 204, 220];
   // Sun-sensor cut-out: a small white square near one corner.
   if (x >= 200 && x < 228 && y >= 28 && y < 56) return [235, 238, 242];
-  const gx = (x % cell) / cell, gy = (y % cell) / cell;
+  const gx = (x % cell) / cell,
+    gy = (y % cell) / cell;
   const shine = 0.85 + 0.15 * (1 - Math.hypot(gx - 0.35, gy - 0.35));
   return [clamp255(22 * shine), clamp255(44 * shine), clamp255(120 * shine)];
 });
 const doorTexture = encodePng(TEX, (x, y) => {
   // Inside of the cover: dark red, with a lighter cross and rim.
-  const cx = x - 128, cy = y - 128, r = Math.hypot(cx, cy);
+  const cx = x - 128,
+    cy = y - 128,
+    r = Math.hypot(cx, cy);
   if (r > 118) return [200, 160, 70];
   if (Math.abs(cx) < 7 || Math.abs(cy) < 7 || Math.abs(r - 100) < 4) return [226, 190, 110];
   return [168, 62, 40];
@@ -125,22 +136,120 @@ function quad(g, a, b, c, d, n, uvs) {
   const ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
   const cross = [ab[1] * ac[2] - ab[2] * ac[1], ab[2] * ac[0] - ab[0] * ac[2], ab[0] * ac[1] - ab[1] * ac[0]];
   const flip = cross[0] * n[0] + cross[1] * n[1] + cross[2] * n[2] < 0;
-  const i0 = pushVertex(g, a, n, uvs?.[0]), i1 = pushVertex(g, b, n, uvs?.[1]), i2 = pushVertex(g, c, n, uvs?.[2]), i3 = pushVertex(g, d, n, uvs?.[3]);
+  const i0 = pushVertex(g, a, n, uvs?.[0]),
+    i1 = pushVertex(g, b, n, uvs?.[1]),
+    i2 = pushVertex(g, c, n, uvs?.[2]),
+    i3 = pushVertex(g, d, n, uvs?.[3]);
   if (flip) g.indices.push(i0, i2, i1, i0, i3, i2);
   else g.indices.push(i0, i1, i2, i0, i2, i3);
 }
 function box(sx, sy, sz, uvScale = 1) {
   const g = empty();
-  const hx = sx / 2, hy = sy / 2, hz = sz / 2;
+  const hx = sx / 2,
+    hy = sy / 2,
+    hz = sz / 2;
   const faces = [
-    { n: [1, 0, 0], v: [[hx, -hy, -hz], [hx, hy, -hz], [hx, hy, hz], [hx, -hy, hz]], uv: [[0, 0], [0, sy], [sz, sy], [sz, 0]] },
-    { n: [-1, 0, 0], v: [[-hx, -hy, hz], [-hx, hy, hz], [-hx, hy, -hz], [-hx, -hy, -hz]], uv: [[0, 0], [0, sy], [sz, sy], [sz, 0]] },
-    { n: [0, 1, 0], v: [[-hx, hy, -hz], [-hx, hy, hz], [hx, hy, hz], [hx, hy, -hz]], uv: [[0, 0], [0, sz], [sx, sz], [sx, 0]] },
-    { n: [0, -1, 0], v: [[-hx, -hy, hz], [-hx, -hy, -hz], [hx, -hy, -hz], [hx, -hy, hz]], uv: [[0, 0], [0, sz], [sx, sz], [sx, 0]] },
-    { n: [0, 0, 1], v: [[-hx, -hy, hz], [hx, -hy, hz], [hx, hy, hz], [-hx, hy, hz]], uv: [[0, 0], [sx, 0], [sx, sy], [0, sy]] },
-    { n: [0, 0, -1], v: [[hx, -hy, -hz], [-hx, -hy, -hz], [-hx, hy, -hz], [hx, hy, -hz]], uv: [[0, 0], [sx, 0], [sx, sy], [0, sy]] },
+    {
+      n: [1, 0, 0],
+      v: [
+        [hx, -hy, -hz],
+        [hx, hy, -hz],
+        [hx, hy, hz],
+        [hx, -hy, hz],
+      ],
+      uv: [
+        [0, 0],
+        [0, sy],
+        [sz, sy],
+        [sz, 0],
+      ],
+    },
+    {
+      n: [-1, 0, 0],
+      v: [
+        [-hx, -hy, hz],
+        [-hx, hy, hz],
+        [-hx, hy, -hz],
+        [-hx, -hy, -hz],
+      ],
+      uv: [
+        [0, 0],
+        [0, sy],
+        [sz, sy],
+        [sz, 0],
+      ],
+    },
+    {
+      n: [0, 1, 0],
+      v: [
+        [-hx, hy, -hz],
+        [-hx, hy, hz],
+        [hx, hy, hz],
+        [hx, hy, -hz],
+      ],
+      uv: [
+        [0, 0],
+        [0, sz],
+        [sx, sz],
+        [sx, 0],
+      ],
+    },
+    {
+      n: [0, -1, 0],
+      v: [
+        [-hx, -hy, hz],
+        [-hx, -hy, -hz],
+        [hx, -hy, -hz],
+        [hx, -hy, hz],
+      ],
+      uv: [
+        [0, 0],
+        [0, sz],
+        [sx, sz],
+        [sx, 0],
+      ],
+    },
+    {
+      n: [0, 0, 1],
+      v: [
+        [-hx, -hy, hz],
+        [hx, -hy, hz],
+        [hx, hy, hz],
+        [-hx, hy, hz],
+      ],
+      uv: [
+        [0, 0],
+        [sx, 0],
+        [sx, sy],
+        [0, sy],
+      ],
+    },
+    {
+      n: [0, 0, -1],
+      v: [
+        [hx, -hy, -hz],
+        [-hx, -hy, -hz],
+        [-hx, hy, -hz],
+        [hx, hy, -hz],
+      ],
+      uv: [
+        [0, 0],
+        [sx, 0],
+        [sx, sy],
+        [0, sy],
+      ],
+    },
   ];
-  for (const f of faces) quad(g, f.v[0], f.v[1], f.v[2], f.v[3], f.n, f.uv.map((t) => [t[0] * uvScale, t[1] * uvScale]));
+  for (const f of faces)
+    quad(
+      g,
+      f.v[0],
+      f.v[1],
+      f.v[2],
+      f.v[3],
+      f.n,
+      f.uv.map((t) => [t[0] * uvScale, t[1] * uvScale]),
+    );
   return g;
 }
 /** Cylinder along Y from y0 to y1, radius r0 at y0 and r1 at y1; uv wraps around. */
@@ -149,7 +258,8 @@ function cylinderY(y0, y1, r0, r1, segments, opts = {}) {
   const { inward = false, uvRepeatU = 3, uvRepeatV = 2 } = opts;
   const slope = (r0 - r1) / (y1 - y0);
   for (let i = 0; i < segments; i++) {
-    const a0 = (2 * Math.PI * i) / segments, a1 = (2 * Math.PI * (i + 1)) / segments;
+    const a0 = (2 * Math.PI * i) / segments,
+      a1 = (2 * Math.PI * (i + 1)) / segments;
     const ring = (a, y, r) => [r * Math.cos(a), y, r * Math.sin(a)];
     const nrm = (a) => {
       const n = [Math.cos(a), slope, Math.sin(a)];
@@ -157,10 +267,16 @@ function cylinderY(y0, y1, r0, r1, segments, opts = {}) {
       const s = inward ? -1 : 1;
       return [(s * n[0]) / l, (s * n[1]) / l, (s * n[2]) / l];
     };
-    const u0 = (i / segments) * uvRepeatU, u1 = ((i + 1) / segments) * uvRepeatU;
+    const u0 = (i / segments) * uvRepeatU,
+      u1 = ((i + 1) / segments) * uvRepeatU;
     const p = [ring(a0, y0, r0), ring(a1, y0, r0), ring(a1, y1, r1), ring(a0, y1, r1)];
     const n = nrm((a0 + a1) / 2);
-    const uv = [[u0, 0], [u1, 0], [u1, uvRepeatV], [u0, uvRepeatV]];
+    const uv = [
+      [u0, 0],
+      [u1, 0],
+      [u1, uvRepeatV],
+      [u0, uvRepeatV],
+    ];
     if (inward) quad(g, p[0], p[3], p[2], p[1], n, [uv[0], uv[3], uv[2], uv[1]]);
     else quad(g, p[0], p[1], p[2], p[3], n, uv);
   }
@@ -171,7 +287,8 @@ function diskY(y, r, segments, facing = 1, rIn = 0) {
   const g = empty();
   const n = [0, facing, 0];
   for (let i = 0; i < segments; i++) {
-    const a0 = (2 * Math.PI * i) / segments, a1 = (2 * Math.PI * (i + 1)) / segments;
+    const a0 = (2 * Math.PI * i) / segments,
+      a1 = (2 * Math.PI * (i + 1)) / segments;
     const p = (a, rr) => [rr * Math.cos(a), y, rr * Math.sin(a)];
     const uv = (a, rr) => [0.5 + (rr / r) * 0.5 * Math.cos(a), 0.5 + (rr / r) * 0.5 * Math.sin(a)];
     const pts = [p(a0, rIn), p(a1, rIn), p(a1, r), p(a0, r)];
@@ -193,7 +310,9 @@ function translate(g, dx, dy, dz) {
 function rotate(g, m) {
   const apply = (arr) => {
     for (let i = 0; i < arr.length; i += 3) {
-      const x = arr[i], y = arr[i + 1], z = arr[i + 2];
+      const x = arr[i],
+        y = arr[i + 1],
+        z = arr[i + 2];
       arr[i] = m[0] * x + m[1] * y + m[2] * z;
       arr[i + 1] = m[3] * x + m[4] * y + m[5] * z;
       arr[i + 2] = m[6] * x + m[7] * y + m[8] * z;
@@ -229,11 +348,19 @@ function strut(a, b, r, segments = 10) {
   const angle = Math.acos(Math.max(-1, Math.min(1, u[1])));
   if (al > 1e-9) {
     const [ax, ay, az] = axis.map((v) => v / al);
-    const c = Math.cos(angle), s = Math.sin(angle), t = 1 - c;
+    const c = Math.cos(angle),
+      s = Math.sin(angle),
+      t = 1 - c;
     rotate(g, [
-      t * ax * ax + c, t * ax * ay - s * az, t * ax * az + s * ay,
-      t * ax * ay + s * az, t * ay * ay + c, t * ay * az - s * ax,
-      t * ax * az - s * ay, t * ay * az + s * ax, t * az * az + c,
+      t * ax * ax + c,
+      t * ax * ay - s * az,
+      t * ax * az + s * ay,
+      t * ax * ay + s * az,
+      t * ay * ay + c,
+      t * ay * az - s * ax,
+      t * ax * az - s * ay,
+      t * ay * az + s * ax,
+      t * az * az + c,
     ]);
   } else if (u[1] < 0) {
     rotate(g, rotX(Math.PI));
@@ -243,15 +370,57 @@ function strut(a, b, r, segments = 10) {
 
 // ---------------------------------------------------------------- materials
 const materials = [
-  { name: 'mli-gold', pbrMetallicRoughness: { baseColorTexture: { index: 0 }, baseColorFactor: [1, 1, 1, 1], metallicFactor: 0.75, roughnessFactor: 0.5 } },
-  { name: 'solar', pbrMetallicRoughness: { baseColorTexture: { index: 1 }, baseColorFactor: [1, 1, 1, 1], metallicFactor: 0.35, roughnessFactor: 0.3 } },
-  { name: 'door-inside', pbrMetallicRoughness: { baseColorTexture: { index: 2 }, baseColorFactor: [1, 1, 1, 1], metallicFactor: 0.2, roughnessFactor: 0.7 } },
-  { name: 'silver', pbrMetallicRoughness: { baseColorFactor: [0.78, 0.8, 0.83, 1], metallicFactor: 0.95, roughnessFactor: 0.3 } },
-  { name: 'black', pbrMetallicRoughness: { baseColorFactor: [0.02, 0.02, 0.025, 1], metallicFactor: 0.1, roughnessFactor: 0.95 } },
-  { name: 'mirror', pbrMetallicRoughness: { baseColorFactor: [0.55, 0.6, 0.68, 1], metallicFactor: 1, roughnessFactor: 0.05 } },
-  { name: 'grey-plate', pbrMetallicRoughness: { baseColorFactor: [0.55, 0.57, 0.6, 1], metallicFactor: 0.4, roughnessFactor: 0.6 } },
-  { name: 'white', pbrMetallicRoughness: { baseColorFactor: [0.9, 0.9, 0.92, 1], metallicFactor: 0.1, roughnessFactor: 0.6 } },
-  { name: 'dark-gold', pbrMetallicRoughness: { baseColorFactor: [0.6, 0.42, 0.14, 1], metallicFactor: 0.8, roughnessFactor: 0.45 } },
+  {
+    name: 'mli-gold',
+    pbrMetallicRoughness: {
+      baseColorTexture: { index: 0 },
+      baseColorFactor: [1, 1, 1, 1],
+      metallicFactor: 0.75,
+      roughnessFactor: 0.5,
+    },
+  },
+  {
+    name: 'solar',
+    pbrMetallicRoughness: {
+      baseColorTexture: { index: 1 },
+      baseColorFactor: [1, 1, 1, 1],
+      metallicFactor: 0.35,
+      roughnessFactor: 0.3,
+    },
+  },
+  {
+    name: 'door-inside',
+    pbrMetallicRoughness: {
+      baseColorTexture: { index: 2 },
+      baseColorFactor: [1, 1, 1, 1],
+      metallicFactor: 0.2,
+      roughnessFactor: 0.7,
+    },
+  },
+  {
+    name: 'silver',
+    pbrMetallicRoughness: { baseColorFactor: [0.78, 0.8, 0.83, 1], metallicFactor: 0.95, roughnessFactor: 0.3 },
+  },
+  {
+    name: 'black',
+    pbrMetallicRoughness: { baseColorFactor: [0.02, 0.02, 0.025, 1], metallicFactor: 0.1, roughnessFactor: 0.95 },
+  },
+  {
+    name: 'mirror',
+    pbrMetallicRoughness: { baseColorFactor: [0.55, 0.6, 0.68, 1], metallicFactor: 1, roughnessFactor: 0.05 },
+  },
+  {
+    name: 'grey-plate',
+    pbrMetallicRoughness: { baseColorFactor: [0.55, 0.57, 0.6, 1], metallicFactor: 0.4, roughnessFactor: 0.6 },
+  },
+  {
+    name: 'white',
+    pbrMetallicRoughness: { baseColorFactor: [0.9, 0.9, 0.92, 1], metallicFactor: 0.1, roughnessFactor: 0.6 },
+  },
+  {
+    name: 'dark-gold',
+    pbrMetallicRoughness: { baseColorFactor: [0.6, 0.42, 0.14, 1], metallicFactor: 0.8, roughnessFactor: 0.45 },
+  },
 ];
 const M = Object.fromEntries(materials.map((m, i) => [m.name, i]));
 
@@ -267,15 +436,34 @@ const add = (material, geom) => primitives.push({ material, geom });
 // Telescope tube (gold MLI) and its rear cap.
 add(M['mli-gold'], cylinderY(Y_APERTURE, Y_REAR, R, R, SEG, { uvRepeatU: 4, uvRepeatV: 3 }));
 // Silver band around the tube, a third of the way from the aperture.
-add(M['silver'], merge([cylinderY(-0.45, -0.3, R + 0.015, R + 0.015, SEG), diskY(-0.3, R + 0.015, SEG, 1, R), diskY(-0.45, R + 0.015, SEG, -1, R)]));
+add(
+  M['silver'],
+  merge([
+    cylinderY(-0.45, -0.3, R + 0.015, R + 0.015, SEG),
+    diskY(-0.3, R + 0.015, SEG, 1, R),
+    diskY(-0.45, R + 0.015, SEG, -1, R),
+  ]),
+);
 // Aperture: silver rim, black interior wall, black bottom, secondary mirror on a spider.
 add(M['silver'], merge([diskY(Y_APERTURE, R, SEG, -1, R - 0.04), cylinderY(Y_APERTURE - 0.03, Y_APERTURE, R, R, SEG)]));
-add(M['black'], merge([cylinderY(Y_APERTURE, Y_APERTURE + 0.75, R - 0.04, R - 0.04, SEG, { inward: true }), diskY(Y_APERTURE + 0.75, R - 0.04, SEG, -1)]));
+add(
+  M['black'],
+  merge([
+    cylinderY(Y_APERTURE, Y_APERTURE + 0.75, R - 0.04, R - 0.04, SEG, { inward: true }),
+    diskY(Y_APERTURE + 0.75, R - 0.04, SEG, -1),
+  ]),
+);
 add(M['mirror'], diskY(Y_APERTURE + 0.74, R - 0.06, SEG, -1)); // primary mirror seen at the bottom of the tube
-add(M['black'], merge([diskY(Y_APERTURE + 0.25, 0.13, 20, -1), cylinderY(Y_APERTURE + 0.25, Y_APERTURE + 0.33, 0.13, 0.13, 20)])); // secondary mirror housing
+add(
+  M['black'],
+  merge([diskY(Y_APERTURE + 0.25, 0.13, 20, -1), cylinderY(Y_APERTURE + 0.25, Y_APERTURE + 0.33, 0.13, 0.13, 20)]),
+); // secondary mirror housing
 for (let i = 0; i < 3; i++) {
   const a = (2 * Math.PI * i) / 3 + 0.4;
-  add(M['black'], strut([0, Y_APERTURE + 0.29, 0], [(R - 0.05) * Math.cos(a), Y_APERTURE + 0.29, (R - 0.05) * Math.sin(a)], 0.012, 6));
+  add(
+    M['black'],
+    strut([0, Y_APERTURE + 0.29, 0], [(R - 0.05) * Math.cos(a), Y_APERTURE + 0.29, (R - 0.05) * Math.sin(a)], 0.012, 6),
+  );
 }
 
 // Cover door: hinged at the +Z side of the rim, swung open ~110 degrees, hanging below the aperture.
@@ -311,16 +499,28 @@ add(M['black'], translate(rotate(cylinderY(0, 0.12, 0.05, 0.05, 12), rotZ(Math.P
 
 // Solar wings: yoke + three panels per side, in the plane of the tube axis (normals along Z).
 for (const side of [-1, 1]) {
-  const yokeStart = side * 0.47, yokeEnd = side * (R + 0.2);
+  const yokeStart = side * 0.47,
+    yokeEnd = side * (R + 0.2);
   add(M['silver'], strut([yokeStart, Y_REAR + 0.35, 0], [yokeEnd, Y_REAR + 0.35, 0], 0.03, 8));
-  const panelW = 0.5, panelH = 0.98, gap = 0.05;
+  const panelW = 0.5,
+    panelH = 0.98,
+    gap = 0.05;
   for (let i = 0; i < 3; i++) {
     const cx = side * (R + 0.2 + gap + panelW / 2 + i * (panelW + gap));
     add(M['solar'], translate(box(panelW, panelH, 0.02, 1), cx, Y_REAR + 0.35, 0));
-    if (i < 2) add(M['silver'], translate(box(gap + 0.02, 0.05, 0.03), cx + side * (panelW / 2 + gap / 2), Y_REAR + 0.35, 0));
+    if (i < 2)
+      add(M['silver'], translate(box(gap + 0.02, 0.05, 0.03), cx + side * (panelW / 2 + gap / 2), Y_REAR + 0.35, 0));
   }
   // Back-side frame rail
-  add(M['silver'], translate(box(3 * panelW + 2 * gap, 0.04, 0.02), side * (R + 0.2 + gap + (3 * panelW + 2 * gap) / 2), Y_REAR + 0.35, -0.02));
+  add(
+    M['silver'],
+    translate(
+      box(3 * panelW + 2 * gap, 0.04, 0.02),
+      side * (R + 0.2 + gap + (3 * panelW + 2 * gap) / 2),
+      Y_REAR + 0.35,
+      -0.02,
+    ),
+  );
 }
 
 // Two antenna booms reaching forward from the tube, ending in small white boxes.
@@ -363,7 +563,8 @@ const meshPrimitives = primitives.map(({ material, geom }) => {
   const nor = new Float32Array(geom.normals);
   const uv = new Float32Array(geom.uvs);
   const idx = new Uint16Array(geom.indices);
-  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+  const min = [Infinity, Infinity, Infinity],
+    max = [-Infinity, -Infinity, -Infinity];
   for (let i = 0; i < pos.length; i += 3) {
     for (let k = 0; k < 3; k++) {
       min[k] = Math.min(min[k], pos[i + k]);
@@ -414,4 +615,6 @@ binHeader.writeUInt32LE(binBuf.length, 0);
 binHeader.writeUInt32LE(0x004e4942, 4);
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, Buffer.concat([header, jsonHeader, jsonBuf, binHeader, binBuf]));
-console.log(`[make-satellite-model] wrote ${out} (${meshPrimitives.length} primitives, ${(header.readUInt32LE(8) / 1024).toFixed(0)} KB)`);
+console.log(
+  `[make-satellite-model] wrote ${out} (${meshPrimitives.length} primitives, ${(header.readUInt32LE(8) / 1024).toFixed(0)} KB)`,
+);

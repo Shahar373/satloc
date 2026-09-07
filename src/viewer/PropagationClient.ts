@@ -43,7 +43,8 @@ export class PropagationClient {
     };
     this.worker.onerror = (event: ErrorEvent) => {
       // Fired for uncaught exceptions inside the worker and when the worker script fails to load.
-      const detail = typeof event.message === 'string' && event.message ? event.message : 'it stopped without a message';
+      const detail =
+        typeof event.message === 'string' && event.message ? event.message : 'it stopped without a message';
       this.fail(new Error(`The satellite worker failed: ${detail}`));
     };
     this.worker.onmessageerror = () => this.fail(new Error('The satellite worker sent an unreadable message'));
@@ -79,7 +80,13 @@ export class PropagationClient {
     this.spare = null;
     return new Promise((resolve, reject) => {
       this.pending = { id, resolve, reject };
-      const message: WorkerRequest = { type: 'propagate', requestId: id, timeMs, version, recycle: recycle ?? undefined };
+      const message: WorkerRequest = {
+        type: 'propagate',
+        requestId: id,
+        timeMs,
+        version,
+        recycle: recycle ?? undefined,
+      };
       this.worker.postMessage(message, recycle ? [recycle.buffer] : []);
     });
   }

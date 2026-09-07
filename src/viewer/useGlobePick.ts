@@ -1,5 +1,13 @@
 import { useEffect } from 'react';
-import { Cartesian2, Cartesian3, Cartographic, Math as CesiumMath, ScreenSpaceEventHandler, ScreenSpaceEventType, type Viewer } from 'cesium';
+import {
+  Cartesian2,
+  Cartesian3,
+  Cartographic,
+  Math as CesiumMath,
+  ScreenSpaceEventHandler,
+  ScreenSpaceEventType,
+  type Viewer,
+} from 'cesium';
 
 /** Point on the globe under a screen position: terrain surface when there is terrain, else the ellipsoid. */
 export function pickGlobe(viewer: Viewer, position: Cartesian2): Cartesian3 | undefined {

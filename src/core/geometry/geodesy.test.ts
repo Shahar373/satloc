@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  angularDistance,
-  circlePoints,
-  destinationPoint,
-  initialBearing,
-  stripEdges,
-  wrapLongitude,
-} from './geodesy';
+import { angularDistance, circlePoints, destinationPoint, initialBearing, stripEdges, wrapLongitude } from './geodesy';
 
 const deg = (d: number) => (d * Math.PI) / 180;
 const toDeg = (r: number) => (r * 180) / Math.PI;

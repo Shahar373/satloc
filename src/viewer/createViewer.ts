@@ -63,10 +63,7 @@ const HOME_HEIGHT_M = 22_000_000;
 const TILE_ERROR_THRESHOLD = 10;
 const TILE_ERROR_WINDOW_MS = 30_000;
 
-export async function createViewer(
-  container: HTMLElement,
-  options: CreateViewerOptions,
-): Promise<CreatedViewer> {
+export async function createViewer(container: HTMLElement, options: CreateViewerOptions): Promise<CreatedViewer> {
   // 'auto' would wait up to 6 s for a network probe before anything is drawn. Start with the
   // bundled tiles instead and add the online layer when the probe succeeds.
   const probing = options.imagery === 'auto' || (options.imagery === 'ion' && !options.ionToken);
@@ -205,7 +202,10 @@ function watchLoadProblems(
   else baseLayer.readyEvent.addEventListener(watchProvider);
 
   terrain?.errorEvent.addEventListener((error: unknown) => {
-    once({ label: 'Terrain unavailable', detail: `World terrain could not be loaded, showing a smooth globe: ${describeError(error)}` });
+    once({
+      label: 'Terrain unavailable',
+      detail: `World terrain could not be loaded, showing a smooth globe: ${describeError(error)}`,
+    });
   });
 }
 
@@ -216,7 +216,13 @@ export function flyHome(viewer: Viewer, duration = 1.5): void {
 }
 
 /** Fly to a point on the ground, seen from `heightM` above it. Releases any tracked entity. */
-export function flyToLocation(viewer: Viewer, longitudeDeg: number, latitudeDeg: number, heightM = 3_500_000, duration = 1.5): void {
+export function flyToLocation(
+  viewer: Viewer,
+  longitudeDeg: number,
+  latitudeDeg: number,
+  heightM = 3_500_000,
+  duration = 1.5,
+): void {
   viewer.trackedEntity = undefined;
   viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(longitudeDeg, latitudeDeg, heightM), duration });
 }

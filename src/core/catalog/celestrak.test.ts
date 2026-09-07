@@ -3,9 +3,7 @@ import { gpUrl, parseGpJson } from './celestrak';
 
 describe('gpUrl', () => {
   it('builds catalogue-number, group and name queries', () => {
-    expect(gpUrl({ catnr: 54880 })).toBe(
-      'https://celestrak.org/NORAD/elements/gp.php?CATNR=54880&FORMAT=json',
-    );
+    expect(gpUrl({ catnr: 54880 })).toBe('https://celestrak.org/NORAD/elements/gp.php?CATNR=54880&FORMAT=json');
     expect(gpUrl({ group: 'active' }, '/api/celestrak')).toBe(
       '/api/celestrak/NORAD/elements/gp.php?GROUP=active&FORMAT=json',
     );
