@@ -162,12 +162,23 @@ limit (inclusive). It takes the off-nadir angle as an already-computed input (ra
 quantity `core/imaging/geometry.ts`'s `offNadirAngle` and `core/imaging/opportunities.ts`'s
 `ImagingOpportunity.offNadirDeg` produce from a propagated satellite position and a target) rather
 than propagating the satellite itself — that stays `ForecastService`/`findImagingOpportunities`'s
-job, keeping this rule module pure and time-independent like `checkStorageBudget`. Imaging-window
-and contact-timing rules still need that same integration and remain future rule modules.
+job, keeping this rule module pure and time-independent like `checkStorageBudget`.
+
+The third, `checkContactTiming` (`src/core/validation/contactTiming.ts`), decides whether a
+candidate command's `simTime` falls inside its target contact's actual acquisition window. It
+scans the domain event log for that `contactId`'s `ContactAcquired@1`/`ContactLost@1` pair rather
+than reading a precomputed forecast window, so it always reflects what really happened (a contact
+can end early — a real `ContactLost@1` — not just what was predicted). Returns `CMD_BEFORE_AOS`
+when the contact hasn't been acquired yet at `simTime`, `CMD_AFTER_LOS` when it has already ended
+(inclusive — loss itself already ends the window), or `null` when `simTime` falls inside the
+acquired-but-not-yet-lost window. Neither is waivable — there is no uplink outside an actual RF
+contact.
+
+Only the imaging-window rule remains: it needs `ForecastService`/imaging-geometry integration and
+belongs in its own future rule module, not bolted onto any of these three.
 
 ## What's not decided here
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
-but not approved), the remaining Validator rules (imaging windows, contact timing), Train console
-telemetry channels, and Scenario 02's fault injection are all still open — later PRs, not this
-document.
+but not approved), the remaining Validator rule (imaging windows), Train console telemetry
+channels, and Scenario 02's fault injection are all still open — later PRs, not this document.
