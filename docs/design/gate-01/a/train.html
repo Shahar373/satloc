@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>SatLoc — אימון (חלופה A: Command Deck)</title>
+    <link rel="stylesheet" href="../shared/tokens.css" />
+    <style>
+      body {
+        font-family: var(--font-ui-he);
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: 56px 1fr 340px;
+        grid-template-rows: var(--topbar-h) 1fr 200px;
+        grid-template-areas:
+          'topbar topbar topbar'
+          'rail main inspector'
+          'rail dock dock';
+        height: 100vh;
+      }
+      .topbar {
+        grid-area: topbar;
+        display: flex;
+        align-items: center;
+        gap: var(--sp-4);
+        padding: 0 var(--sp-4);
+        background: var(--bg-panel);
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .brand {
+        font-weight: 700;
+        font-size: var(--fs-14);
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        font-family: var(--font-ui);
+      }
+      .brand .mark {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: conic-gradient(from 210deg, var(--accent), #1c4560, var(--accent));
+      }
+      .workspace-tabs {
+        display: flex;
+        gap: var(--sp-1);
+        margin-inline-start: var(--sp-6);
+      }
+      .workspace-tabs a {
+        padding: 6px var(--sp-4);
+        border-radius: var(--radius-sm);
+        color: var(--text-secondary);
+        font-size: var(--fs-13);
+        text-decoration: none;
+      }
+      .workspace-tabs a.active {
+        background: var(--accent-wash);
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .spacer {
+        flex: 1;
+      }
+      .rail {
+        grid-area: rail;
+        background: var(--bg-panel);
+        border-inline-start: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: var(--sp-3);
+        gap: var(--sp-1);
+      }
+      .rail .icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        font-size: var(--fs-16);
+      }
+      .rail .icon.active {
+        background: var(--accent-wash);
+        color: var(--accent);
+      }
+      .main {
+        grid-area: main;
+        padding: var(--sp-5);
+        overflow-y: auto;
+      }
+      .main h1 {
+        font-size: var(--fs-16);
+        margin: 0 0 var(--sp-1);
+      }
+      .main .sub {
+        color: var(--text-tertiary);
+        font-size: var(--fs-12);
+        margin-bottom: var(--sp-5);
+      }
+      .briefing {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: var(--sp-4);
+        margin-bottom: var(--sp-5);
+        font-size: var(--fs-14);
+        line-height: 1.9;
+      }
+      .gauges {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--sp-3);
+        margin-bottom: var(--sp-5);
+      }
+      .gauge {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: var(--sp-4);
+      }
+      .gauge .label {
+        font-size: var(--fs-12);
+        color: var(--text-tertiary);
+        margin-bottom: var(--sp-2);
+      }
+      .gauge .bar {
+        height: 8px;
+        border-radius: 4px;
+        background: var(--bg-inset);
+        overflow: hidden;
+        margin-bottom: var(--sp-2);
+      }
+      .gauge .bar > div {
+        height: 100%;
+        background: var(--accent);
+      }
+      .gauge .value {
+        font-family: var(--font-mono);
+        direction: ltr;
+        text-align: right;
+        font-size: var(--fs-14);
+      }
+      .queue-title {
+        font-size: var(--fs-12);
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        margin-bottom: var(--sp-2);
+      }
+      .cmd-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--sp-2) var(--sp-3);
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        margin-bottom: var(--sp-2);
+        font-size: var(--fs-13);
+      }
+      .inspector {
+        grid-area: inspector;
+        background: var(--bg-panel);
+        border-inline-start: 1px solid var(--border-subtle);
+        padding: var(--sp-4);
+        overflow-y: auto;
+      }
+      .inspector h2 {
+        font-size: var(--fs-16);
+        margin: 0 0 var(--sp-4);
+      }
+      .alarm {
+        border-radius: var(--radius-md);
+        padding: var(--sp-3);
+        margin-bottom: var(--sp-2);
+        border: 1px solid rgba(240, 101, 90, 0.3);
+        background: rgba(240, 101, 90, 0.06);
+      }
+      .alarm .row1 {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .alarm .title {
+        font-size: var(--fs-13);
+        font-weight: 600;
+      }
+      .alarm .time {
+        font-family: var(--font-mono);
+        direction: ltr;
+        font-size: var(--fs-11);
+        color: var(--text-tertiary);
+      }
+      .alarm .ack {
+        margin-top: var(--sp-2);
+        font-size: var(--fs-11);
+        padding: 3px var(--sp-2);
+      }
+      .field-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--bg-inset);
+        font-size: var(--fs-13);
+      }
+      .field-row .v {
+        font-family: var(--font-mono);
+        direction: ltr;
+        color: var(--text-primary);
+      }
+      .dock {
+        grid-area: dock;
+        background: var(--bg-panel);
+        border-top: 1px solid var(--border-subtle);
+        padding: var(--sp-3) var(--sp-4);
+        overflow-y: auto;
+      }
+      .proc-title {
+        font-size: var(--fs-11);
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+        margin-bottom: var(--sp-2);
+      }
+      .proc-step {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        font-size: var(--fs-13);
+        padding: 4px 0;
+      }
+      .proc-step .check {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        border: 1px solid var(--border-strong);
+        flex: none;
+      }
+      .proc-step.done .check {
+        background: var(--status-nominal);
+        border-color: var(--status-nominal);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand"><span class="mark"></span>SatLoc</div>
+        <nav class="workspace-tabs">
+          <a>תצפית</a>
+          <a>תכנון</a>
+          <a class="active">אימון</a>
+        </nav>
+        <div class="spacer"></div>
+        <div class="clock mono" style="color: var(--text-secondary); direction: ltr">
+          2026-09-07 <span class="bidi-isolate">14:02:15</span> UTC
+        </div>
+      </div>
+      <div class="rail">
+        <div class="icon">◎</div>
+        <div class="icon">▤</div>
+        <div class="icon active">▣</div>
+      </div>
+      <div class="main">
+        <h1>תרחיש 01 — צילום והורדת נתונים</h1>
+        <div class="sub">תחנת מפעיל · EROS-C3 · תחנת קרקע GS-Home</div>
+        <div class="briefing">
+          הלוויין <span class="bidi-isolate">EROS-C3</span> (NORAD <span class="bidi-isolate">54880</span>) יעבור מעל
+          תחנת הקרקע בשעה <span class="bidi-isolate">14:02:15 UTC</span>, בתדר
+          <span class="bidi-isolate">8.2 GHz</span>, כאשר תחנת הקרקע ממוקמת ב־<span class="bidi-isolate"
+            >31.77°N 35.21°E</span
+          >. יש לוודא שהתור מוכן לפני תחילת הקשר.
+        </div>
+        <div class="gauges">
+          <div class="gauge">
+            <div class="label">אחסון</div>
+            <div class="bar"><div style="width: 62%"></div></div>
+            <div class="value">3.7 / 6.0 GB</div>
+          </div>
+          <div class="gauge">
+            <div class="label">מצב קשר</div>
+            <div class="bar"><div style="width: 88%; background: var(--status-nominal)"></div></div>
+            <div class="value">+4.1 dB</div>
+          </div>
+          <div class="gauge">
+            <div class="label">סוללה</div>
+            <div class="bar"><div style="width: 74%"></div></div>
+            <div class="value">74%</div>
+          </div>
+        </div>
+        <div class="queue-title">תור פקודות</div>
+        <div class="cmd-row"><span>הפעלת מצלמה — ערוץ פנכרומטי</span><span class="pill nominal">בוצע</span></div>
+        <div class="cmd-row"><span>כיוון גלגול — 18.2°</span><span class="pill warning">ממתין</span></div>
+        <div class="cmd-row"><span>התחלת הורדת נתונים</span><span class="pill info">מתוזמן</span></div>
+      </div>
+      <div class="inspector">
+        <h2>התראות פעילות</h2>
+        <div class="alarm">
+          <div class="row1">
+            <span class="title">אובדן קשר עם תחנת הקרקע</span>
+            <span class="time">14:01:47</span>
+          </div>
+          <button class="ack">אישור קבלה</button>
+        </div>
+        <h2 style="margin-top: var(--sp-5)">טלמטריה</h2>
+        <div class="field-row"><span>גובה</span><span class="v">536.2 km</span></div>
+        <div class="field-row"><span>מהירות</span><span class="v">7.61 km/s</span></div>
+        <div class="field-row"><span>זווית גלגול</span><span class="v">18.2°</span></div>
+        <div class="field-row"><span>מרווח קשר</span><span class="v">+4.1 dB</span></div>
+      </div>
+      <div class="dock">
+        <div class="proc-title">רשימת נהלים — הכנה לקשר</div>
+        <div class="proc-step done">
+          <div class="check"></div>
+          <span>אימות מסלול עדכני</span>
+        </div>
+        <div class="proc-step done">
+          <div class="check"></div>
+          <span>בדיקת מרווח קשר צפוי</span>
+        </div>
+        <div class="proc-step">
+          <div class="check"></div>
+          <span>אישור תור פקודות לפני AOS</span>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
