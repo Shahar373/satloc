@@ -232,13 +232,32 @@ storage; a real domain event log with recorded contact acquisition for timing), 
 opportunity to build an actual committable plan needs a `CommandSubmitted`/plan data model this
 codebase doesn't have yet. That's the Plan workspace's next PR, not this one.
 
+## Plan draft accumulator (imaging only)
+
+`evaluatePlanDraft` (`src/core/scenario/planDraft.ts`) is the first real multi-candidate use of the
+Validator rules: given an ordered list of imaging candidates (each carrying the specific real
+`ImagingOpportunity` chosen for it), it runs `checkRollLimit`/`checkImagingWindow` per candidate
+and folds `checkStorageBudget` across the whole sequence via the real `applyDomainEvent` — as if
+every earlier accepted candidate actually happened — rather than each candidate seeing an empty or
+already-current Truth State in isolation, which is what `PlanV2`'s browse mode and `TrainV2`'s
+fixed demo both still do. A candidate with any finding does not count toward storage for the
+candidates after it (a plan that can't commit a capture doesn't actually put anything in storage
+for it).
+
+Deliberately **imaging-only**: downlink candidates need a chosen ground contact's real capacity
+(`CONTACT_TOO_SHORT_FOR_PRODUCT` — listed in the original plan's rule table, but not yet a built
+rule) and causal ordering against the imaging candidates that produced what they'd downlink. Not
+wired into `PlanV2` yet either — this PR is the accumulator only, proven against real Asteria-1
+geometry (six real clean opportunities over 30 days genuinely exhaust the 6 GB budget on the
+sixth, the same `maxProducts(PAN) = 5` figure from the storage model above), not a UI.
+
 ## What's not decided here
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
 but not approved), Train console telemetry channels, and Scenario 02's fault injection are all
 still open — later PRs, not this document. All four originally-planned HardBlock Validator rules
 (storage, roll-limit, contact-timing, imaging-window) are now built and live in both `TrainV2` and
-the Plan workspace's browse mode; what's still missing is a real committable plan (an operator
-picking an opportunity and a contact, with `checkStorageBudget`/`checkContactTiming` evaluated
-against the resulting accumulated state) and the waiver flow for `WaivableWarning` findings — no
-rule of that severity exists yet either.
+the Plan workspace's browse mode, and multi-candidate accumulation exists for imaging; what's still
+missing is downlink candidates (contact capacity + causal ordering), a real committable-plan UI
+(picking opportunities in `PlanV2`, a commit flow producing real `DomainEvent`s), and the waiver
+flow for `WaivableWarning` findings — no rule of that severity exists yet either.
