@@ -117,15 +117,20 @@ wherever this data appears in the UI.
 | Sun elevation constraint (default) | 20°                                                                                                                                                                              | assumed    |                                                                                                                                                                                                               |
 | Uplink                             | 64 kbps                                                                                                                                                                          | assumed    |                                                                                                                                                                                                               |
 | Ground stations                    | GS-Home (31.5°N 35°E, min el. 10°), GS-North (60°N 35°E, min el. 5°) — both fictional                                                                                            | simulated  | two stations, geometrically distinct per orbit, so passes aren't all identical                                                                                                                                |
+| Imaging targets                    | Training Site Alpha (32°N 34.8°E) — fictional                                                                                                                                    | simulated  | close to GS-Home, so a real imaging pass and a downlink contact fall within the same orbit                                                                                                                    |
 | Orbit                              | Synthetic TLE, NORAD 90001 (a reserved/unassigned catalog number, chosen so it can never collide with a real object), sun-synchronous ~500 km altitude, near-circular ("frozen") | simulated  | inclination 97.4°, eccentricity 0.0001, mean motion ≈ 15.24 rev/day (period ≈ 94.4 min); validated against `src/core/tle/omm.ts`'s own checksum/SGP4-init logic in `asteria1.test.ts`, not hand-verified only |
 
 ## Scenario definition
 
 `ScenarioDefinition` (`src/contracts/scenario.ts`) bundles a satellite profile, its synthetic TLE,
-ground stations, and a simulation start time into one loadable unit. `checkScenarioConsistency`
-composes `checkProfileConsistency` with scenario-level checks (at least one ground station, no
-duplicate station ids, a well-formed `startTime`) — a scenario that fails this should be treated as
-a hard load-time error, per the Plan workspace's `HardBlock` severity.
+ground stations, imaging targets, and a simulation start time into one loadable unit.
+`checkScenarioConsistency` composes `checkProfileConsistency` with scenario-level checks (at least
+one ground station, no duplicate station ids, at least one imaging target, no duplicate target
+ids, a well-formed `startTime`) — a scenario that fails this should be treated as a hard load-time
+error, per the Plan workspace's `HardBlock` severity. `targets` is what the four Validator rules'
+`ForecastService`-backed callers (`findImagingOpportunities`, still not wired into any UI) will
+forecast access windows against — before this, no scenario had a concrete point of interest to
+image, so nothing could call that forecasting function with real geometry.
 
 ## Plan validation
 

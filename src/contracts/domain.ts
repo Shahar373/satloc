@@ -20,6 +20,14 @@ export interface GroundStation {
   minElevationDeg: number;
 }
 
+/** A ground point of interest a scenario's satellite can image — the input to imaging-opportunity forecasting. */
+export interface ImagingTarget {
+  id: string;
+  name: string;
+  latitudeDeg: number;
+  longitudeDeg: number;
+}
+
 export interface SatelliteProfile {
   id: string;
   name: string;
