@@ -7,7 +7,7 @@ on:
 
 jobs:
   web:
-    name: Web (typecheck, unit, build, smoke)
+    name: Web (lint, typecheck, unit, build, smoke)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,6 +17,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node scripts/check-versions.mjs
+      - run: npm run lint
+      # format:check is not wired in yet: the codebase isn't Prettier-formatted until the
+      # follow-up format-only PR, which turns this gate on in the same commit that satisfies it.
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
