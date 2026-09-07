@@ -22,6 +22,7 @@ import {
   HardDrive,
   Command,
   Menu,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -55,6 +56,7 @@ const REGISTRY = {
   storage: HardDrive,
   command: Command,
   menu: Menu,
+  debrief: ClipboardList,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof REGISTRY;

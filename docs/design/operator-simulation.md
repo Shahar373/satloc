@@ -258,14 +258,37 @@ real committable plan** — there's no `CommandSubmitted`/plan data model or com
 adding/removing a candidate here records nothing to an event log and produces no `DomainEvent`.
 That commit flow is the Plan workspace's next real step.
 
+## Debrief view
+
+`buildDebriefTimeline` (`src/core/debrief/debriefTimeline.ts`) is the first thing to actually show
+Truth State and Operator Observables side by side, rather than just documenting that they can
+diverge: one row per real `DomainEvent`, each carrying the `TruthState` right after that event
+alongside `OperatorObservables` computed at that same simTime from the records seen so far.
+`DebriefV2.tsx` (a new Rail workspace) replays `buildRealDemoTimeline`'s real Scenario 01 story —
+the same geometry-driven schedule `TrainV2` runs live — to completion in one bulk `advance`, then
+renders the timeline with a "Lag" indicator on any row where Truth already lists an active contact
+Observables hasn't confirmed yet. Concretely, on the real Asteria-1 run this always lands on
+`ContactAcquired@1` and the `TaskStarted@1` right after it (same simTime): Truth shows the contact
+active immediately, Observables doesn't confirm it until `profile.downlink.acquisitionS` seconds
+later — the exact lag this document has described by name since `TruthState`'s introduction (PR
+#31), now something a viewer can actually see rather than take on faith.
+
+Deliberately a replay of the fixed demo run, not a live/selectable session: there's no persisted
+session log to browse yet, so this is the same "basic, real data, no session picker" scope every
+other workspace here started from. The replay itself runs in a `useEffect` (not a render-time
+`useMemo`) precisely because it's the same non-trivial real SGP4 search `TrainV2` already does in
+an effect for the same reason — computing it synchronously during render would delay React
+committing anything else in that update (e.g. a Rail drawer close transition triggered by the same
+navigation) until the whole replay finished.
+
 ## What's not decided here
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
 but not approved), Train console telemetry channels, and Scenario 02's fault injection are all
 still open — later PRs, not this document. All four originally-planned HardBlock Validator rules
 (storage, roll-limit, contact-timing, imaging-window) are now built and live in both `TrainV2` and
-the Plan workspace, and multi-candidate accumulation exists for imaging and is wired into `PlanV2`
-as a draft-building UI; what's still missing is downlink candidates (contact capacity + causal
-ordering), a real committable-plan/commit flow producing real `DomainEvent`s (today's draft is
-local UI state only), a Debrief view, and the waiver flow for `WaivableWarning` findings — no rule
-of that severity exists yet either.
+the Plan workspace, multi-candidate accumulation exists for imaging and is wired into `PlanV2` as a
+draft-building UI, and a basic Debrief view exists (a fixed-run replay, not a session picker);
+what's still missing is downlink candidates (contact capacity + causal ordering), a real
+committable-plan/commit flow producing real `DomainEvent`s (today's draft is local UI state only),
+and the waiver flow for `WaivableWarning` findings — no rule of that severity exists yet either.
