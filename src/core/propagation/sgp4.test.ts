@@ -110,3 +110,62 @@ describe('frame conversion', () => {
     expect(delta).toBeCloseTo(0.9856, 2);
   });
 });
+
+/**
+ * Independent reference validation for gmstAt() — see docs/models/gmst.md. Re-implements the
+ * IAU 1982 GMST formula from Meeus, Astronomical Algorithms 2nd ed., eq 12.4, from scratch
+ * (a from-scratch Julian Date conversion plus the published polynomial), rather than reusing
+ * satellite.js's own gstime() source. gstime() implements the algebraically equivalent Vallado
+ * eq 3-45 (verified by inspection: its constant term 67310.54841s / 240 = 280.460618375deg,
+ * matching Meeus's constant exactly).
+ */
+function toJulianDate(date: Date): number {
+  const Y = date.getUTCFullYear();
+  const M = date.getUTCMonth() + 1;
+  const D = date.getUTCDate();
+  const hour =
+    date.getUTCHours() +
+    date.getUTCMinutes() / 60 +
+    date.getUTCSeconds() / 3600 +
+    date.getUTCMilliseconds() / 3_600_000;
+  const a = Math.floor((14 - M) / 12);
+  const y = Y + 4800 - a;
+  const m = M + 12 * a - 3;
+  const jdn =
+    D + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+  return jdn + (hour - 12) / 24;
+}
+
+function gmstReferenceDeg(date: Date): number {
+  const jd = toJulianDate(date);
+  const dUT = jd - 2451545.0;
+  const T = dUT / 36525;
+  const deg = 280.46061837 + 360.98564736629 * dUT + 0.000387933 * T * T - (T * T * T) / 38710000;
+  return ((deg % 360) + 360) % 360;
+}
+
+describe('GMST independent reference (docs/models/gmst.md)', () => {
+  it("matches the IAU 1982 formula's zero point at J2000.0 exactly, with no arithmetic on our side", () => {
+    const j2000 = new Date('2000-01-01T12:00:00Z');
+    expect(toJulianDate(j2000)).toBeCloseTo(2451545.0, 9);
+    const expectedDeg = 280.46061837508; // the formula's own constant term at T = 0
+    expect(gmstAt(j2000)).toBeCloseTo(deg2rad(expectedDeg), 6);
+  });
+
+  it('agrees with an independently-coded implementation of the same published formula', () => {
+    const dates = [
+      new Date('2000-01-01T12:00:00Z'),
+      new Date('2020-06-15T08:30:00Z'),
+      new Date('2026-09-01T00:00:00Z'),
+      new Date('2026-09-01T06:00:00Z'),
+      new Date('2026-12-31T23:59:59Z'),
+    ];
+    for (const d of dates) {
+      expect(gmstAt(d)).toBeCloseTo(deg2rad(gmstReferenceDeg(d)), 6);
+    }
+  });
+});
+
+function deg2rad(d: number): number {
+  return (d * Math.PI) / 180;
+}

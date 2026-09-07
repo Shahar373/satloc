@@ -58,6 +58,11 @@ describe('imaging geometry', () => {
   });
 });
 
+// Golden Regression, not Independent Reference (see docs/models/tolerances.md and
+// CONTRIBUTING.md's testing rules): these compare findImagingOpportunities() against itself
+// at different step resolutions, or check physically-reasonable bounds. They lock in this
+// implementation's current behavior and catch gross errors, but aren't checked against an
+// external tool or published reference.
 describe('findImagingOpportunities', () => {
   const { satrec, epoch } = ommToElementSet(EROS_LIKE_OMM);
 
