@@ -43,15 +43,15 @@ export interface SessionFile {
   records: EventEnvelope[];
 }
 
-export function domainRecords(records: EventEnvelope[]): EventEnvelope<DomainEvent>[] {
+export function domainRecords(records: readonly EventEnvelope[]): EventEnvelope<DomainEvent>[] {
   return records.filter((r): r is EventEnvelope<DomainEvent> => r.stream === 'domain');
 }
 
-export function operatorRecords(records: EventEnvelope[]): EventEnvelope<OperatorAction>[] {
+export function operatorRecords(records: readonly EventEnvelope[]): EventEnvelope<OperatorAction>[] {
   return records.filter((r): r is EventEnvelope<OperatorAction> => r.stream === 'operator');
 }
 
-export function runControlRecords(records: EventEnvelope[]): EventEnvelope<RunControlEvent>[] {
+export function runControlRecords(records: readonly EventEnvelope[]): EventEnvelope<RunControlEvent>[] {
   return records.filter((r): r is EventEnvelope<RunControlEvent> => r.stream === 'run-control');
 }
 
@@ -62,7 +62,7 @@ export function runControlRecords(records: EventEnvelope[]): EventEnvelope<RunCo
  * the record's own; and `causedBy` points at a record that actually exists at that sequence.
  * Returns a list of violation descriptions — empty means the records are internally consistent.
  */
-export function validateSessionRecords(records: EventEnvelope[]): string[] {
+export function validateSessionRecords(records: readonly EventEnvelope[]): string[] {
   const violations: string[] = [];
   const byGlobalSequence = new Map(records.map((r) => [r.globalSequence, r]));
 
