@@ -26,8 +26,13 @@ the same; a version that already has a release is skipped.
 npm install          # also copies Cesium assets
 npm run dev          # browser, http://localhost:5173
 npm run tauri dev    # desktop window (needs Rust; WebView2 on Windows)
+npm run lint         # ESLint
+npm run format       # Prettier (--write); npm run format:check for CI-style checking
+npm run typecheck    # tsc --noEmit
 npm test             # unit tests
 npm run test:e2e     # Playwright smoke test with screenshots
+npm run build        # production build (tsc --noEmit && vite build)
+npm run icons        # regenerate src-tauri/icons from the procedural source image
 ```
 
 Installers are built by GitHub Actions on every push (Actions tab, "SatLoc-windows-installer"

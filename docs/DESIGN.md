@@ -362,7 +362,7 @@ satloc/
 
 ## 10. בנייה, CI והפצה
 
-- **`ci.yml`** (על כל push/PR): typecheck, vitest, `vite build`, בדיקת Playwright עם צילום מסך, `cargo clippy` למעטפת על Ubuntu, ובנוסף **`tauri build` על Windows** שמעלה את קובץ ההתקנה (.exe/.msi) כ-artifact של הריצה. כך כל push מייצר קובץ התקנה להורדה מלשונית Actions, בלי לתייג גרסה.
+- **`ci.yml`** (על `push` לענף ברירת המחדל ועל כל `pull_request`): `eslint`, `prettier --check`, typecheck, vitest, `vite build`, בדיקת Playwright עם צילום מסך, `cargo clippy` למעטפת על Ubuntu, ובנוסף **`tauri build` על Windows** שמעלה את קובץ ההתקנה (.exe/.msi) כ-artifact של הריצה. כך כל push לענף ברירת המחדל מייצר קובץ התקנה להורדה מלשונית Actions, בלי לתייג גרסה. `push` לענפי feature לא מריץ CI בנפרד — רק ה-`pull_request` trigger, כדי לא לכפול ריצות.
 - **`release.yml`** (על תג `v*`): `tauri-apps/tauri-action` במטריצה:
   - `windows-latest` → `.msi` + `.exe` (NSIS)
   - `macos-latest` → `.dmg` (Apple Silicon + Intel)
@@ -391,11 +391,20 @@ satloc/
 
 ## 12. בדיקות
 
-- **יחידה (vitest, `core/`):**
-  - SGP4 מול ערכי ייחוס ידועים (מקרי הבדיקה של satellite.js / Vallado).
-  - TEME→Fixed: לוויין גיאוסטציונרי חייב לשמור קו אורך קבוע לאורך זמן.
+- **יחידה (vitest, `core/`):** ראו `docs/models/tolerances.md` לטבלה המלאה של כל סבילות ולסיווג
+  Independent Reference מול Golden Regression (`CONTRIBUTING.md` מסביר את ההבחנה).
+  - GMST: **Independent Reference** מול יישום עצמאי (מאפס) של נוסחת Meeus (Astronomical
+    Algorithms, eq. 12.4) — לא מ-satellite.js. ראו `docs/models/gmst.md`.
+  - זווית גובה השמש: **Independent Reference** מול יישום עצמאי של אלגוריתם Meeus (ch. 25),
+    שונה במפורש מהאלגוריתם ש-satellite.js משתמש בו (Vallado). ראו `docs/models/sun-elevation.md`.
+  - SGP4 מיקום/מהירות: עדיין **Golden Regression** בלבד (תחומים פיזיקליים סבירים ועקביות
+    פנימית — סגירת מסלול, מהירות LEO טיפוסית) — לא מאומת מול וקטורי הייחוס הרשמיים של
+    Vallado (`SGP4-VER.TLE`/`tcppver.out`), כי סביבת הפיתוח החסומה לרשת לא מאפשרת להביא
+    אותם. פתוח לביצוע כשיש גישה לרשת.
+  - TEME→Fixed: לוויין גיאוסטציונרי חייב לשמור קו אורך קבוע לאורך זמן (עקביות פנימית).
   - footprint: ערכים ידועים (h=500 ק"מ, ε=0 → ~2,450 ק"מ).
-  - מעברים: בתוך כל מעבר זווית הגובה מעל הסף; AOS/LOS מדויקים לשנייה; אין מעברים חופפים.
+  - מעברים: בתוך כל מעבר זווית הגובה מעל הסף; AOS/LOS מדויקים לשנייה; אין מעברים חופפים
+    (Golden Regression — ראו imaging.test.ts).
   - קטלוג: פירוק OMM, גיל TLE, חיפוש.
 - **Smoke (Playwright, Chromium):** האפליקציה בדפדפן עולה, הגלובוס מצויר (עם Natural Earth II), לחיצה על EROS-C3 פותחת פאנל. רץ גם בסביבה המרוחקת עם צילומי מסך.
 - **ידני על המחשב שלך:** TLE חי מ-CelesTrak, תמונות מקוונות, השוואת מיקום EROS-C3 מול n2yo/CelesTrak, Tauri build.
