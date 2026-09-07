@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SatLoc — Explore (Variant A: Command Deck)</title>
+    <link rel="stylesheet" href="../shared/tokens.css" />
+    <style>
+      .shell {
+        display: grid;
+        grid-template-columns: 56px 1fr 340px;
+        grid-template-rows: var(--topbar-h) 1fr 200px;
+        grid-template-areas:
+          'topbar topbar topbar'
+          'rail main inspector'
+          'rail dock dock';
+        height: 100vh;
+      }
+      .topbar {
+        grid-area: topbar;
+        display: flex;
+        align-items: center;
+        gap: var(--sp-4);
+        padding: 0 var(--sp-4);
+        background: var(--bg-panel);
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .topbar .brand {
+        font-weight: 700;
+        font-size: var(--fs-14);
+        letter-spacing: 0.02em;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+      }
+      .brand .mark {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: conic-gradient(from 210deg, var(--accent), #1c4560, var(--accent));
+      }
+      .workspace-tabs {
+        display: flex;
+        gap: var(--sp-1);
+        margin-inline-start: var(--sp-6);
+      }
+      .workspace-tabs a {
+        padding: 6px var(--sp-4);
+        border-radius: var(--radius-sm);
+        color: var(--text-secondary);
+        font-size: var(--fs-13);
+        text-decoration: none;
+      }
+      .workspace-tabs a.active {
+        background: var(--accent-wash);
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .topbar .spacer {
+        flex: 1;
+      }
+      .clock {
+        font-family: var(--font-mono);
+        font-size: var(--fs-13);
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+      }
+      .clock .rate {
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .rail {
+        grid-area: rail;
+        background: var(--bg-panel);
+        border-right: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: var(--sp-3);
+        gap: var(--sp-1);
+      }
+      .rail .icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        font-size: var(--fs-16);
+      }
+      .rail .icon.active {
+        background: var(--accent-wash);
+        color: var(--accent);
+      }
+
+      .main {
+        grid-area: main;
+        position: relative;
+      }
+      .globe-canvas {
+        position: absolute;
+        inset: 0;
+      }
+      .globe-orb {
+        width: 560px;
+        height: 560px;
+        top: 50%;
+        left: 42%;
+        transform: translate(-50%, -50%);
+      }
+      .sat-marker {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-wash);
+      }
+      .sat-marker.selected {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+      .sat-label {
+        position: absolute;
+        font-family: var(--font-mono);
+        font-size: var(--fs-11);
+        color: var(--text-secondary);
+        background: rgba(5, 7, 13, 0.7);
+        padding: 1px 4px;
+        border-radius: 3px;
+        white-space: nowrap;
+      }
+      .main .search {
+        position: absolute;
+        top: var(--sp-4);
+        left: var(--sp-4);
+        width: 280px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: var(--sp-2) var(--sp-3);
+        color: var(--text-tertiary);
+        font-size: var(--fs-13);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      }
+      .main .hud-corner {
+        position: absolute;
+        bottom: var(--sp-4);
+        right: var(--sp-4);
+        font-family: var(--font-mono);
+        font-size: var(--fs-11);
+        color: var(--text-tertiary);
+        text-align: right;
+        line-height: 1.6;
+      }
+
+      .inspector {
+        grid-area: inspector;
+        background: var(--bg-panel);
+        border-left: 1px solid var(--border-subtle);
+        padding: var(--sp-4);
+        overflow-y: auto;
+      }
+      .inspector h2 {
+        font-size: var(--fs-16);
+        margin: 0 0 2px;
+      }
+      .inspector .sub {
+        color: var(--text-tertiary);
+        font-size: var(--fs-12);
+        margin-bottom: var(--sp-4);
+        font-family: var(--font-mono);
+      }
+      .field-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--sp-3) var(--sp-3);
+        margin-bottom: var(--sp-5);
+      }
+      .field label {
+        display: block;
+        color: var(--text-tertiary);
+        font-size: var(--fs-11);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-bottom: 2px;
+      }
+      .field .val {
+        font-family: var(--font-mono);
+        font-size: var(--fs-14);
+        font-variant-numeric: tabular-nums;
+      }
+      .section-title {
+        font-size: var(--fs-12);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-tertiary);
+        margin: var(--sp-5) 0 var(--sp-2);
+        border-bottom: 1px solid var(--border-subtle);
+        padding-bottom: var(--sp-2);
+      }
+      .toggle-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        font-size: var(--fs-13);
+        color: var(--text-secondary);
+      }
+      .switch {
+        width: 30px;
+        height: 16px;
+        border-radius: 8px;
+        background: var(--border-strong);
+        position: relative;
+      }
+      .switch.on {
+        background: var(--accent-dim);
+      }
+      .switch::after {
+        content: '';
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--text-secondary);
+        top: 2px;
+        left: 2px;
+      }
+      .switch.on::after {
+        background: var(--accent);
+        left: 16px;
+      }
+
+      .dock {
+        grid-area: dock;
+        background: var(--bg-panel);
+        border-top: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+      }
+      .dock-tabs {
+        display: flex;
+        gap: var(--sp-1);
+        padding: var(--sp-2) var(--sp-3) 0;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .dock-tabs span {
+        padding: 6px var(--sp-3);
+        font-size: var(--fs-12);
+        color: var(--text-tertiary);
+      }
+      .dock-tabs span.active {
+        color: var(--accent);
+        border-bottom: 2px solid var(--accent);
+      }
+      .timeline {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        padding: 0 var(--sp-4);
+        gap: var(--sp-4);
+      }
+      .timeline .now {
+        font-family: var(--font-mono);
+        font-size: var(--fs-13);
+        color: var(--text-primary);
+        white-space: nowrap;
+      }
+      .timeline .track {
+        flex: 1;
+        height: 3px;
+        background: var(--border-strong);
+        border-radius: 2px;
+        position: relative;
+      }
+      .timeline .track::after {
+        content: '';
+        position: absolute;
+        left: 38%;
+        top: -5px;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: 2px solid var(--bg-panel);
+      }
+      .sat-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--fs-12);
+      }
+      .sat-table th {
+        text-align: left;
+        color: var(--text-tertiary);
+        font-weight: 500;
+        padding: 4px var(--sp-3);
+        text-transform: uppercase;
+        font-size: var(--fs-11);
+        letter-spacing: 0.03em;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .sat-table td {
+        padding: 5px var(--sp-3);
+        border-bottom: 1px solid var(--bg-inset);
+        font-family: var(--font-mono);
+      }
+      .sat-table tr.selected td {
+        background: var(--accent-wash);
+      }
+      .sat-table td.name {
+        font-family: var(--font-ui);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand"><span class="mark"></span>SatLoc</div>
+        <nav class="workspace-tabs">
+          <a class="active">Explore</a>
+          <a>Plan</a>
+          <a>Train</a>
+        </nav>
+        <div class="spacer"></div>
+        <div class="clock">
+          2026-09-07 <span class="bidi-isolate">14:02:15</span> UTC · <span class="rate">×60</span>
+        </div>
+      </div>
+      <div class="rail">
+        <div class="icon active">◎</div>
+        <div class="icon">▤</div>
+        <div class="icon">▣</div>
+        <div class="icon" style="margin-top: auto; margin-bottom: 12px">⚙</div>
+      </div>
+      <div class="main">
+        <div class="globe-canvas">
+          <div class="globe-orb"></div>
+          <div class="sat-marker selected" style="top: 38%; left: 46%"></div>
+          <div class="sat-label" style="top: 34%; left: 48%">EROS-C3</div>
+          <div class="sat-marker" style="top: 52%; left: 61%"></div>
+          <div class="sat-label" style="top: 55%; left: 63%">ISS (ZARYA)</div>
+          <div class="sat-marker" style="top: 28%; left: 30%"></div>
+          <div class="sat-label" style="top: 24%; left: 20%">STARLINK-30142</div>
+        </div>
+        <div class="search">🔍&nbsp;&nbsp;Search satellites or NORAD ID…</div>
+        <div class="hud-corner">
+          <div><span class="bidi-isolate">31.77°N 35.21°E</span></div>
+          <div>Natural Earth II · offline</div>
+        </div>
+      </div>
+      <div class="inspector">
+        <h2>EROS-C3</h2>
+        <div class="sub">NORAD <span class="bidi-isolate">54880</span> · ISI</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Altitude</label>
+            <div class="val">536.2 km</div>
+          </div>
+          <div class="field">
+            <label>Velocity</label>
+            <div class="val">7.61 km/s</div>
+          </div>
+          <div class="field">
+            <label>Latitude</label>
+            <div class="val">31.77°N</div>
+          </div>
+          <div class="field">
+            <label>Longitude</label>
+            <div class="val">35.21°E</div>
+          </div>
+          <div class="field">
+            <label>Period</label>
+            <div class="val">95.1 min</div>
+          </div>
+          <div class="field">
+            <label>Inclination</label>
+            <div class="val">97.44°</div>
+          </div>
+        </div>
+        <div class="section-title">Element set</div>
+        <div class="toggle-row"><span>Age</span><span class="val mono">2.3 h</span></div>
+        <div class="toggle-row"><span>Source</span><span>CelesTrak</span></div>
+        <div class="section-title">Display</div>
+        <div class="toggle-row">
+          <span>Orbit path</span>
+          <div class="switch on"></div>
+        </div>
+        <div class="toggle-row">
+          <span>Ground track</span>
+          <div class="switch on"></div>
+        </div>
+        <div class="toggle-row">
+          <span>Footprint</span>
+          <div class="switch"></div>
+        </div>
+        <div class="toggle-row">
+          <span>Camera lock</span>
+          <div class="switch"></div>
+        </div>
+      </div>
+      <div class="dock">
+        <div class="dock-tabs">
+          <span class="active">Timeline</span>
+          <span>Catalog (12,014)</span>
+          <span>Log</span>
+        </div>
+        <div class="timeline">
+          <div class="now">◀◀&nbsp; ‖ &nbsp;▶▶&nbsp;&nbsp; 2026-09-07 14:02</div>
+          <div class="track"></div>
+          <button class="ghost">Now</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

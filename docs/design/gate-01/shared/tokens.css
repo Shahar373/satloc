@@ -1,0 +1,193 @@
+/*
+  SatLoc Design Gate 01 — shared design tokens.
+  Palette target: a calm, precise operations console for a professional space company —
+  not a hacker terminal, not neon sci-fi, not a generic SaaS dashboard.
+  Fonts are system-stack approximations of the chosen typefaces (Inter / Noto Sans Hebrew /
+  JetBrains Mono) for this mockup stage; real bundled fonts land in a later Phase B PR.
+*/
+:root {
+  /* Surfaces — deep, desaturated navy, not pure black */
+  --bg-app: #05070d;
+  --bg-panel: #0b0f18;
+  --bg-panel-raised: #10151f;
+  --bg-inset: #070a11;
+  --border-subtle: #1c2433;
+  --border-strong: #2a3346;
+
+  /* Text */
+  --text-primary: #e6ebf5;
+  --text-secondary: #97a3b8;
+  --text-tertiary: #5d6a82;
+  --text-on-accent: #04202a;
+
+  /* Accent — a controlled teal, used sparingly */
+  --accent: #3ecfc4;
+  --accent-dim: #1f5a56;
+  --accent-wash: rgba(62, 207, 196, 0.12);
+
+  /* Status */
+  --status-nominal: #4ade80;
+  --status-warning: #f5b942;
+  --status-critical: #f0655a;
+  --status-info: #6ea8e6;
+
+  /* Typography */
+  --font-ui: 'Inter', -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --font-ui-he: 'Noto Sans Hebrew', 'Segoe UI', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+
+  --fs-11: 0.6875rem;
+  --fs-12: 0.75rem;
+  --fs-13: 0.8125rem;
+  --fs-14: 0.875rem;
+  --fs-16: 1rem;
+  --fs-20: 1.25rem;
+
+  /* Spacing (8px grid) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  --topbar-h: 44px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-13);
+  -webkit-font-smoothing: antialiased;
+  height: 100%;
+  overflow: hidden;
+}
+
+[dir='rtl'],
+.lang-he {
+  font-family: var(--font-ui-he);
+}
+
+.mono,
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A number embedded in RTL text stays LTR and doesn't get bidi-scrambled */
+.bidi-isolate {
+  unicode-bidi: isolate;
+  direction: ltr;
+  display: inline-block;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-inline-end: var(--sp-2);
+  flex: none;
+}
+.status-dot.nominal {
+  background: var(--status-nominal);
+}
+.status-dot.warning {
+  background: var(--status-warning);
+}
+.status-dot.critical {
+  background: var(--status-critical);
+}
+.status-dot.info {
+  background: var(--status-info);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-11);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.pill.warning {
+  background: rgba(245, 185, 66, 0.14);
+  color: var(--status-warning);
+}
+.pill.critical {
+  background: rgba(240, 101, 90, 0.14);
+  color: var(--status-critical);
+}
+.pill.info {
+  background: rgba(110, 168, 230, 0.14);
+  color: var(--status-info);
+}
+.pill.nominal {
+  background: rgba(74, 222, 128, 0.14);
+  color: var(--status-nominal);
+}
+
+button {
+  font-family: inherit;
+  font-size: var(--fs-13);
+  color: var(--text-primary);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px var(--sp-3);
+  cursor: default;
+}
+button.primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.globe-canvas {
+  background:
+    radial-gradient(ellipse at 35% 30%, rgba(62, 207, 196, 0.06), transparent 55%),
+    radial-gradient(circle at 50% 50%, #14324a 0%, #0a1a28 38%, #060c15 62%, var(--bg-app) 100%);
+  position: relative;
+  overflow: hidden;
+}
+.globe-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, #fff, transparent), radial-gradient(1px 1px at 80% 10%, #fff, transparent),
+    radial-gradient(1px 1px at 60% 70%, #fff, transparent), radial-gradient(1px 1px at 30% 85%, #fff, transparent),
+    radial-gradient(1px 1px at 90% 60%, #fff, transparent), radial-gradient(1px 1px at 45% 45%, #fff, transparent),
+    radial-gradient(1px 1px at 15% 65%, #fff, transparent), radial-gradient(1px 1px at 70% 30%, #fff, transparent);
+  opacity: 0.5;
+}
+.globe-orb {
+  position: absolute;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 32%, #2f6f8f 0%, #1c4560 25%, #0f2c40 55%, #081a28 80%),
+    linear-gradient(135deg, #1c4560, #081a28);
+  box-shadow:
+    0 0 60px rgba(62, 207, 196, 0.08),
+    inset -20px -20px 60px rgba(0, 0, 0, 0.55);
+}

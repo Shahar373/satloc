@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SatLoc — Plan (Variant A: Command Deck)</title>
+    <link rel="stylesheet" href="../shared/tokens.css" />
+    <style>
+      .shell {
+        display: grid;
+        grid-template-columns: 56px 1fr 340px;
+        grid-template-rows: var(--topbar-h) 1fr 200px;
+        grid-template-areas:
+          'topbar topbar topbar'
+          'rail main inspector'
+          'rail dock dock';
+        height: 100vh;
+      }
+      .topbar {
+        grid-area: topbar;
+        display: flex;
+        align-items: center;
+        gap: var(--sp-4);
+        padding: 0 var(--sp-4);
+        background: var(--bg-panel);
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .brand {
+        font-weight: 700;
+        font-size: var(--fs-14);
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+      }
+      .brand .mark {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: conic-gradient(from 210deg, var(--accent), #1c4560, var(--accent));
+      }
+      .workspace-tabs {
+        display: flex;
+        gap: var(--sp-1);
+        margin-inline-start: var(--sp-6);
+      }
+      .workspace-tabs a {
+        padding: 6px var(--sp-4);
+        border-radius: var(--radius-sm);
+        color: var(--text-secondary);
+        font-size: var(--fs-13);
+        text-decoration: none;
+      }
+      .workspace-tabs a.active {
+        background: var(--accent-wash);
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .spacer {
+        flex: 1;
+      }
+      .rail {
+        grid-area: rail;
+        background: var(--bg-panel);
+        border-right: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: var(--sp-3);
+        gap: var(--sp-1);
+      }
+      .rail .icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        font-size: var(--fs-16);
+      }
+      .rail .icon.active {
+        background: var(--accent-wash);
+        color: var(--accent);
+      }
+
+      .main {
+        grid-area: main;
+        overflow-y: auto;
+        padding: var(--sp-5);
+      }
+      .main h1 {
+        font-size: var(--fs-16);
+        margin: 0 0 var(--sp-1);
+      }
+      .main .sub {
+        color: var(--text-tertiary);
+        font-size: var(--fs-12);
+        margin-bottom: var(--sp-5);
+      }
+      .task-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+      }
+      .task-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: var(--sp-3) var(--sp-4);
+        display: flex;
+        align-items: center;
+        gap: var(--sp-4);
+      }
+      .task-card.selected {
+        border-color: var(--accent-dim);
+        background: var(--accent-wash);
+      }
+      .task-card .icon {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-sm);
+        background: var(--bg-panel-raised);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+        flex: none;
+      }
+      .task-card .info {
+        flex: 1;
+        min-width: 0;
+      }
+      .task-card .title {
+        font-size: var(--fs-13);
+        font-weight: 600;
+      }
+      .task-card .meta {
+        font-family: var(--font-mono);
+        font-size: var(--fs-11);
+        color: var(--text-tertiary);
+        margin-top: 2px;
+      }
+
+      .inspector {
+        grid-area: inspector;
+        background: var(--bg-panel);
+        border-left: 1px solid var(--border-subtle);
+        padding: var(--sp-4);
+        overflow-y: auto;
+      }
+      .inspector h2 {
+        font-size: var(--fs-16);
+        margin: 0 0 var(--sp-4);
+      }
+      .finding {
+        border-radius: var(--radius-md);
+        padding: var(--sp-3);
+        margin-bottom: var(--sp-3);
+        border: 1px solid var(--border-subtle);
+      }
+      .finding.hardblock {
+        border-color: rgba(240, 101, 90, 0.35);
+        background: rgba(240, 101, 90, 0.06);
+      }
+      .finding.warning {
+        border-color: rgba(245, 185, 66, 0.3);
+        background: rgba(245, 185, 66, 0.05);
+      }
+      .finding.info {
+        border-color: var(--border-subtle);
+      }
+      .finding .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--sp-1);
+      }
+      .finding .code {
+        font-family: var(--font-mono);
+        font-size: var(--fs-11);
+        color: var(--text-tertiary);
+      }
+      .finding .msg {
+        font-size: var(--fs-13);
+        font-weight: 600;
+        margin-bottom: 3px;
+      }
+      .finding .why {
+        font-size: var(--fs-12);
+        color: var(--text-secondary);
+        line-height: 1.5;
+      }
+      .commit-bar {
+        margin-top: var(--sp-5);
+      }
+      .commit-bar button {
+        width: 100%;
+        padding: var(--sp-3);
+        font-size: var(--fs-14);
+        opacity: 0.5;
+      }
+      .commit-bar .note {
+        font-size: var(--fs-11);
+        color: var(--text-tertiary);
+        text-align: center;
+        margin-top: var(--sp-2);
+      }
+
+      .dock {
+        grid-area: dock;
+        background: var(--bg-panel);
+        border-top: 1px solid var(--border-subtle);
+        overflow-x: auto;
+        padding: var(--sp-3) var(--sp-4);
+      }
+      .dock-title {
+        font-size: var(--fs-11);
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+        letter-spacing: 0.03em;
+        margin-bottom: var(--sp-2);
+      }
+      .contact-row {
+        display: flex;
+        gap: var(--sp-3);
+        font-family: var(--font-mono);
+        font-size: var(--fs-12);
+        padding: 5px 0;
+        border-bottom: 1px solid var(--bg-inset);
+      }
+      .contact-row span:first-child {
+        color: var(--text-secondary);
+        width: 100px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand"><span class="mark"></span>SatLoc</div>
+        <nav class="workspace-tabs">
+          <a>Explore</a>
+          <a class="active">Plan</a>
+          <a>Train</a>
+        </nav>
+        <div class="spacer"></div>
+        <div class="clock mono" style="color: var(--text-secondary)">
+          2026-09-07 <span class="bidi-isolate">14:02</span> UTC
+        </div>
+      </div>
+      <div class="rail">
+        <div class="icon">◎</div>
+        <div class="icon active">▤</div>
+        <div class="icon">▣</div>
+      </div>
+      <div class="main">
+        <h1>Scenario 01 — Capture and Downlink</h1>
+        <div class="sub">EROS-C3 · briefing window 2026-09-07 12:00 – 20:00 UTC</div>
+        <div class="task-list">
+          <div class="task-card selected">
+            <div class="icon">📷</div>
+            <div class="info">
+              <div class="title">Image target · Haifa Port</div>
+              <div class="meta">14:07:32 UTC · off-nadir 18.2° · sun elev 41°</div>
+            </div>
+            <span class="pill critical">HardBlock</span>
+          </div>
+          <div class="task-card">
+            <div class="icon">📷</div>
+            <div class="info">
+              <div class="title">Image target · Ashdod Port</div>
+              <div class="meta">15:41:09 UTC · off-nadir 9.7° · sun elev 38°</div>
+            </div>
+            <span class="pill nominal">Ready</span>
+          </div>
+          <div class="task-card">
+            <div class="icon">📡</div>
+            <div class="info">
+              <div class="title">Downlink · GS-Home contact</div>
+              <div class="meta">16:12:00 – 16:20:14 UTC · 8.2 GHz</div>
+            </div>
+            <span class="pill warning">Warning</span>
+          </div>
+        </div>
+      </div>
+      <div class="inspector">
+        <h2>Validation</h2>
+        <div class="finding hardblock">
+          <div class="head">
+            <span class="code">IMG_ROLL_EXCEEDS_LIMIT</span><span class="pill critical">HardBlock</span>
+          </div>
+          <div class="msg">Roll angle exceeds platform limit</div>
+          <div class="why">
+            Requested off-nadir <span class="bidi-isolate">18.2°</span> exceeds the
+            <span class="bidi-isolate">30°</span> platform limit at this altitude window. Choose a later window over the
+            same target.
+          </div>
+        </div>
+        <div class="finding warning">
+          <div class="head"><span class="code">ELEMENTS_STALE</span><span class="pill warning">Waivable</span></div>
+          <div class="msg">Element set is 2.3 h old</div>
+          <div class="why">Within tolerance, but nearing the 3-day staleness threshold. Refresh before commit.</div>
+        </div>
+        <div class="finding info">
+          <div class="head"><span class="code">STORAGE_UTILISATION_LOW</span><span class="pill info">Info</span></div>
+          <div class="msg">Storage at 22% after this plan</div>
+          <div class="why">4 of 5 max PAN products remain before the next mandatory downlink.</div>
+        </div>
+        <div class="commit-bar">
+          <button class="primary" disabled>Commit plan</button>
+          <div class="note">Blocked — resolve HardBlock findings first</div>
+        </div>
+      </div>
+      <div class="dock">
+        <div class="dock-title">Ground contacts</div>
+        <div class="contact-row">
+          <span>GS-Home</span><span class="mono">16:12–16:20</span><span class="mono">8.2 GHz</span
+          ><span class="mono">link margin +4.1 dB</span>
+        </div>
+        <div class="contact-row">
+          <span>GS-North</span><span class="mono">19:44–19:51</span><span class="mono">8.2 GHz</span
+          ><span class="mono">link margin +2.8 dB</span>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
