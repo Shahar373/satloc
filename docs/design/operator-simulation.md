@@ -127,8 +127,39 @@ composes `checkProfileConsistency` with scenario-level checks (at least one grou
 duplicate station ids, a well-formed `startTime`) — a scenario that fails this should be treated as
 a hard load-time error, per the Plan workspace's `HardBlock` severity.
 
+## Plan validation
+
+`ValidationFinding` (`src/contracts/validation.ts`) is the shape every Plan-workspace rule reports
+in:
+
+```ts
+interface ValidationFinding {
+  code: string;
+  severity: 'HardBlock' | 'WaivableWarning' | 'Info';
+  message: string;
+  why: string; // the physical/logical explanation, with the actual numbers
+  suggestedFix?: { label: string }; // placeholder — no PlanAction type exists yet to wire a real fix to
+  affectedEntities: EntityRef[]; // { kind: 'task' | 'command' | 'contact' | 'target' | 'station' | 'dataProduct', id }
+  waivable: boolean; // true only for WaivableWarning
+  provenance: Provenance;
+  source: string; // rule id, e.g. 'rules/storage-budget@1'
+}
+```
+
+`HardBlock` disables committing a plan outright (no override for a physics/capacity violation);
+`WaivableWarning` allows committing only after an explicit `WarningWaived` operator action;
+`Info` never blocks anything.
+
+The first concrete rule, `checkStorageBudget` (`src/core/validation/storageBudget.ts`), composes a
+`SatelliteProfile` and the current `TruthState` to decide whether storing a candidate `DataProduct`
+would push onboard storage past `usableStorageGB(profile)` — a `STORAGE_INSUFFICIENT` `HardBlock`
+if so, `null` if there's room (the budget is inclusive: exactly at the limit is fine). Deliberately
+narrow: imaging-window, roll-limit, and contact-timing rules need `ForecastService`/imaging-geometry
+integration and belong in their own future rule modules, not bolted onto this one.
+
 ## What's not decided here
 
 Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
-but not approved), the Plan workspace's full `ValidationFinding` model, Train console telemetry
-channels, and Scenario 02's fault injection are all still open — later PRs, not this document.
+but not approved), the remaining Validator rules (imaging windows, roll limits, contact timing),
+Train console telemetry channels, and Scenario 02's fault injection are all still open — later
+PRs, not this document.
