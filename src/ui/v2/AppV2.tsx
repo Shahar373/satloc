@@ -16,6 +16,7 @@ import { DockV2 } from './DockV2';
 import { GlobeExploreV2 } from './GlobeExploreV2';
 import { PlanV2 } from './PlanV2';
 import { TrainV2 } from './TrainV2';
+import { DebriefV2 } from './DebriefV2';
 import { CommandPaletteV2 } from './CommandPaletteV2';
 
 const UPDATE_CHECK_DELAY_MS = 8_000;
@@ -122,6 +123,7 @@ export function AppV2() {
         {workspace === 'explore' && <GlobeExploreV2 />}
         {workspace === 'train' && <TrainV2 />}
         {workspace === 'plan' && <PlanV2 />}
+        {workspace === 'debrief' && <DebriefV2 />}
       </main>
       <InspectorV2 drawerOpen={inspectorOpen} onCloseDrawer={() => setInspectorOpen(false)} />
       <DockV2 workspace={workspace} />

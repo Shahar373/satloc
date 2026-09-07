@@ -2,12 +2,13 @@ import { useTranslation } from 'react-i18next';
 import type { IconName } from './Icon';
 import { Icon } from './Icon';
 
-export type WorkspaceId = 'explore' | 'plan' | 'train';
+export type WorkspaceId = 'explore' | 'plan' | 'train' | 'debrief';
 
 const WORKSPACES: Array<{ id: WorkspaceId; labelKey: string; icon: IconName }> = [
   { id: 'explore', labelKey: 'rail.explore', icon: 'globe' },
   { id: 'plan', labelKey: 'rail.plan', icon: 'radio' },
   { id: 'train', labelKey: 'rail.train', icon: 'satellite' },
+  { id: 'debrief', labelKey: 'rail.debrief', icon: 'debrief' },
 ];
 
 export interface RailV2Props {

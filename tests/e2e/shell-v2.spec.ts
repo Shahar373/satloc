@@ -85,6 +85,32 @@ test('the Plan workspace lets an operator build a draft plan from real imaging o
   await expect(page.locator('.sl-plan__draft-surface .sl-plan__empty')).toBeVisible();
 });
 
+test('the Debrief workspace replays the real Scenario 01 run and flags where Observables lag Truth', async ({
+  page,
+}) => {
+  await page.goto(APP_URL);
+  await expect(page.getByTestId('globe')).toHaveAttribute('data-ready', 'true');
+
+  await page
+    .getByRole('button', { name: /debrief/i })
+    .first()
+    .click();
+  await expect(page.locator('.sl-debrief')).toBeVisible();
+
+  const rows = page.locator('.sl-debrief__list .sl-debrief__row');
+  // The real demo timeline (buildRealDemoTimeline) always produces this exact 8-event story for
+  // Scenario 01: capture, store, complete, acquire contact, start downlink, complete it, complete
+  // the task, lose contact.
+  await expect(rows).toHaveCount(8);
+
+  // Exactly the ContactAcquired@1 and the TaskStarted@1 right after it (same simTime) show Truth
+  // with an active contact that Operator Observables hasn't confirmed yet — the real acquisitionS
+  // lock-on lag docs/design/operator-simulation.md documents. Both clear by DownlinkCompleted@1.
+  await expect(page.locator('.sl-debrief__row .sl-pill--warning')).toHaveCount(2);
+  await expect(rows.filter({ hasText: 'Contact acquired' })).toContainText('Lag');
+  await expect(rows.filter({ hasText: 'Downlink completed' })).not.toContainText('Lag');
+});
+
 test.describe("at 900x600 (the mandate's narrow mandatory resolution)", () => {
   test.use({ viewport: { width: 900, height: 600 } });
 
