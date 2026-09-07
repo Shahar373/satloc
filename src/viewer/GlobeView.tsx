@@ -1,20 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { JulianDate, type Viewer } from 'cesium';
 import { isTauri } from '../platform/env';
 import { HoverTooltip } from '../ui/HoverTooltip';
 import { copyDiagnostics } from '../ui/diagnostics';
 import { useUi } from '../state/ui';
 import { useSelection } from '../state/selection';
-import { useImagerySource, useOverrides } from '../state/overrides';
-import { useSettings } from '../state/settings';
 import { useViewerStore } from '../state/viewer';
 import { Timeline } from '../ui/Timeline';
-import { captureView, createViewer, type CreateViewerOptions } from './createViewer';
+import { useGlobeViewer } from './useGlobeViewer';
 
 /** Stop saying "loading imagery" after this long even if some tiles never arrive. */
 const LOADING_HINT_MAX_MS = 20_000;
-
-type Carried = { time: Date } & NonNullable<CreateViewerOptions['restore']>;
 
 const CAMERA_MODE_LABELS = {
   free: 'free',
@@ -37,11 +32,7 @@ function describeStartupError(message: string): string {
 
 export function GlobeView() {
   const containerRef = useRef<HTMLDivElement>(null);
-  // Clock and camera of the previous viewer, so changing imagery does not reset the session.
-  const carriedRef = useRef<Carried | null>(null);
-  const imagery = useImagerySource();
-  const initialTime = useOverrides((s) => s.time);
-  const ionToken = useSettings((s) => s.ionToken);
+  useGlobeViewer(containerRef);
   const hasViewer = useViewerStore((s) => s.viewer !== null);
   const ready = useViewerStore((s) => s.ready);
   const error = useViewerStore((s) => s.error);
@@ -49,61 +40,6 @@ export function GlobeView() {
   const hintDismissed = useUi((s) => s.hintDismissed);
   const dismissHint = useUi((s) => s.dismissHint);
   const [hintExpired, setHintExpired] = useState(false);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let cancelled = false;
-    let viewer: Viewer | undefined;
-    const store = useViewerStore.getState();
-    const carried = carriedRef.current;
-    carriedRef.current = null;
-
-    createViewer(container, {
-      imagery,
-      ionToken,
-      initialTime: carried?.time ?? initialTime,
-      restore: carried ?? undefined,
-      onProblem: (problem) => {
-        if (!cancelled) useViewerStore.getState().addProblem(problem);
-      },
-      onImageryResolved: (resolved) => {
-        if (!cancelled) useViewerStore.getState().setImagery(resolved, false);
-      },
-    })
-      .then((created) => {
-        if (cancelled) {
-          created.viewer.destroy();
-          return;
-        }
-        viewer = created.viewer;
-        window.__satlocViewer = created.viewer;
-        store.attach(created.viewer, created.imagery);
-        if (created.imageryPending) store.setImagery(created.imagery, true);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const message = err instanceof Error ? err.message : String(err);
-        console.error('Failed to create the Cesium viewer', err);
-        store.setError(message);
-      });
-
-    return () => {
-      cancelled = true;
-      if (viewer && !viewer.isDestroyed()) {
-        carriedRef.current = {
-          time: JulianDate.toDate(viewer.clock.currentTime),
-          multiplier: viewer.clock.multiplier,
-          animating: viewer.clock.shouldAnimate,
-          view: captureView(viewer),
-        };
-      }
-      if (window.__satlocViewer === viewer) delete window.__satlocViewer;
-      useViewerStore.getState().detach();
-      viewer?.destroy();
-    };
-  }, [imagery, ionToken, initialTime]);
 
   useEffect(() => {
     setHintExpired(false);
