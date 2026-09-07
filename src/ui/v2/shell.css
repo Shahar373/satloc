@@ -72,11 +72,25 @@
   color: var(--sl-accent);
   font-weight: 600;
 }
+.sl-topbar__lang {
+  font: inherit;
+  font-size: var(--sl-fs-12);
+  color: var(--sl-text-secondary);
+  background: transparent;
+  border: 1px solid var(--sl-border-subtle);
+  border-radius: var(--sl-radius-sm);
+  padding: 4px var(--sl-sp-2);
+  cursor: pointer;
+}
+.sl-topbar__lang:hover {
+  color: var(--sl-text-primary);
+  border-color: var(--sl-border-strong);
+}
 
 .sl-rail {
   grid-area: rail;
   background: var(--sl-bg-panel);
-  border-right: 1px solid var(--sl-border-subtle);
+  border-inline-end: 1px solid var(--sl-border-subtle);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -186,7 +200,7 @@
 .sl-inspector {
   grid-area: inspector;
   background: var(--sl-bg-panel);
-  border-left: 1px solid var(--sl-border-subtle);
+  border-inline-start: 1px solid var(--sl-border-subtle);
   padding: var(--sl-sp-4);
   overflow-y: auto;
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { GlobeCanvas } from '../../viewer/GlobeCanvas';
 import { useViewerStore } from '../../state/viewer';
 
@@ -9,6 +10,7 @@ import { useViewerStore } from '../../state/viewer';
  * globe while it starts, or a silent failure, would be worse than this.
  */
 export function GlobeExploreV2() {
+  const { t } = useTranslation();
   const ready = useViewerStore((s) => s.ready);
   const error = useViewerStore((s) => s.error);
 
@@ -17,12 +19,12 @@ export function GlobeExploreV2() {
       <GlobeCanvas className="sl-globe-canvas" />
       {!error && !ready && (
         <div className="sl-globe-status" role="status">
-          Starting the 3D globe…
+          {t('globe.starting')}
         </div>
       )}
       {error && (
         <div className="sl-globe-status sl-globe-status--error" role="alert">
-          The 3D globe could not start: {error}
+          {t('globe.error', { message: error })}
         </div>
       )}
     </div>

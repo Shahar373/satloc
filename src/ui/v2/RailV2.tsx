@@ -1,12 +1,13 @@
+import { useTranslation } from 'react-i18next';
 import type { IconName } from './Icon';
 import { Icon } from './Icon';
 
 export type WorkspaceId = 'explore' | 'plan' | 'train';
 
-const WORKSPACES: Array<{ id: WorkspaceId; label: string; icon: IconName }> = [
-  { id: 'explore', label: 'Explore', icon: 'globe' },
-  { id: 'plan', label: 'Plan', icon: 'radio' },
-  { id: 'train', label: 'Train', icon: 'satellite' },
+const WORKSPACES: Array<{ id: WorkspaceId; labelKey: string; icon: IconName }> = [
+  { id: 'explore', labelKey: 'rail.explore', icon: 'globe' },
+  { id: 'plan', labelKey: 'rail.plan', icon: 'radio' },
+  { id: 'train', labelKey: 'rail.train', icon: 'satellite' },
 ];
 
 export interface RailV2Props {
@@ -21,8 +22,9 @@ export interface RailV2Props {
  * narrower widths).
  */
 export function RailV2({ workspace, onChange }: RailV2Props) {
+  const { t } = useTranslation();
   return (
-    <nav className="sl-rail" aria-label="Workspace">
+    <nav className="sl-rail" aria-label={t('rail.label')}>
       {WORKSPACES.map((w) => (
         <button
           key={w.id}
@@ -32,7 +34,7 @@ export function RailV2({ workspace, onChange }: RailV2Props) {
           onClick={() => onChange(w.id)}
         >
           <Icon name={w.icon} size={18} />
-          <span className="sl-rail__label">{w.label}</span>
+          <span className="sl-rail__label">{t(w.labelKey)}</span>
         </button>
       ))}
     </nav>
