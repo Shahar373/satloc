@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ASTERIA_1_GROUND_STATIONS, ASTERIA_1_PROFILE, ASTERIA_1_TLE } from './asteria1';
+import { ASTERIA_1_GROUND_STATIONS, ASTERIA_1_PROFILE, ASTERIA_1_TARGETS, ASTERIA_1_TLE } from './asteria1';
 import { checkScenarioConsistency, type ScenarioDefinition } from './scenario';
 
 function scenario(overrides: Partial<ScenarioDefinition> = {}): ScenarioDefinition {
@@ -10,6 +10,7 @@ function scenario(overrides: Partial<ScenarioDefinition> = {}): ScenarioDefiniti
     satellite: ASTERIA_1_PROFILE,
     tle: ASTERIA_1_TLE,
     groundStations: ASTERIA_1_GROUND_STATIONS,
+    targets: ASTERIA_1_TARGETS,
     startTime: '2026-09-07T00:00:00.000Z',
     ...overrides,
   };
@@ -30,6 +31,16 @@ describe('checkScenarioConsistency', () => {
       scenario({ groundStations: [ASTERIA_1_GROUND_STATIONS[0]!, ASTERIA_1_GROUND_STATIONS[0]!] }),
     );
     expect(violations.some((v) => v.includes('duplicate ground station id'))).toBe(true);
+  });
+
+  it('rejects a scenario with no imaging targets', () => {
+    const violations = checkScenarioConsistency(scenario({ targets: [] }));
+    expect(violations.some((v) => v.includes('at least one imaging target'))).toBe(true);
+  });
+
+  it('rejects duplicate imaging target ids', () => {
+    const violations = checkScenarioConsistency(scenario({ targets: [ASTERIA_1_TARGETS[0], ASTERIA_1_TARGETS[0]] }));
+    expect(violations.some((v) => v.includes('duplicate imaging target id'))).toBe(true);
   });
 
   it('rejects an invalid startTime', () => {

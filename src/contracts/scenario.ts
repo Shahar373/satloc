@@ -1,4 +1,4 @@
-import { checkProfileConsistency, type GroundStation, type SatelliteProfile } from './domain';
+import { checkProfileConsistency, type GroundStation, type ImagingTarget, type SatelliteProfile } from './domain';
 
 export interface SyntheticTle {
   name: string;
@@ -8,9 +8,9 @@ export interface SyntheticTle {
 
 /**
  * Everything needed to start a training run: which satellite, on what synthetic orbit, over which
- * ground stations, from what simulated moment. `disclaimer` is shown wherever this scenario's data
- * appears in the UI (docs/design/operator-simulation.md) — a scenario built on invented data must
- * never be mistakable for a real operational picture.
+ * ground stations and imaging targets, from what simulated moment. `disclaimer` is shown wherever
+ * this scenario's data appears in the UI (docs/design/operator-simulation.md) — a scenario built
+ * on invented data must never be mistakable for a real operational picture.
  */
 export interface ScenarioDefinition {
   id: string;
@@ -19,6 +19,8 @@ export interface ScenarioDefinition {
   satellite: SatelliteProfile;
   tle: SyntheticTle;
   groundStations: GroundStation[];
+  /** Ground points of interest the satellite can image — what `findImagingOpportunities` forecasts against. */
+  targets: ImagingTarget[];
   /** Simulation start time (ISO-8601) — the SimulationClock begins here (src/core/clock/SimulationClock.ts). */
   startTime: string;
 }
@@ -26,8 +28,8 @@ export interface ScenarioDefinition {
 /**
  * Checks the scenario-level invariants beyond `checkProfileConsistency` (which only looks at the
  * satellite profile in isolation): at least one ground station, no duplicate ground-station ids,
- * and a well-formed `startTime`. Returns violation descriptions; empty means the scenario is
- * internally consistent and safe to load.
+ * at least one imaging target, no duplicate target ids, and a well-formed `startTime`. Returns
+ * violation descriptions; empty means the scenario is internally consistent and safe to load.
  *
  * Deliberately does **not** check `tle`'s structural validity (checksum, SGP4 initialisation) —
  * that lives in `src/core/tle/omm.ts`'s `tleToElementSet`/`validateTleLine`, and `src/contracts`
@@ -41,10 +43,19 @@ export function checkScenarioConsistency(scenario: ScenarioDefinition): string[]
   if (scenario.groundStations.length === 0) {
     violations.push('scenario must define at least one ground station');
   }
-  const seenIds = new Set<string>();
+  const seenStationIds = new Set<string>();
   for (const station of scenario.groundStations) {
-    if (seenIds.has(station.id)) violations.push(`duplicate ground station id "${station.id}"`);
-    seenIds.add(station.id);
+    if (seenStationIds.has(station.id)) violations.push(`duplicate ground station id "${station.id}"`);
+    seenStationIds.add(station.id);
+  }
+
+  if (scenario.targets.length === 0) {
+    violations.push('scenario must define at least one imaging target');
+  }
+  const seenTargetIds = new Set<string>();
+  for (const target of scenario.targets) {
+    if (seenTargetIds.has(target.id)) violations.push(`duplicate imaging target id "${target.id}"`);
+    seenTargetIds.add(target.id);
   }
 
   if (Number.isNaN(new Date(scenario.startTime).getTime())) {

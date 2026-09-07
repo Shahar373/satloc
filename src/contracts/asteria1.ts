@@ -1,4 +1,4 @@
-import type { GroundStation, Provenance, SatelliteProfile } from './domain';
+import type { GroundStation, ImagingTarget, Provenance, SatelliteProfile } from './domain';
 import type { ScenarioDefinition } from './scenario';
 
 /**
@@ -76,6 +76,16 @@ export const ASTERIA_1_GROUND_STATIONS: GroundStation[] = [
 ];
 
 /**
+ * One fictional imaging target — a generic training point of interest, not a real place chosen
+ * for any operational reason, close enough to GS-Home to keep Scenario 01's Capture -> Store ->
+ * Contact -> Downlink story geometrically coherent (an imaging pass and a downlink contact happen
+ * within the same orbit rather than on opposite sides of the planet).
+ */
+export const ASTERIA_1_TARGETS: ImagingTarget[] = [
+  { id: 'target-1', name: 'Training Site Alpha', latitudeDeg: 32, longitudeDeg: 34.8 },
+];
+
+/**
  * The complete Scenario 01 definition (the plan's happy-path training scenario), starting
  * exactly at the synthetic TLE's own epoch — so a run begins with no SGP4 extrapolation drift
  * already baked in.
@@ -88,5 +98,6 @@ export const ASTERIA_1_SCENARIO: ScenarioDefinition = {
   satellite: ASTERIA_1_PROFILE,
   tle: ASTERIA_1_TLE,
   groundStations: ASTERIA_1_GROUND_STATIONS,
+  targets: ASTERIA_1_TARGETS,
   startTime: '2026-09-07T00:00:00.000Z',
 };
