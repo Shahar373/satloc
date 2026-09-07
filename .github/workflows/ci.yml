@@ -2,7 +2,10 @@ name: CI
 
 on:
   push:
-    branches: ['**']
+    branches:
+      # Only the default branch, so pushing a PR branch doesn't double-run CI alongside the
+      # pull_request trigger below. Update this when D6 renames the default branch to `main`.
+      - claude/earth-app-realtime-satellites-qteq9b
   pull_request:
 
 jobs:
