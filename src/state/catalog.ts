@@ -413,7 +413,7 @@ async function loadGroupImpl(
   // Mark as loading right away (synchronously for callers) unless we already show records.
   if (!existing || existing.records.length === 0) publish([], null, 'loading', null);
 
-  const kv = getKeyValueStore();
+  const kv = getKeyValueStore('catalog');
   const cacheKey = GROUP_CACHE_PREFIX + groupId;
   const cachedRaw = await kv.get<unknown>(cacheKey).catch(() => undefined);
   let cached: StoredCatalog | null = null;
@@ -492,7 +492,7 @@ export const useCatalog = create<CatalogState>()((set, get) => ({
   },
 
   async clearDownloaded() {
-    await getKeyValueStore()
+    await getKeyValueStore('catalog')
       .clear()
       .catch((err: unknown) => console.warn('Could not clear the group cache', err));
     for (const key of listStorageKeys()) if (key.startsWith(GROUP_ATTEMPT_PREFIX)) getStorage().removeItem(key);
