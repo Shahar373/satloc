@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useViewerStore } from '../../state/viewer';
 import { Icon } from './Icon';
-import { UpdateBannerV2 } from './UpdateBannerV2';
+import { UpdateControlV2 } from './UpdateControlV2';
 
 function formatUtc(date: Date): string {
   return `${date.toISOString().slice(0, 10)} ${date.toISOString().slice(11, 19)} UTC`;
@@ -20,14 +20,18 @@ function useDisplayClock(): Date {
   return simTime ?? wallClock;
 }
 
+/** The palette shortcut as this platform's users actually type it — ⌘K only means something on a Mac. */
+const PALETTE_SHORTCUT = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
+
 export interface TopBarV2Props {
   onOpenPalette: () => void;
+  onOpenSettings: () => void;
   /** Opens the Rail as a drawer below the 1200px breakpoint (see shell.css's media query and
    *  RailV2Props.drawerOpen) — the button itself is CSS-hidden above the breakpoint. */
   onOpenRailDrawer: () => void;
 }
 
-export function TopBarV2({ onOpenPalette, onOpenRailDrawer }: TopBarV2Props) {
+export function TopBarV2({ onOpenPalette, onOpenSettings, onOpenRailDrawer }: TopBarV2Props) {
   const clock = useDisplayClock();
   const multiplier = useViewerStore((s) => s.multiplier);
   const { t, i18n } = useTranslation();
@@ -44,19 +48,29 @@ export function TopBarV2({ onOpenPalette, onOpenRailDrawer }: TopBarV2Props) {
       <button type="button" className="sl-topbar__cmdk" onClick={onOpenPalette}>
         <Icon name="search" size={14} />
         <span>{t('topbar.searchPlaceholder')}</span>
-        <kbd>⌘K</kbd>
+        <kbd>{PALETTE_SHORTCUT}</kbd>
       </button>
       <div className="sl-topbar__clock sl-mono sl-tabular">
         <span className="sl-bidi-isolate">{formatUtc(clock)}</span>
         {multiplier !== 1 && <span className="sl-topbar__rate"> · ×{multiplier}</span>}
       </div>
-      <UpdateBannerV2 />
+      <UpdateControlV2 />
       <button
         type="button"
         className="sl-topbar__lang"
         onClick={() => void i18n.changeLanguage(i18n.language === 'he' ? 'en' : 'he')}
       >
         {t('topbar.switchLanguage')}
+      </button>
+      <button
+        type="button"
+        className="sl-topbar__icon-button"
+        onClick={onOpenSettings}
+        aria-label={t('settings.title')}
+        title={t('settings.title')}
+        data-testid="open-settings"
+      >
+        <Icon name="settings" size={18} />
       </button>
     </div>
   );

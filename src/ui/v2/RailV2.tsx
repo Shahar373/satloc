@@ -49,7 +49,7 @@ export function RailV2({ workspace, onChange, drawerOpen = false, onCloseDrawer 
             onCloseDrawer?.();
           }}
         >
-          <Icon name={w.icon} size={18} />
+          <Icon name={w.icon} size={20} />
           <span className="sl-rail__label">{t(w.labelKey)}</span>
         </button>
       ))}
