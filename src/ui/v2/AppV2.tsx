@@ -18,6 +18,7 @@ import { PlanV2 } from './PlanV2';
 import { TrainV2 } from './TrainV2';
 import { DebriefV2 } from './DebriefV2';
 import { CommandPaletteV2 } from './CommandPaletteV2';
+import { SettingsV2 } from './SettingsV2';
 
 const UPDATE_CHECK_DELAY_MS = 8_000;
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -39,6 +40,7 @@ const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 export function AppV2() {
   const [workspace, setWorkspace] = useState<WorkspaceId>('explore');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const { i18n } = useTranslation();
@@ -70,7 +72,16 @@ export function AppV2() {
   const openPalette = useCallback(() => {
     setRailOpen(false);
     setInspectorOpen(false);
+    setSettingsOpen(false);
     setPaletteOpen(true);
+  }, []);
+
+  // Same overlay rule as the palette: one modal at a time, and never behind an open drawer.
+  const openSettings = useCallback(() => {
+    setRailOpen(false);
+    setInspectorOpen(false);
+    setPaletteOpen(false);
+    setSettingsOpen(true);
   }, []);
 
   // ⌘K/Ctrl+K opens the command palette from anywhere in the shell; the top bar's search button
@@ -86,19 +97,23 @@ export function AppV2() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [openPalette]);
 
-  // Escape closes whichever drawer is open. Above the 1200px breakpoint this is inert (the
-  // drawers render persistently there, ignoring railOpen/inspectorOpen — see shell.css).
+  // Escape closes whichever drawer is open, and the settings dialog — at the window level, so it
+  // works wherever focus happens to be (the settings dialog has no single focused input the way
+  // the palette does, so a dialog-local key handler alone would miss an Escape pressed after a
+  // click on a button that then disabled itself). Above the 1200px breakpoint the drawer part is
+  // inert (the drawers render persistently there, ignoring railOpen/inspectorOpen — see shell.css).
   useEffect(() => {
-    if (!railOpen && !inspectorOpen) return;
+    if (!railOpen && !inspectorOpen && !settingsOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setRailOpen(false);
         setInspectorOpen(false);
+        setSettingsOpen(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [railOpen, inspectorOpen]);
+  }, [railOpen, inspectorOpen, settingsOpen]);
 
   // The Inspector is "on-demand" below the breakpoint (Design Gate decision): selecting a
   // satellite is the demand signal, so open it automatically rather than requiring an extra
@@ -112,7 +127,7 @@ export function AppV2() {
 
   return (
     <div className="sl-v2 sl-shell" dir={dir} lang={i18n.language}>
-      <TopBarV2 onOpenPalette={openPalette} onOpenRailDrawer={() => setRailOpen(true)} />
+      <TopBarV2 onOpenPalette={openPalette} onOpenSettings={openSettings} onOpenRailDrawer={() => setRailOpen(true)} />
       <RailV2
         workspace={workspace}
         onChange={setWorkspace}
@@ -128,6 +143,7 @@ export function AppV2() {
       <InspectorV2 drawerOpen={inspectorOpen} onCloseDrawer={() => setInspectorOpen(false)} />
       <DockV2 workspace={workspace} />
       <CommandPaletteV2 open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <SettingsV2 open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       {drawerOpen && (
         <div
           className="sl-drawer-backdrop"

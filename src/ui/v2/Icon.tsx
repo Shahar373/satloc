@@ -23,6 +23,8 @@ import {
   Command,
   Menu,
   ClipboardList,
+  RefreshCw,
+  Download,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -57,6 +59,8 @@ const REGISTRY = {
   command: Command,
   menu: Menu,
   debrief: ClipboardList,
+  refresh: RefreshCw,
+  download: Download,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof REGISTRY;

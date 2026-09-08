@@ -55,6 +55,33 @@ test('the language toggle switches to Hebrew and mirrors the layout', async ({ p
   expect(railBox?.x ?? 0).toBeGreaterThan(inspectorBox?.x ?? 0);
 });
 
+test('the settings dialog opens from the top-bar gear, shows the app version, and the update control is present', async ({
+  page,
+}) => {
+  await page.goto(APP_URL);
+  await expect(page.getByTestId('globe')).toHaveAttribute('data-ready', 'true');
+
+  // The update control is always in the top bar. In a browser (not the desktop app) a manual
+  // check reports that updates apply to the installed app only, rather than silently doing nothing.
+  const updateButton = page.getByTestId('update-check');
+  await expect(updateButton).toBeEnabled();
+  await updateButton.click();
+  await expect(updateButton).toBeDisabled();
+  await expect(updateButton).toContainText(/desktop app only/i);
+
+  await page.getByTestId('open-settings').click();
+  const dialog = page.getByTestId('settings');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('.sl-settings__version')).toContainText(/SatLoc \d+\.\d+\.\d+/);
+  await expect(dialog.getByTestId('settings-updates')).toContainText(/installed desktop app/i);
+  // The imagery and catalogue settings that vanished with Shell V1 are back.
+  await expect(dialog.locator('select.sl-settings__select')).toBeVisible();
+  await expect(dialog.locator('input[type="number"]')).toHaveValue('12000');
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+});
+
 test('the Plan workspace lets an operator build a draft plan from real imaging opportunities', async ({ page }) => {
   await page.goto(APP_URL);
   await expect(page.getByTestId('globe')).toHaveAttribute('data-ready', 'true');

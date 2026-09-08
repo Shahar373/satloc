@@ -39,12 +39,21 @@
   --sl-font-ui-he: 'Noto Sans Hebrew', 'Segoe UI', Arial, sans-serif;
   --sl-font-mono: 'JetBrains Mono', Consolas, 'Courier New', monospace;
 
-  --sl-fs-11: 0.6875rem;
-  --sl-fs-12: 0.75rem;
-  --sl-fs-13: 0.8125rem;
-  --sl-fs-14: 0.875rem;
-  --sl-fs-16: 1rem;
-  --sl-fs-20: 1.25rem;
+  /* The type scale is in px on purpose: src/styles/global.css (kept for the error boundary and
+     Cesium overrides) sets html { font-size: 14px }, so a rem-based scale silently rendered 12.5%
+     smaller than designed — 13px body came out at 11.4px, 11px labels at 9.6px — while the panel
+     dimensions below (also px) stayed full size. Naming each token by the pixel size it actually
+     renders keeps that from ever drifting again. Base body text is 14px: this is an operations
+     console read for long stretches, not a dense data grid. */
+  --sl-fs-11: 11px;
+  --sl-fs-12: 12px;
+  --sl-fs-13: 13px;
+  --sl-fs-14: 14px;
+  --sl-fs-15: 15px;
+  --sl-fs-16: 16px;
+  --sl-fs-18: 18px;
+  --sl-fs-20: 20px;
+  --sl-fs-22: 22px;
 
   /* Spacing (8px grid) */
   --sl-sp-1: 4px;
@@ -58,10 +67,10 @@
   --sl-radius-sm: 4px;
   --sl-radius-md: 6px;
 
-  --sl-topbar-h: 44px;
-  --sl-rail-w: 56px;
-  --sl-inspector-w: 340px;
-  --sl-dock-h: 200px;
+  --sl-topbar-h: 48px;
+  --sl-rail-w: 60px;
+  --sl-inspector-w: 360px;
+  --sl-dock-h: 220px;
 
   /* The breakpoint below which the sidebar/Inspector become on-demand overlays
      (Design Gate decision: "drawer behavior under 1200px"). */
@@ -70,7 +79,8 @@
   background: var(--sl-bg-app);
   color: var(--sl-text-primary);
   font-family: var(--sl-font-ui);
-  font-size: var(--sl-fs-13);
+  font-size: var(--sl-fs-14);
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 
