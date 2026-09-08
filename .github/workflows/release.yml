@@ -5,8 +5,17 @@ name: Release
 #   - a tag `vX.Y.Z` is pushed, or
 #   - the version in src-tauri/tauri.conf.json changes on a push (the release is named after it), or
 #   - it is started by hand from the Actions tab.
-# A version that already has a release is skipped. Needs the repository secrets
+# A version that already has a published release is skipped. Needs the repository secrets
 # TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
+#
+# Shape: `prepare` creates ONE draft release up front, every platform build uploads into it by id
+# (tauri-action merges latest.json across platforms when given a release id), and `publish` flips
+# the draft to published only once every platform built. Letting each platform's tauri-action
+# find-or-create the release by tag instead made the two builds race: v0.5.0's Linux job finished a
+# second after Windows, tried to create the same release, and failed with "Published releases must
+# have a valid tag" — leaving a published release with Windows assets only and a latest.json that
+# never learned about Linux. A build failure now leaves a draft (reused by the next run) rather than
+# a half-published `latest`.
 on:
   push:
     tags: ['v*']
@@ -33,7 +42,7 @@ jobs:
     outputs:
       tag: ${{ steps.decide.outputs.tag }}
       publish: ${{ steps.decide.outputs.publish }}
-      notes: ${{ steps.notes.outputs.notes }}
+      release_id: ${{ steps.create.outputs.release_id }}
     steps:
       - uses: actions/checkout@v4
       - id: decide
@@ -52,11 +61,13 @@ jobs:
           fi
           node scripts/check-versions.mjs
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          # A published release for this tag means nothing to do; a draft (left by a run whose
+          # build failed) is reused below rather than duplicated.
           code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
                "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$tag")
           case "$code" in
             200)
-              echo "Release $tag already exists; nothing to publish."
+              echo "Release $tag is already published; nothing to publish."
               echo "publish=false" >> "$GITHUB_OUTPUT" ;;
             404)
               echo "Will publish $tag."
@@ -65,14 +76,25 @@ jobs:
               echo "GitHub API returned HTTP $code while looking for release $tag; not publishing blindly."
               exit 1 ;;
           esac
-      - id: notes
-        name: Release notes from CHANGELOG.md
+      - id: create
+        name: Create (or reuse) the draft release
+        if: steps.decide.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.decide.outputs.tag }}
         run: |
-          {
-            echo 'notes<<NOTES_EOF'
-            node scripts/release-notes.mjs "${{ steps.decide.outputs.tag }}"
-            echo 'NOTES_EOF'
-          } >> "$GITHUB_OUTPUT"
+          node scripts/release-notes.mjs "$TAG" > /tmp/notes.md
+          id=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+                 --jq "map(select(.draft and .tag_name == \"$TAG\")) | .[0].id // empty")
+          if [[ -n "$id" ]]; then
+            echo "Reusing draft release $id for $TAG (left by an earlier run)."
+          else
+            id=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" \
+                   -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" -f name="SatLoc $TAG" \
+                   -F draft=true -F prerelease=false -F body=@/tmp/notes.md --jq '.id')
+            echo "Created draft release $id for $TAG."
+          fi
+          echo "release_id=$id" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build and publish
@@ -117,11 +139,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ needs.prepare.outputs.tag }}
-          releaseName: SatLoc ${{ needs.prepare.outputs.tag }}
-          releaseBody: ${{ needs.prepare.outputs.notes }}
-          releaseDraft: false
-          prerelease: false
+          # Upload into the draft `prepare` created; tauri-action merges latest.json across the
+          # platforms when it is given an existing release id.
+          releaseId: ${{ needs.prepare.outputs.release_id }}
           includeUpdaterJson: true
           args: ${{ matrix.args }}
       - uses: actions/upload-artifact@v4
@@ -134,3 +154,22 @@ jobs:
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: warn
+
+  publish:
+    name: Publish the release
+    needs: [prepare, build]
+    if: always() && needs.prepare.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish only once every platform built
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.prepare.outputs.release_id }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: |
+          if [[ "$BUILD_RESULT" != "success" ]]; then
+            echo "::error::A platform build did not succeed ($BUILD_RESULT). Release $TAG stays a draft (id $RELEASE_ID) so the updater never sees a partial release. Fix the failure and re-run this workflow; the draft is reused."
+            exit 1
+          fi
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" -F draft=false --jq '.html_url'
