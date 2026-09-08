@@ -2,6 +2,16 @@
 
 Each section becomes the release notes of that version (see scripts/release-notes.mjs).
 
+## 0.5.1
+
+Fixes for two things reported from the installed 0.5.0 build: text that rendered too small for its panels, and no way to reach settings or check for updates.
+
+- Text scale: every piece of interface text was rendering 12.5% smaller than designed (a root font-size mismatch left over from the previous interface). Body text is now 14 px with matching line height, and controls, rail items, the top bar, the Inspector, and the Dock are sized to fit it.
+- Settings: a gear button in the top bar opens a settings panel again — language, updates (version, check, install), Earth imagery source and Cesium Ion token, catalogue points limit and "clear downloaded catalogue", help (copy diagnostics, report an issue, keyboard shortcuts), and a two-step reset. These had been missing since the interface rewrite.
+- Updates: an always-present "Check for updates" button in the top bar (checking / up to date / failed / install-and-restart states), instead of a notice that only appeared after a background check.
+- Command palette hint reads `Ctrl+K` outside macOS; Escape closes the settings panel from anywhere.
+- Release pipeline: the two platform builds no longer race to create the GitHub release, so a release is published only once every platform has built and its update manifest lists them all. (0.5.0 shipped with Windows installers only because of that race; Linux users get 0.5.1 as their first offered update.)
+
 ## 0.5.0
 
 Operator-simulation vertical slice: a first, real end-to-end training scenario (Asteria-1, a
