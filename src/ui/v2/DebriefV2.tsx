@@ -1,18 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ASTERIA_1_PROFILE, ASTERIA_1_SCENARIO, ASTERIA_1_TLE, generateUlid } from '../../contracts';
+import { ASTERIA_1_PROFILE } from '../../contracts';
 import type { DomainEvent } from '../../contracts/events';
-import { buildDebriefTimeline, type DebriefRow } from '../../core/debrief/debriefTimeline';
-import { buildRealDemoTimeline } from '../../core/scenario/realDemoTimeline';
-import { ScenarioRunner } from '../../core/scenario/ScenarioRunner';
-import { tleToElementSet } from '../../core/tle/omm';
+import { buildDebriefTimeline } from '../../core/debrief/debriefTimeline';
+import { useTraining } from '../../state/training';
+import { Button } from './primitives/Button';
 import { Pill } from './primitives/Pill';
 import { Surface } from './primitives/Surface';
-
-// Comfortably longer than the real timeline's last event (buildRealDemoTimeline's first real
-// opportunity is typically tens of hours out, plus a short contact) — advanced in one bulk call
-// (multiplier defaults to 1, so this is simulated ms, not a real wait) to replay the whole run.
-const ADVANCE_MS = 5 * 24 * 60 * 60 * 1000;
 
 function describeEvent(t: (key: string, options?: Record<string, unknown>) => string, event: DomainEvent): string {
   const taskLabel = (taskId: string) => t(`train.taskLabels.${taskId}`, { defaultValue: taskId });
@@ -48,46 +42,11 @@ function describeEvent(t: (key: string, options?: Record<string, unknown>) => st
   }
 }
 
-/**
- * Debrief view: replays Scenario 01's real demo timeline (`buildRealDemoTimeline`, the same
- * geometry-driven schedule `TrainV2` runs live) to completion in one bulk `advance`, then shows
- * `buildDebriefTimeline`'s row-by-row Truth State next to Operator Observables — concretely
- * demonstrating the lag `docs/design/operator-simulation.md`'s "Truth State vs Operator
- * Observables" section has documented since PR #31: at `ContactAcquired@1`, Truth already lists
- * the contact active while Observables hasn't confirmed it yet (the console's real
- * `acquisitionS`-second lock-on delay), until a later row where both agree.
- *
- * Deliberately a replay of the fixed demo run, not a live/selectable session — there's no
- * persisted session log to browse yet (`docs/design/operator-simulation.md`'s open items), so this
- * is the same "basic Debrief, real data, no session picker" scope every other workspace here
- * started from (Train's fixed demo, Plan's browse mode before the draft accumulator).
- *
- * Computed in a `useEffect`, not a render-time `useMemo`: this replay's real SGP4 opportunity/pass
- * search is the same non-trivial computation `TrainV2` also does (and `TrainV2` runs it in an
- * effect for the same reason) — doing it synchronously during render would delay React committing
- * everything else in that same update (e.g. a Rail drawer close transition triggered by the same
- * navigation) until the whole replay finishes, rather than letting that commit paint first.
- */
-export function DebriefV2() {
+/** Debrief the exact event log from Train, including partial and paused runs. */
+export function DebriefV2({ onTrain }: { onTrain: () => void }) {
   const { t } = useTranslation();
-  const [rows, setRows] = useState<DebriefRow[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    try {
-      const { satrec } = tleToElementSet(ASTERIA_1_TLE.line1, ASTERIA_1_TLE.line2, ASTERIA_1_TLE.name);
-      const runner = new ScenarioRunner(ASTERIA_1_SCENARIO, generateUlid());
-      const timeline = buildRealDemoTimeline(satrec, new Date(ASTERIA_1_SCENARIO.startTime));
-      for (const { simTime, event } of timeline) runner.schedule(simTime, event);
-      runner.advance(ADVANCE_MS);
-      setRows(buildDebriefTimeline(runner.log.records, ASTERIA_1_PROFILE));
-    } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const records = useTraining((s) => s.records);
+  const rows = useMemo(() => buildDebriefTimeline(records, ASTERIA_1_PROFILE), [records]);
 
   return (
     <div className="sl-debrief">
@@ -97,16 +56,9 @@ export function DebriefV2() {
         <p className="sl-debrief__note">{t('debrief.note')}</p>
       </header>
 
-      {error && (
-        <p className="sl-debrief__error" role="alert">
-          {t('debrief.loadError', { message: error })}
-        </p>
-      )}
-
+      <Button onClick={onTrain}>{t('debrief.backToTrain')}</Button>
       <Surface className="sl-debrief__list-surface">
-        {loading ? (
-          <p className="sl-debrief__empty">{t('debrief.loading')}</p>
-        ) : rows.length === 0 && !error ? (
+        {rows.length === 0 ? (
           <p className="sl-debrief__empty">{t('debrief.empty')}</p>
         ) : (
           <ul className="sl-debrief__list">

@@ -103,6 +103,15 @@ test('the Plan workspace lets an operator build a draft plan from real imaging o
   await expect(page.locator('.sl-plan__draft-storage')).toHaveText('1.2 / 6.0 GB');
   await expect(draftRows.first().locator('.sl-plan__row-seq')).toContainText('#1');
 
+  await page.getByRole('button', { name: 'Train', exact: true }).click();
+  await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  await expect(draftRows).toHaveCount(1);
+  await expect(page.locator('.sl-plan__draft-storage')).toHaveText('1.2 / 6.0 GB');
+  await expect(page.locator('.sl-inspector')).toHaveCount(0);
+  await expect(page.locator('.sl-dock')).toHaveCount(0);
+  const blocked = rows.filter({ has: page.locator('.sl-pill--critical') }).first();
+  await expect(blocked.getByRole('button', { name: 'Add to plan' })).toBeDisabled();
+
   // Removing it from the draft (either the browse row's toggle or the draft row's own button)
   // clears the draft back to empty and the storage total resets.
   await draftRows
@@ -114,23 +123,33 @@ test('the Plan workspace lets an operator build a draft plan from real imaging o
   // An ELEMENTS_STALE opportunity (a WaivableWarning, not a HardBlock) still adds to the draft and
   // still counts toward storage — only a HardBlock actually blocks that.
   const warningRow = rows.filter({ has: page.locator('.sl-pill--warning') }).first();
-  await expect(warningRow.locator('.sl-pill--warning')).toHaveText('ELEMENTS_STALE');
+  await expect(warningRow.locator('.sl-pill--warning')).toHaveText('Older orbit data');
   await warningRow.getByRole('button', { name: /add to plan/i }).click();
   await expect(draftRows).toHaveCount(1);
-  await expect(draftRows.first().locator('.sl-pill--warning')).toHaveText('ELEMENTS_STALE');
+  await expect(draftRows.first().locator('.sl-pill--warning')).toHaveText('Older orbit data');
   await expect(page.locator('.sl-plan__draft-storage')).toHaveText('1.2 / 6.0 GB');
 });
 
-test('the Debrief workspace replays the real Scenario 01 run and flags where Observables lag Truth', async ({
-  page,
-}) => {
+test('Debrief shows only the current training run and flags where Observables lag Truth', async ({ page }) => {
   await page.goto(APP_URL);
   await expect(page.getByTestId('globe')).toHaveAttribute('data-ready', 'true');
 
-  await page
-    .getByRole('button', { name: /debrief/i })
-    .first()
-    .click();
+  await page.getByRole('button', { name: 'Debrief', exact: true }).click();
+  await expect(page.locator('.sl-debrief__empty')).toBeVisible();
+  await page.getByRole('button', { name: 'Return to Train', exact: true }).click();
+  const next = page.getByTestId('training-next');
+  await expect(next).toBeEnabled();
+  await next.click();
+  const time = await page.locator('.sl-train__clock-value').textContent();
+  await page.getByRole('button', { name: 'Review this run', exact: true }).click();
+  await expect(page.locator('.sl-debrief__row')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Return to Train', exact: true }).click();
+  await expect(page.locator('.sl-train__clock-value')).toHaveText(time ?? '');
+  await expect(page.locator('.sl-train').getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+  for (let i = 0; i < 10 && (await next.isEnabled()); i++) await next.click();
+  await expect(next).toBeDisabled();
+  await expect(page.locator('.sl-train__next')).toContainText('Run complete');
+  await page.getByRole('button', { name: 'Review this run', exact: true }).click();
   await expect(page.locator('.sl-debrief')).toBeVisible();
 
   const rows = page.locator('.sl-debrief__list .sl-debrief__row');
@@ -171,5 +190,65 @@ test.describe("at 900x600 (the mandate's narrow mandatory resolution)", () => {
     await page.locator('.sl-dock__row', { hasText: 'EROS-LIKE' }).click();
     await expect.poll(async () => (await page.locator('.sl-inspector').boundingBox())?.x).toBeGreaterThanOrEqual(0);
     await expect(page.locator('.sl-inspector__title')).toContainText('EROS-LIKE');
+    await page.locator('.sl-inspector__drawer-close').click();
+    await expect(page.locator('.sl-inspector')).not.toBeVisible();
+    await page.getByRole('button', { name: 'EROS-LIKE (TEST)', exact: true }).click();
+    await expect(page.locator('.sl-inspector')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.locator('.sl-topbar__menu').click();
+    await page.getByRole('button', { name: 'Plan', exact: true }).click();
+    await expect(page.locator('.sl-plan__row').first()).toBeVisible();
+    await page.locator('.sl-topbar__lang').click();
+    await expect(page.locator('.sl-v2')).toHaveAttribute('dir', 'rtl');
+    const overflow = await page.locator('.sl-plan').evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+    await expect(page.locator('.sl-plan__draft-surface')).toBeInViewport();
   });
+});
+
+test('Explore time and camera survive navigation; satellite search returns to Explore', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  await page.goto(APP_URL);
+  await expect(page.getByTestId('globe')).toHaveAttribute('data-ready', 'true');
+  await page.getByTestId('explore-play').click();
+  await expect(page.getByTestId('explore-play')).toHaveText('Play');
+  await page.locator('.sl-explore-controls__rate select').selectOption('60');
+  await expect(page.getByTestId('workspace-clock')).toContainText('×60');
+  const clock = await page.getByTestId('workspace-clock').textContent();
+  const camera = await page.evaluate(() => {
+    const viewer = window.__satlocViewer;
+    if (!viewer) throw new Error('Explore viewer is missing');
+    const p = viewer.camera.positionWC;
+    return [p.x, p.y, p.z];
+  });
+  await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  await page.locator('.sl-topbar__cmdk').click();
+  await page.locator('.sl-palette__input').fill('EROS');
+  await page.locator('.sl-palette__result').first().click();
+  await expect(page.getByTestId('globe')).toHaveAttribute('data-ready', 'true');
+  await expect(page.getByTestId('explore-play')).toHaveText('Play');
+  await expect(page.getByTestId('workspace-clock')).toHaveText(clock ?? '');
+  const returnedCamera = await page.evaluate(() => {
+    const viewer = window.__satlocViewer;
+    if (!viewer) throw new Error('Explore viewer is missing');
+    const p = viewer.camera.positionWC;
+    return [p.x, p.y, p.z];
+  });
+  for (let i = 0; i < 3; i++) expect(returnedCamera[i]).toBeCloseTo(camera[i], 3);
+  expect(errors).toEqual([]);
+});
+
+test('leaving a playing run pauses it and the top bar uses the training clock', async ({ page }) => {
+  await page.goto(APP_URL);
+  await page.getByRole('button', { name: 'Train', exact: true }).click();
+  await page.getByTestId('training-next').click();
+  const time = await page.locator('.sl-train__clock-value').textContent();
+  await expect(page.getByTestId('workspace-clock')).toContainText((time ?? '').slice(0, 19).replace('T', ' '));
+  await page.locator('.sl-train').getByRole('button', { name: 'Play', exact: true }).click();
+  await page.getByRole('button', { name: 'Debrief', exact: true }).click();
+  const paused = await page.getByTestId('workspace-clock').textContent();
+  await page.getByRole('button', { name: 'Return to Train', exact: true }).click();
+  await expect(page.locator('.sl-train').getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+  await expect(page.getByTestId('workspace-clock')).toHaveText(paused ?? '');
 });

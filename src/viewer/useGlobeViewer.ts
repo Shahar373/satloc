@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, type RefObject } from 'react';
 import { JulianDate, type Viewer } from 'cesium';
 import { useImagerySource, useOverrides } from '../state/overrides';
 import { useSettings } from '../state/settings';
@@ -6,6 +6,9 @@ import { useViewerStore } from '../state/viewer';
 import { captureView, createViewer, type CreateViewerOptions } from './createViewer';
 
 type Carried = { time: Date } & NonNullable<CreateViewerOptions['restore']>;
+
+// One Explore viewer per app: retain its view between mounts without a hidden WebGL renderer.
+let carriedView: Carried | null = null;
 
 /**
  * Owns the Cesium `Viewer` lifecycle against `containerRef`: creates it on mount and whenever
@@ -15,7 +18,6 @@ type Carried = { time: Date } & NonNullable<CreateViewerOptions['restore']>;
  * `GlobeCanvas`, Shell V2's globe primitive.
  */
 export function useGlobeViewer(containerRef: RefObject<HTMLDivElement | null>) {
-  const carriedRef = useRef<Carried | null>(null);
   const imagery = useImagerySource();
   const initialTime = useOverrides((s) => s.time);
   const ionToken = useSettings((s) => s.ionToken);
@@ -27,8 +29,7 @@ export function useGlobeViewer(containerRef: RefObject<HTMLDivElement | null>) {
     let cancelled = false;
     let viewer: Viewer | undefined;
     const store = useViewerStore.getState();
-    const carried = carriedRef.current;
-    carriedRef.current = null;
+    const carried = carriedView;
 
     createViewer(container, {
       imagery,
@@ -62,7 +63,7 @@ export function useGlobeViewer(containerRef: RefObject<HTMLDivElement | null>) {
     return () => {
       cancelled = true;
       if (viewer && !viewer.isDestroyed()) {
-        carriedRef.current = {
+        carriedView = {
           time: JulianDate.toDate(viewer.clock.currentTime),
           multiplier: viewer.clock.multiplier,
           animating: viewer.clock.shouldAnimate,

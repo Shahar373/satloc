@@ -265,8 +265,10 @@ products a longer real pass (435.9 s, ≈7.799 GB) clears without issue.
 `PlanV2` now wires this accumulator into the browse list itself: an "Add to plan"/"Remove" toggle
 on each opportunity row builds an ordered draft (its own surface below the browse list), each
 draft row showing its own findings and the running storage total after it, and a header showing
-the plan's total usage against `usableStorageGB`. This is still **local component state, not a
-real committable plan** — there's no `CommandSubmitted`/plan data model or commit flow yet, so
+the plan's total usage against `usableStorageGB`. Selections now live in an **in-memory app-session
+store**, sorted by opportunity time, and survive workspace navigation. Geometry runs through the
+existing `ForecastClient` worker with loading/error states and teardown on navigation. This is
+still **not a real committable plan** — there's no `CommandSubmitted`/plan data model or commit flow yet, so
 adding/removing a candidate here records nothing to an event log and produces no `DomainEvent`.
 That commit flow is the Plan workspace's next real step. `PlanV2`'s selection UI is itself still
 **imaging-only**: `evaluatePlanDraft` supports downlink candidates now, but there's no ground-contact
@@ -278,22 +280,17 @@ browse/selection UI yet to build one from — that UI is separate follow-up work
 Truth State and Operator Observables side by side, rather than just documenting that they can
 diverge: one row per real `DomainEvent`, each carrying the `TruthState` right after that event
 alongside `OperatorObservables` computed at that same simTime from the records seen so far.
-`DebriefV2.tsx` (a new Rail workspace) replays `buildRealDemoTimeline`'s real Scenario 01 story —
-the same geometry-driven schedule `TrainV2` runs live — to completion in one bulk `advance`, then
-renders the timeline with a "Lag" indicator on any row where Truth already lists an active contact
-Observables hasn't confirmed yet. Concretely, on the real Asteria-1 run this always lands on
-`ContactAcquired@1` and the `TaskStarted@1` right after it (same simTime): Truth shows the contact
-active immediately, Observables doesn't confirm it until `profile.downlink.acquisitionS` seconds
-later — the exact lag this document has described by name since `TruthState`'s introduction (PR
-#31), now something a viewer can actually see rather than take on faith.
+`DebriefV2.tsx` reads the current training session's actual records. It no longer constructs a
+second runner or advances a separate demo to completion. Before any training events occur the
+view is empty; after a partial run it shows only those events, and after completion it shows the
+full eight-event story. Contact acquisition still demonstrates the same `acquisitionS`-second
+lag between Truth State and Operator Observables.
 
-Deliberately a replay of the fixed demo run, not a live/selectable session: there's no persisted
-session log to browse yet, so this is the same "basic, real data, no session picker" scope every
-other workspace here started from. The replay itself runs in a `useEffect` (not a render-time
-`useMemo`) precisely because it's the same non-trivial real SGP4 search `TrainV2` already does in
-an effect for the same reason — computing it synchronously during render would delay React
-committing anything else in that update (e.g. a Rail drawer close transition triggered by the same
-navigation) until the whole replay finished.
+`src/state/training.ts` owns the in-memory runner and event log across workspace mounts (ADR 0003).
+Train starts paused, supports exact next-event stepping, stops at the final scheduled event, and
+pauses on navigation or document hiding. The header displays the training clock in Train/Debrief.
+Restart explicitly replaces the run; app reload clears it. There is no session picker or durable
+UI persistence yet. Plan's draft is separate from this guided Scenario 01 run.
 
 ## Scenario 01 golden replay (determinism)
 
@@ -349,10 +346,9 @@ still open — later PRs, not this document. All five HardBlock Validator rules 
 has needed so far (storage, roll-limit, contact-timing, imaging-window, contact-capacity) are now
 built, plus the first WaivableWarning rule (`ELEMENTS_STALE`); `evaluatePlanDraft`'s accumulator
 supports both imaging and downlink candidates with causal ordering between them and correctly gates
-only on `HardBlock` severity; a basic Debrief view exists (a fixed-run replay, not a session
-picker); and Scenario 01's full real-demo run is now proven deterministic with a golden-regression
+only on `HardBlock` severity; a Debrief view exists for the active training run (no session picker); and Scenario 01's full real-demo run is now proven deterministic with a golden-regression
 hash locking in its current behavior. What's still missing: a ground-contact browse/selection UI in
 `PlanV2` so an operator can actually build a downlink candidate (today only imaging candidates have
 a selection UI), a real committable-plan/commit flow producing real `DomainEvent`s (today's draft is
-local UI state only), and an actual waiver interaction/flow for `WaivableWarning` findings — the
+in-memory app-session state only), and an actual waiver interaction/flow for `WaivableWarning` findings — the
 rule exists now, but nothing lets an operator waive one yet.
