@@ -42,9 +42,8 @@ typecheck, unit, build, smoke)"). A second job ("Tauri shell (cargo check)") run
 
 ## Branch and PR workflow
 
-1. Branch off the current default branch
-   (`claude/earth-app-realtime-satellites-qteq9b` at the time of writing — check
-   `git remote show origin` if unsure).
+1. Branch off the current default branch. Check `git remote show origin` for its
+   name; `main` is the target name for the integration branch.
 2. Open a pull request into the default branch. Keep PRs small and single-purpose —
    see "Separate formatting, refactoring, and behavior changes" below.
 3. CI must be green (all three jobs above) before merging.
@@ -52,6 +51,27 @@ typecheck, unit, build, smoke)"). A second job ("Tauri shell (cargo check)") run
    example `.git-blame-ignore-revs`), use GitHub's "Create a merge commit" — squash
    and rebase both rewrite commit SHAs and would break that reference. Otherwise
    either is fine; this repo has used merge commits so far.
+
+### Moving the default branch to `main`
+
+Rename the existing default branch in GitHub after merging this CI preparation.
+This keeps its history, including the workspace stabilization in PR #54. Do not
+create an unrelated empty branch. CI accepts both names during the transition;
+release publishing and the scheduled TLE snapshot already follow the repository's
+default branch dynamically.
+
+After the rename, verify that `main` is the default and that open pull requests
+target it. For an existing clone with a local branch under the old name, update it:
+
+```sh
+git branch -m claude/earth-app-realtime-satellites-qteq9b main
+git fetch origin
+git branch --set-upstream-to=origin/main main
+git remote set-head origin -a
+```
+
+Feature branches can keep their names. The legacy CI trigger can be removed once
+the migration is confirmed; retain the `main` and `pull_request` triggers.
 
 ## Separate formatting, refactoring, and behavior changes
 
