@@ -73,7 +73,8 @@ export function applyDomainEvent(state: TruthState, event: DomainEvent): TruthSt
       return {
         ...state,
         dataProducts: { ...state.dataProducts, [event.dataProduct.id]: event.dataProduct },
-        storageUsedGB: state.storageUsedGB - previousSizeGB + event.dataProduct.sizeGB,
+        // GB-decimal accounting at byte precision avoids accumulating fractional-GB roundoff.
+        storageUsedGB: Math.round((state.storageUsedGB - previousSizeGB + event.dataProduct.sizeGB) * 1e9) / 1e9,
       };
     }
 
@@ -94,7 +95,7 @@ export function applyDomainEvent(state: TruthState, event: DomainEvent): TruthSt
         ...state,
         dataProducts: remaining,
         downlinkedDataProductIds: [...state.downlinkedDataProductIds, event.dataProductId],
-        storageUsedGB: state.storageUsedGB - product.sizeGB,
+        storageUsedGB: Math.round((state.storageUsedGB - product.sizeGB) * 1e9) / 1e9,
       };
     }
   }

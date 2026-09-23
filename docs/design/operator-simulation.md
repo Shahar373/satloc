@@ -134,10 +134,8 @@ ground stations, imaging targets, and a simulation start time into one loadable 
 `checkScenarioConsistency` composes `checkProfileConsistency` with scenario-level checks (at least
 one ground station, no duplicate station ids, at least one imaging target, no duplicate target
 ids, a well-formed `startTime`) — a scenario that fails this should be treated as a hard load-time
-error, per the Plan workspace's `HardBlock` severity. `targets` is what the four Validator rules'
-`ForecastService`-backed callers (`findImagingOpportunities`, still not wired into any UI) will
-forecast access windows against — before this, no scenario had a concrete point of interest to
-image, so nothing could call that forecasting function with real geometry.
+error, per the Plan workspace's `HardBlock` severity. `targets` supplies the concrete points used by `findImagingOpportunities` and the Plan worker
+when forecasting access windows.
 
 ## Plan validation
 
@@ -217,21 +215,19 @@ preset and making it the default, rather than jumping the clock or moving the sc
 `startTime` (rejected: `asteria1.test.ts` asserts `startTime` equals the TLE's own epoch on
 purpose, a decision this wiring PR wasn't the place to relitigate).
 
-## Plan workspace (browse mode)
+## Plan workspace (capture and contact browsing)
 
-`evaluateImagingOpportunities` (`src/core/scenario/planOpportunities.ts`), rendered by `PlanV2.tsx`
-(replacing the Plan workspace's placeholder text), lists real `findImagingOpportunities` output
-for Asteria-1's target over the next 30 days and evaluates each one against `checkRollLimit` and
-`checkImagingWindow` — the two Validator rules that depend only on the candidate itself. For the
-real Asteria-1 geometry this genuinely produces a mix of clean and roll-limited candidates (10 of
-27 over a real 30-day window at the time this was written), not a contrived example.
+`PlanV2` uses the existing `ForecastClient` worker to compute 30 days of imaging opportunities
+and GS-Home/GS-North contacts from the fixed Asteria-1 scenario epoch. It lists imaging opportunities,
+checks the profile's 20° minimum sun elevation as well as roll/window constraints, and offers
+PAN (1.2 GB) or MS (0.4 GB) per added capture. Night, insufficient-light and roll-blocked opportunities remain visible but
+cannot be added. Older element sets remain visible with a warning.
 
-Deliberately does not evaluate `checkStorageBudget` or `checkContactTiming` on its own: both need
-state a single-candidate browse view has no access to in isolation (an accumulated plan for
-storage; a real domain event log with recorded contact acquisition for timing). `PlanV2` closes
-that gap for storage by running the browse list's candidates through `evaluatePlanDraft` (below)
-when an operator adds one to a draft — `checkContactTiming` still has nothing to evaluate here,
-since imaging candidates carry no contact.
+The contacts tab lists complete forecast passes after selected captures. Selecting a contact
+assigns all then-unassigned captures whose full imaging window has ended before acquisition.
+Its row shows the selected product load and modeled capacity, including acquisition overhead;
+contacts too short for that load cannot be added. To change the assignment, remove/reselect the
+contact. The draft shows chronological tasks, peak storage, final onboard storage and findings.
 
 ## Plan draft accumulator
 
@@ -242,8 +238,8 @@ actually happened, rather than each candidate seeing an empty or already-current
 isolation.
 
 An **imaging candidate** (each carrying the specific real `ImagingOpportunity` chosen for it) runs
-`checkRollLimit`/`checkImagingWindow`, then folds `checkStorageBudget` via the real
-`applyDomainEvent`. A candidate with any finding does not count toward storage for the candidates
+`checkRollLimit`/`checkImagingWindow`/`checkIllumination`, then folds `checkStorageBudget` via the real
+`applyDomainEvent`. A candidate with a HardBlock does not count toward storage for the candidates
 after it (a plan that can't commit a capture doesn't actually put anything in storage for it).
 Proven against real Asteria-1 geometry: six real clean opportunities over 30 days genuinely exhaust
 the 6 GB budget on the sixth, the same `maxProducts(PAN) = 5` figure from the storage model above.
@@ -262,17 +258,33 @@ anything to actually downlink. A cleared product's storage is freed via the real
 capacity threshold, and a short real pass (157.5 s, ≈2.578 GB capacity) genuinely cannot clear
 products a longer real pass (435.9 s, ≈7.799 GB) clears without issue.
 
-`PlanV2` now wires this accumulator into the browse list itself: an "Add to plan"/"Remove" toggle
-on each opportunity row builds an ordered draft (its own surface below the browse list), each
-draft row showing its own findings and the running storage total after it, and a header showing
-the plan's total usage against `usableStorageGB`. Selections now live in an **in-memory app-session
-store**, sorted by opportunity time, and survive workspace navigation. Geometry runs through the
-existing `ForecastClient` worker with loading/error states and teardown on navigation. This is
-still **not a real committable plan** — there's no `CommandSubmitted`/plan data model or commit flow yet, so
-adding/removing a candidate here records nothing to an event log and produces no `DomainEvent`.
-That commit flow is the Plan workspace's next real step. `PlanV2`'s selection UI is itself still
-**imaging-only**: `evaluatePlanDraft` supports downlink candidates now, but there's no ground-contact
-browse/selection UI yet to build one from — that UI is separate follow-up work, not this section.
+## Executable plan handoff
+
+`evaluateExecutablePlan` wraps the draft accumulator with chronological sorting, element-age
+and contact-duration derivation, complete-window and known-target/station checks, unique task/
+contact/product references, capture-before-download ordering, a required download for every
+capture, and a conservative ban on overlapping full imaging/contact windows. The profile's
+minimum sunlight is inclusive; night/insufficient-light captures are HardBlocks. Decimal-GB
+storage accounting is rounded to byte precision, so mixed PAN/MS loads exactly at 6 GB remain
+valid and successful downloads return storage to zero.
+
+`compilePlan` refuses HardBlocks and requires an explicit nonblank reason for every current
+WaivableWarning, including older elements for a chosen station contact. It creates an independent
+snapshot and schedules each chosen capture at its forecast best time, bounded by its access
+window. Downloads execute after acquisition and complete products sequentially at the profile's
+rate. At exactly full capacity, completion precedes contact loss at the same millisecond.
+
+The Plan store retains selections, modes, contacts and waiver reasons across navigation.
+Any task edit clears all waiver decisions. Loading a valid plan initializes a paused runner;
+an existing run requires a second confirmation click. A failed compile/construction preserves
+the old run. The training store records the plan commit, per-task command submission/acceptance
+and warning reasons. These commands are preloaded for training, not transmitted by a simulated
+RF uplink at the scenario epoch. Subsequent execution and waiver records have backward causal
+links to their submissions. See [ADR 0004](../adr/0004-executable-plan-snapshot.md).
+
+The compiler trusts typed forecasts from this fixed scenario; there is no external plan-import
+endpoint. This is not a complete flight validator: slew/settling, energy, thermal constraints,
+RF failures and uplink scheduling remain outside this milestone.
 
 ## Debrief view
 
@@ -283,14 +295,16 @@ alongside `OperatorObservables` computed at that same simTime from the records s
 `DebriefV2.tsx` reads the current training session's actual records. It no longer constructs a
 second runner or advances a separate demo to completion. Before any training events occur the
 view is empty; after a partial run it shows only those events, and after completion it shows the
-full eight-event story. Contact acquisition still demonstrates the same `acquisitionS`-second
+full guided eight-event story or the selected plan's command/task/product events. Plan commits
+and waiver reasons appear in a separate decision list with readable task/station labels. Contact acquisition still demonstrates the same `acquisitionS`-second
 lag between Truth State and Operator Observables.
 
 `src/state/training.ts` owns the in-memory runner and event log across workspace mounts (ADR 0003).
 Train starts paused, supports exact next-event stepping, stops at the final scheduled event, and
 pauses on navigation or document hiding. The header displays the training clock in Train/Debrief.
-Restart explicitly replaces the run; app reload clears it. There is no session picker or durable
-UI persistence yet. Plan's draft is separate from this guided Scenario 01 run.
+Restart repeats the loaded plan snapshot, or the guided scenario if no plan has been loaded.
+App reload clears it. There is no session picker or durable UI persistence yet; the compiled plan
+and pending schedule are not stored by the existing session-record persistence layer.
 
 ## Scenario 01 golden replay (determinism)
 
@@ -332,23 +346,18 @@ wrong, since a stale-elements warning doesn't mean the capture didn't happen. Fi
 `finding.severity === 'HardBlock'`, so a candidate carrying only a `WaivableWarning` is still
 counted as captured (and can still be a downlink's target) while the warning stays visible.
 
-`PlanV2` now shows a `WaivableWarning` with its own pill tone (distinct from a `HardBlock`'s), for
-both the browse list and the draft — but there's no waiver _interaction_ yet: nothing lets an
-operator record the `WarningWaived` `OperatorAction` this rule's severity is named for
-(`src/contracts/events.ts` already defines the event; no UI produces it and no event log exists
-under the draft to record it in yet). That's separate follow-up work, same as the real commit flow.
+`PlanV2` shows warnings separately from HardBlocks. Each warning has an acceptance checkbox
+and a required reason. Nothing is appended to the run while editing; loading the validated
+snapshot records each accepted `WarningWaived` action, which Debrief displays. Editing tasks
+invalidates all draft waivers; it never changes the committed run.
 
-## What's not decided here
+## Remaining work
 
-Session persistence's schema-validation approach (hand-rolled shape checks today, `zod` proposed
-but not approved), Train console telemetry channels, and Scenario 02's fault injection are all
-still open — later PRs, not this document. All five HardBlock Validator rules this vertical slice
-has needed so far (storage, roll-limit, contact-timing, imaging-window, contact-capacity) are now
-built, plus the first WaivableWarning rule (`ELEMENTS_STALE`); `evaluatePlanDraft`'s accumulator
-supports both imaging and downlink candidates with causal ordering between them and correctly gates
-only on `HardBlock` severity; a Debrief view exists for the active training run (no session picker); and Scenario 01's full real-demo run is now proven deterministic with a golden-regression
-hash locking in its current behavior. What's still missing: a ground-contact browse/selection UI in
-`PlanV2` so an operator can actually build a downlink candidate (today only imaging candidates have
-a selection UI), a real committable-plan/commit flow producing real `DomainEvent`s (today's draft is
-in-memory app-session state only), and an actual waiver interaction/flow for `WaivableWarning` findings — the
-rule exists now, but nothing lets an operator waive one yet.
+Durable draft/plan save and mid-run resume need to retain the compiled snapshot and pending
+schedule, not just replay already-recorded events. Session selection, schema migration for this
+data, Train telemetry channels and Scenario 02 fault injection remain follow-up work. The
+operator-selected Plan → Train → Debrief path now exists, alongside the unchanged Scenario 01
+golden regression. Real-geometry plan tests exercise the same forecasting implementation and are
+integration checks, not independent orbital validation; analytic capacity/storage tests establish
+the arithmetic boundaries separately. Installed Windows/WebView2 acceptance remains a manual
+check after the installer CI build succeeds.

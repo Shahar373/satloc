@@ -38,6 +38,7 @@ export function TrainV2({ onDebrief }: { onDebrief: () => void }) {
     advance,
     stepNext,
     restart,
+    plan,
   } = useTraining();
   const [confirmRestart, setConfirmRestart] = useState(false);
 
@@ -67,14 +68,14 @@ export function TrainV2({ onDebrief }: { onDebrief: () => void }) {
 
   const usableGB = usableStorageGB(ASTERIA_1_PROFILE);
   const storagePercent = Math.min(100, (truth.storageUsedGB / usableGB) * 100);
-  const taskIds = Object.keys(truth.taskStatus);
+  const taskIds = plan ? plan.tasks.map((task) => task.id) : Object.keys(truth.taskStatus);
 
   return (
     <div className="sl-train">
       <header className="sl-train__header">
-        <h1>{t('train.title')}</h1>
+        <h1>{t(plan ? 'train.operatorTitle' : 'train.title')}</h1>
         <p className="sl-train__disclaimer">{t('train.disclaimer')}</p>
-        <p className="sl-plan__note">{t('train.sessionHint')}</p>
+        <p className="sl-plan__note">{t(plan ? 'train.planHint' : 'train.sessionHint')}</p>
       </header>
 
       {timelineError && (
@@ -158,10 +159,21 @@ export function TrainV2({ onDebrief }: { onDebrief: () => void }) {
         ) : (
           <ul className="sl-train__task-list">
             {taskIds.map((taskId) => {
-              const status = truth.taskStatus[taskId]!;
+              const status = truth.taskStatus[taskId] ?? 'planned';
+              const task = plan?.tasks.find((task) => task.id === taskId);
               return (
                 <li key={taskId} className="sl-train__task-row">
-                  <span>{t(`train.taskLabels.${taskId}`, { defaultValue: taskId })}</span>
+                  <span>
+                    {task
+                      ? t(task.kind === 'imaging' ? 'plan.captureLabel' : 'plan.downlinkLabel', {
+                          mode: task.mode,
+                          station: task.subject,
+                        })
+                      : t(`train.taskLabels.${taskId}`, { defaultValue: taskId })}
+                    {task && (
+                      <small className="sl-train__task-time sl-mono">{task.start.toISOString().slice(0, 19)}Z</small>
+                    )}
+                  </span>
                   <Pill tone={TASK_STATUS_TONE[status] ?? 'info'}>{t(`train.taskStatus.${status}`)}</Pill>
                 </li>
               );

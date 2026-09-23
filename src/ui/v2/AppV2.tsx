@@ -156,7 +156,7 @@ export function AppV2() {
       <main className="sl-shell__main">
         {workspace === 'explore' && <GlobeExploreV2 />}
         {workspace === 'train' && <TrainV2 onDebrief={() => changeWorkspace('debrief')} />}
-        {workspace === 'plan' && <PlanV2 />}
+        {workspace === 'plan' && <PlanV2 onTrain={() => changeWorkspace('train')} />}
         {workspace === 'debrief' && <DebriefV2 onTrain={() => changeWorkspace('train')} />}
       </main>
       {workspace === 'explore' && (

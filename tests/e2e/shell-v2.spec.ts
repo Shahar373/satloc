@@ -252,3 +252,82 @@ test('leaving a playing run pauses it and the top bar uses the training clock', 
   await expect(page.locator('.sl-train').getByRole('button', { name: 'Play', exact: true })).toBeVisible();
   await expect(page.getByTestId('workspace-clock')).toHaveText(paused ?? '');
 });
+
+test('an operator selects MS and GS-North, waives warnings, replaces a run explicitly, and debriefs that exact plan', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto(APP_URL);
+  await page.getByRole('button', { name: 'Train', exact: true }).click();
+  await page.getByTestId('training-next').click();
+  const guidedTime = await page.locator('.sl-train__clock-value').textContent();
+  await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  const commit = page.getByTestId('plan-commit');
+  await expect(commit).toBeDisabled();
+  await page.getByLabel('Mode', { exact: true }).selectOption('MS');
+  const selected = page
+    .getByTestId('imaging-opportunity')
+    .filter({ has: page.locator('.sl-pill--warning') })
+    .first();
+  await expect(selected).toBeVisible();
+  const captureTime = await selected.locator('.sl-plan__row-time').textContent();
+  await selected.getByRole('button', { name: 'Add to plan', exact: true }).click();
+  await expect(page.getByTestId('draft-task')).toHaveCount(1);
+  await expect(commit).toBeDisabled(); // every capture needs a downlink
+  await page.getByRole('button', { name: 'Choose a downlink', exact: true }).click();
+  const north = page
+    .getByTestId('contact-opportunity')
+    .filter({ hasText: 'GS-North' })
+    .filter({ has: page.locator('.sl-pill--nominal') })
+    .first();
+  await north.getByRole('button', { name: 'Add downlink', exact: true }).click();
+  await expect(page.getByTestId('draft-task')).toHaveCount(2);
+  await expect(commit).toBeDisabled(); // stale orbit warnings are actionable, never implicit
+  let waivers = page.getByTestId('plan-waiver');
+  await expect(waivers).toHaveCount(2);
+  for (const waiver of await waivers.all()) await waiver.getByRole('checkbox').check();
+  await expect(commit).toBeDisabled(); // checking without a reason is insufficient
+  for (const waiver of await waivers.all())
+    await waiver.getByRole('textbox').fill('Accepted for this synthetic MS training run');
+  await expect(commit).toBeEnabled();
+  // Any task edit resets all decisions so stale waivers cannot carry into a revised plan.
+  await page.getByTestId('draft-task').last().getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(commit).toBeDisabled();
+  await north.getByRole('button', { name: 'Add downlink', exact: true }).click();
+  waivers = page.getByTestId('plan-waiver');
+  for (const waiver of await waivers.all()) {
+    await expect(waiver.getByRole('checkbox')).not.toBeChecked();
+    await waiver.getByRole('checkbox').check();
+    await waiver.getByRole('textbox').fill('Accepted for this synthetic MS training run');
+  }
+  await commit.click();
+  await expect(commit).toHaveText('Replace run & load plan');
+  await page.locator('.sl-plan__commit').getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('button', { name: 'Train', exact: true }).click();
+  await expect(page.locator('.sl-train__clock-value')).toHaveText(guidedTime ?? '');
+  await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  await expect(commit).toBeEnabled();
+  await commit.click();
+  await commit.click();
+  await expect(page.getByRole('heading', { name: 'Your capture & downlink plan', exact: true })).toBeVisible();
+  await expect(page.locator('.sl-train__task-row')).toHaveCount(2);
+  await expect(page.locator('.sl-train__task-row')).toContainText(['Imaging — MS', 'Downlink — GS-North']);
+  await expect(page.locator('.sl-train').getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+  const next = page.getByTestId('training-next');
+  for (let i = 0; i < 20 && (await next.isEnabled()); i++) await next.click();
+  await expect(next).toBeDisabled();
+  await expect(page.locator('.sl-train__storage-label')).toContainText('0.00 / 6 GB');
+  await expect(page.locator('.sl-train__task-row .sl-pill')).toHaveText(['Done', 'Done']);
+  await page.getByRole('button', { name: 'Review this run', exact: true }).click();
+  await expect(page.getByTestId('plan-audit')).toContainText('Operator plan loaded and validated');
+  await expect(page.getByTestId('plan-audit')).toContainText('Accepted for this synthetic MS training run');
+  const stored = page.locator('.sl-debrief__row').filter({ hasText: 'Data product stored' });
+  await expect(stored).toHaveCount(1);
+  await expect(stored).toContainText('MS, 0.4 GB');
+  await expect(stored.locator('.sl-debrief__row-time')).toContainText(
+    (captureTime ?? '').slice(0, 19).replace(' ', 'T'),
+  );
+  await expect(page.locator('.sl-debrief__row').filter({ hasText: 'Downlink completed' })).toContainText('GS-North');
+  expect(errors).toEqual([]);
+});
