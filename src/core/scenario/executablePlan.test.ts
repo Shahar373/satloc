@@ -108,6 +108,7 @@ describe('executable operator plans', () => {
 
   it('accounts at byte precision for a full mixed PAN/MS plan and frees every byte', () => {
     // Independent arithmetic: 2 × 1.2 GB + 9 × 0.4 GB = exactly 6 GB.
+    // Download takes 6 × 8000 / 150 = 320 s, plus 20 s acquisition: exactly 340 s.
     const images = Array.from({ length: 11 }, (_, i) => capture(`mix-${i}`, 60 + i * 60, i < 2 ? 'PAN' : 'MS'));
     const candidates = [
       ...images,
@@ -115,16 +116,17 @@ describe('executable operator plans', () => {
         'dl',
         images.map((i) => i.id),
         1000,
-        400,
+        340,
       ),
     ];
     expect(evaluate(candidates).hardBlocked).toBe(false);
     expect(evaluate(candidates).peakStorageGB).toBe(6);
     expect(evaluate(candidates).remainingStorageGB).toBe(0);
     const plan = compilePlan(scenario, candidates, [], 'mixed');
+    expect(plan.timeline.filter((item) => item.event.type === 'DownlinkCompleted@1').at(-1)?.simTime).toEqual(at(1340));
     const runner = new ScenarioRunner(scenario, 'byte-accounting');
     for (const item of plan.timeline) runner.schedule(item.simTime, item.event);
-    runner.clock.seek(at(1400));
+    runner.clock.seek(at(1340));
     runner.advance(0);
     expect(runner.truth.storageUsedGB).toBe(0);
     expect(Object.keys(runner.truth.dataProducts)).toHaveLength(0);

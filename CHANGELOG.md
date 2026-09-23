@@ -11,7 +11,7 @@ Each section becomes the release notes of that version (see scripts/release-note
   editing the tasks invalidates previous waivers.
 - Record plan loading, command submissions and waiver decisions in the current run; show their
   reasons in Debrief. Replacing a run requires confirmation; restarting repeats its selected plan.
-- Keep mixed PAN/MS storage accounting exact to a decimal byte at the 6 GB capacity boundary.
+- Keep mixed PAN/MS storage and download accounting exact to a decimal byte at capacity boundaries.
 - Draft and run remain in memory; durable save/resume and installed Windows acceptance remain
   follow-up work. No release version change.
 

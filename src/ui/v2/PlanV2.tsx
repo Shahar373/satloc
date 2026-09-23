@@ -67,10 +67,11 @@ export function PlanV2({ onTrain }: { onTrain: () => void }) {
     const available = images.filter((image) => image.opportunity.end <= contact.pass.aos && !assigned.has(image.id));
     if (!selected && !available.length) return [];
     const candidate = selected ?? { ...contact, dataProductCandidateIds: available.map((image) => image.id) };
-    const sizeGB = candidate.dataProductCandidateIds.reduce(
-      (sum, id) => sum + scenario.satellite.storage.productGB[draft.modes[id] ?? 'PAN'],
-      0,
-    );
+    const sizeGB =
+      candidate.dataProductCandidateIds.reduce(
+        (sum, id) => sum + Math.round(scenario.satellite.storage.productGB[draft.modes[id] ?? 'PAN'] * 1e9),
+        0,
+      ) / 1e9;
     return [{ candidate, selected: !!selected, sizeGB, capacityGB: downlinkGB(scenario.satellite, contact.durationS) }];
   });
   const totalStorageGB = usableStorageGB(scenario.satellite);
