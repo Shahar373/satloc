@@ -3,8 +3,9 @@ name: CI
 on:
   push:
     branches:
-      # Only the default branch, so pushing a PR branch doesn't double-run CI alongside the
-      # pull_request trigger below. Update this when D6 renames the default branch to `main`.
+      # Accept both integration-branch names during the migration to main.
+      # Feature branches are checked only by the pull_request trigger below.
+      - main
       - claude/earth-app-realtime-satellites-qteq9b
   pull_request:
 
