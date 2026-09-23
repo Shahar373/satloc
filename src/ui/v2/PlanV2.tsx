@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ASTERIA_1_PROFILE, ASTERIA_1_SCENARIO, ASTERIA_1_TARGETS, ASTERIA_1_TLE } from '../../contracts';
 import { usableStorageGB } from '../../contracts/domain';
 import type { ValidationFinding } from '../../contracts/validation';
-import { evaluateImagingOpportunities, type EvaluatedOpportunity } from '../../core/scenario/planOpportunities';
+import { validateImagingOpportunities, type EvaluatedOpportunity } from '../../core/scenario/planOpportunities';
 import { evaluatePlanDraft, type ImagingPlanCandidate } from '../../core/scenario/planDraft';
 import { elementSetAgeDays, satrecEpochDate, tleToElementSet } from '../../core/tle/omm';
+import { usePlanDraft } from '../../state/planDraft';
+import { ForecastClient } from '../../workers/ForecastClient';
 import { Button } from './primitives/Button';
 import { Pill, type PillTone } from './primitives/Pill';
 import { Surface } from './primitives/Surface';
@@ -34,32 +36,61 @@ function toneFor(finding: ValidationFinding | undefined): PillTone {
  *
  * Still short of a real, committable plan (docs/design/operator-simulation.md): there's no
  * `CommandSubmitted`/plan data model or commit flow yet, so adding/removing candidates here is
- * local component state, not anything recorded to an event log, and there's no waiver interaction
+ * app-session state, not anything recorded to an event log, and there's no waiver interaction
  * for a `WaivableWarning` yet either — it's shown, not yet actionable. Imaging-only selection UI,
  * same as before — no downlink-candidate browse/selection UI.
  */
 export function PlanV2() {
   const { t } = useTranslation();
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [draftIds, setDraftIds] = useState<string[]>([]);
+  const draftIds = usePlanDraft((s) => s.ids);
+  const toggleDraft = usePlanDraft((s) => s.toggle);
+  const [loading, setLoading] = useState(true);
+  const [context, setContext] = useState<{
+    evaluated: EvaluatedOpportunity[];
+    targetId: string | null;
+    epoch: Date | null;
+  }>({ evaluated: [], targetId: null, epoch: null });
 
-  const context = useMemo<{ evaluated: EvaluatedOpportunity[]; targetId: string | null; epoch: Date | null }>(() => {
-    try {
-      const { satrec } = tleToElementSet(ASTERIA_1_TLE.line1, ASTERIA_1_TLE.line2, ASTERIA_1_TLE.name);
-      const [target] = ASTERIA_1_TARGETS;
-      if (!target) throw new Error('Asteria-1 has no imaging targets configured');
-      const evaluated = evaluateImagingOpportunities(
-        satrec,
-        ASTERIA_1_PROFILE,
-        target,
-        new Date(ASTERIA_1_SCENARIO.startTime),
-        SEARCH_DAYS,
-      );
-      return { evaluated, targetId: target.id, epoch: satrecEpochDate(satrec) };
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : String(error));
-      return { evaluated: [], targetId: null, epoch: null };
+  useEffect(() => {
+    let cancelled = false;
+    let client: ForecastClient | undefined;
+    async function load() {
+      try {
+        client = new ForecastClient();
+        const { satrec } = tleToElementSet(ASTERIA_1_TLE.line1, ASTERIA_1_TLE.line2, ASTERIA_1_TLE.name);
+        const [target] = ASTERIA_1_TARGETS;
+        if (!target) throw new Error('Asteria-1 has no imaging targets configured');
+        const epoch = satrecEpochDate(satrec);
+        const opportunities = await client.imaging(
+          'asteria-1',
+          { source: 'tle', tle: { ...ASTERIA_1_TLE, noradId: Number(satrec.satnum) } },
+          {
+            latitude: (target.latitudeDeg * Math.PI) / 180,
+            longitude: (target.longitudeDeg * Math.PI) / 180,
+            heightKm: 0,
+          },
+          new Date(ASTERIA_1_SCENARIO.startTime),
+          SEARCH_DAYS,
+          { maxOffNadirDeg: 45 },
+        );
+        if (!cancelled)
+          setContext({
+            evaluated: validateImagingOpportunities(opportunities, ASTERIA_1_PROFILE, target, epoch),
+            targetId: target.id,
+            epoch,
+          });
+      } catch (error) {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : String(error));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
+    void load();
+    return () => {
+      cancelled = true;
+      client?.terminate();
+    };
   }, []);
   const { evaluated, targetId, epoch } = context;
 
@@ -89,10 +120,6 @@ export function PlanV2() {
 
   const draftEvaluated = useMemo(() => evaluatePlanDraft(ASTERIA_1_PROFILE, draftCandidates), [draftCandidates]);
 
-  const toggleDraft = (id: string) => {
-    setDraftIds((prev) => (prev.includes(id) ? prev.filter((existing) => existing !== id) : [...prev, id]));
-  };
-
   const totalStorageGB = usableStorageGB(ASTERIA_1_PROFILE);
   const usedStorageGB = draftEvaluated.at(-1)?.cumulativeStorageUsedGB ?? 0;
 
@@ -110,84 +137,103 @@ export function PlanV2() {
         </p>
       )}
 
-      <Surface className="sl-plan__list-surface">
-        {evaluated.length === 0 && !loadError ? (
-          <p className="sl-plan__empty">{t('plan.empty')}</p>
-        ) : (
-          <ul className="sl-plan__list">
-            {evaluated.map(({ opportunity, findings }) => {
-              const id = opportunity.start.toISOString();
-              const headline = headlineFinding(findings);
-              const inDraft = draftIds.includes(id);
-              return (
-                <li key={id} className="sl-plan__row">
-                  <div className="sl-plan__row-main">
-                    <span className="sl-mono sl-tabular sl-plan__row-time">{id}</span>
-                    <span className="sl-plan__row-meta">
-                      {t('plan.offNadir', { deg: opportunity.offNadirDeg.toFixed(1) })} ·{' '}
-                      {opportunity.daylight ? t('plan.daylightYes') : t('plan.daylightNo')}
-                    </span>
-                  </div>
-                  <div className="sl-plan__row-status">
-                    <Pill tone={toneFor(headline)}>{headline ? headline.code : t('plan.clean')}</Pill>
-                    {headline && <span className="sl-plan__row-reason">{headline.message}</span>}
-                    <Button variant={inDraft ? 'default' : 'ghost'} onClick={() => toggleDraft(id)}>
-                      {inDraft ? t('plan.removeFromDraft') : t('plan.addToDraft')}
-                    </Button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Surface>
+      <div className="sl-plan__columns">
+        <Surface className="sl-plan__list-surface">
+          <h2>{t('plan.opportunities', { count: evaluated.length })}</h2>
+          {loading ? (
+            <p role="status">{t('plan.loading')}</p>
+          ) : evaluated.length === 0 && !loadError ? (
+            <p className="sl-plan__empty">{t('plan.empty')}</p>
+          ) : (
+            <ul className="sl-plan__list">
+              {evaluated.map(({ opportunity, findings }) => {
+                const id = opportunity.start.toISOString();
+                const headline = headlineFinding(findings);
+                const inDraft = draftIds.includes(id);
+                return (
+                  <li key={id} className="sl-plan__row">
+                    <div className="sl-plan__row-main">
+                      <span className="sl-mono sl-tabular sl-plan__row-time">
+                        {id.slice(0, 19).replace('T', ' ')} UTC
+                      </span>
+                      <span className="sl-plan__row-meta">
+                        {t('plan.offNadir', { deg: opportunity.offNadirDeg.toFixed(1) })} ·{' '}
+                        {opportunity.daylight ? t('plan.daylightYes') : t('plan.daylightNo')}
+                      </span>
+                    </div>
+                    <div className="sl-plan__row-status">
+                      <Pill tone={toneFor(headline)}>
+                        {headline
+                          ? t(`plan.findings.${headline.code}`, { defaultValue: headline.message })
+                          : t('plan.clean')}
+                      </Pill>
+                      {headline && <span className="sl-plan__row-reason">{headline.message}</span>}
+                      <Button
+                        variant={inDraft ? 'default' : 'ghost'}
+                        disabled={!inDraft && findings.some((finding) => finding.severity === 'HardBlock')}
+                        onClick={() => toggleDraft(id)}
+                      >
+                        {inDraft ? t('plan.removeFromDraft') : t('plan.addToDraft')}
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Surface>
 
-      <Surface className="sl-plan__draft-surface">
-        <div className="sl-plan__draft-header">
-          <h2>{t('plan.draftTitle')}</h2>
-          <span className="sl-mono sl-tabular sl-plan__draft-storage">
-            {t('plan.storageUsed', { used: usedStorageGB.toFixed(1), total: totalStorageGB.toFixed(1) })}
-          </span>
-        </div>
-        {draftEvaluated.length === 0 ? (
-          <p className="sl-plan__empty">{t('plan.draftEmpty')}</p>
-        ) : (
-          <ul className="sl-plan__list">
-            {draftEvaluated.map(({ candidate, findings, cumulativeStorageUsedGB }, index) => {
-              // PlanV2 only ever builds imaging candidates today (see draftCandidates above) — no
-              // downlink-candidate selection UI exists yet — so this narrows evaluatePlanDraft's
-              // general PlanCandidate union back down for the imaging-specific fields below.
-              if (candidate.kind !== 'imaging') return null;
-              const headline = headlineFinding(findings);
-              return (
-                <li key={candidate.id} className="sl-plan__row">
-                  <div className="sl-plan__row-main">
-                    <span className="sl-plan__row-seq">
-                      <span className="sl-bidi-isolate">#{index + 1}</span>
-                    </span>
-                    <span className="sl-mono sl-tabular sl-plan__row-time">
-                      {candidate.opportunity.start.toISOString()}
-                    </span>
-                    <span className="sl-mono sl-tabular sl-plan__row-meta">
-                      {t('plan.storageUsed', {
-                        used: cumulativeStorageUsedGB.toFixed(1),
-                        total: totalStorageGB.toFixed(1),
-                      })}
-                    </span>
-                  </div>
-                  <div className="sl-plan__row-status">
-                    <Pill tone={toneFor(headline)}>{headline ? headline.code : t('plan.clean')}</Pill>
-                    {headline && <span className="sl-plan__row-reason">{headline.message}</span>}
-                    <Button variant="ghost" onClick={() => toggleDraft(candidate.id)}>
-                      {t('plan.removeFromDraft')}
-                    </Button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Surface>
+        <Surface className="sl-plan__draft-surface">
+          <div className="sl-plan__draft-header">
+            <h2>{t('plan.draftTitle')}</h2>
+            <span className="sl-mono sl-tabular sl-plan__draft-storage">
+              {t('plan.storageUsed', { used: usedStorageGB.toFixed(1), total: totalStorageGB.toFixed(1) })}
+            </span>
+          </div>
+          {draftEvaluated.length === 0 ? (
+            <p className="sl-plan__empty">{t('plan.draftEmpty')}</p>
+          ) : (
+            <ul className="sl-plan__list">
+              {draftEvaluated.map(({ candidate, findings, cumulativeStorageUsedGB }, index) => {
+                // PlanV2 only ever builds imaging candidates today (see draftCandidates above) — no
+                // downlink-candidate selection UI exists yet — so this narrows evaluatePlanDraft's
+                // general PlanCandidate union back down for the imaging-specific fields below.
+                if (candidate.kind !== 'imaging') return null;
+                const headline = headlineFinding(findings);
+                return (
+                  <li key={candidate.id} className="sl-plan__row">
+                    <div className="sl-plan__row-main">
+                      <span className="sl-plan__row-seq">
+                        <span className="sl-bidi-isolate">#{index + 1}</span>
+                      </span>
+                      <span className="sl-mono sl-tabular sl-plan__row-time">
+                        {candidate.opportunity.start.toISOString().slice(0, 19).replace('T', ' ')} UTC
+                      </span>
+                      <span className="sl-mono sl-tabular sl-plan__row-meta">
+                        {t('plan.storageUsed', {
+                          used: cumulativeStorageUsedGB.toFixed(1),
+                          total: totalStorageGB.toFixed(1),
+                        })}
+                      </span>
+                    </div>
+                    <div className="sl-plan__row-status">
+                      <Pill tone={toneFor(headline)}>
+                        {headline
+                          ? t(`plan.findings.${headline.code}`, { defaultValue: headline.message })
+                          : t('plan.clean')}
+                      </Pill>
+                      {headline && <span className="sl-plan__row-reason">{headline.message}</span>}
+                      <Button variant="ghost" onClick={() => toggleDraft(candidate.id)}>
+                        {t('plan.removeFromDraft')}
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Surface>
+      </div>
     </div>
   );
 }

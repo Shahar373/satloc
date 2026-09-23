@@ -123,26 +123,47 @@ export function AppV2() {
     if (selectedId != null) setInspectorOpen(true);
   }, [selectedId]);
 
-  const drawerOpen = railOpen || inspectorOpen;
+  const changeWorkspace = (next: WorkspaceId) => {
+    setRailOpen(false);
+    setInspectorOpen(false);
+    setWorkspace(next);
+  };
+  const selectSatellite = (id: number) => {
+    useSelection.getState().select(id);
+    setWorkspace('explore');
+    setRailOpen(false);
+    setInspectorOpen(true);
+  };
+  const drawerOpen = railOpen || (workspace === 'explore' && inspectorOpen);
 
   return (
-    <div className="sl-v2 sl-shell" dir={dir} lang={i18n.language}>
-      <TopBarV2 onOpenPalette={openPalette} onOpenSettings={openSettings} onOpenRailDrawer={() => setRailOpen(true)} />
+    <div className="sl-v2 sl-shell" data-workspace={workspace} dir={dir} lang={i18n.language}>
+      <TopBarV2
+        workspace={workspace}
+        onOpenPalette={openPalette}
+        onOpenSettings={openSettings}
+        onOpenRailDrawer={() => {
+          setInspectorOpen(false);
+          setRailOpen(true);
+        }}
+      />
       <RailV2
         workspace={workspace}
-        onChange={setWorkspace}
+        onChange={changeWorkspace}
         drawerOpen={railOpen}
         onCloseDrawer={() => setRailOpen(false)}
       />
       <main className="sl-shell__main">
         {workspace === 'explore' && <GlobeExploreV2 />}
-        {workspace === 'train' && <TrainV2 />}
+        {workspace === 'train' && <TrainV2 onDebrief={() => changeWorkspace('debrief')} />}
         {workspace === 'plan' && <PlanV2 />}
-        {workspace === 'debrief' && <DebriefV2 />}
+        {workspace === 'debrief' && <DebriefV2 onTrain={() => changeWorkspace('train')} />}
       </main>
-      <InspectorV2 drawerOpen={inspectorOpen} onCloseDrawer={() => setInspectorOpen(false)} />
-      <DockV2 workspace={workspace} />
-      <CommandPaletteV2 open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      {workspace === 'explore' && (
+        <InspectorV2 drawerOpen={inspectorOpen} onCloseDrawer={() => setInspectorOpen(false)} />
+      )}
+      {workspace === 'explore' && <DockV2 onSelect={selectSatellite} />}
+      <CommandPaletteV2 onSelect={selectSatellite} open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <SettingsV2 open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       {drawerOpen && (
         <div

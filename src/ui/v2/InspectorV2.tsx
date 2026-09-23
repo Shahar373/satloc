@@ -5,6 +5,7 @@ import { useLiveOrbit } from '../useLiveOrbit';
 import { Icon } from './Icon';
 import { Field } from './primitives/Field';
 import { Switch } from './primitives/Switch';
+import { Button } from './primitives/Button';
 
 function fmt(value: number, digits: number, unit: string): string {
   return Number.isFinite(value) ? `${value.toFixed(digits)} ${unit}` : '—';
@@ -26,9 +27,10 @@ export interface InspectorV2Props {
 export function InspectorV2({ drawerOpen = false, onCloseDrawer }: InspectorV2Props) {
   const { t } = useTranslation();
   const selectedId = useSelection((s) => s.selectedId);
-  const sets = useCatalog((s) => s.sets);
-  const selected = selectedId == null ? undefined : sets.find((s) => s.noradId === selectedId);
+  const catalog = useCatalog();
+  const selected = selectedId == null ? undefined : catalog.findSet(selectedId);
   const orbit = useLiveOrbit(selected);
+  const cameraMode = useSelection((s) => s.cameraMode);
 
   const showOrbit = useSelection((s) => s.showOrbit);
   const showGroundTrack = useSelection((s) => s.showGroundTrack);
@@ -68,6 +70,19 @@ export function InspectorV2({ drawerOpen = false, onCloseDrawer }: InspectorV2Pr
         <Field label={t('inspector.elementsAge')}>{orbit ? fmt(orbit.elementAgeDays, 1, 'd') : '—'}</Field>
       </div>
       <div className="sl-inspector__section-title">{t('inspector.display')}</div>
+      {orbit?.error && <p role="alert">{orbit.error}</p>}
+      <div className="sl-inspector__camera" role="group" aria-label={t('inspector.camera')}>
+        {(['free', 'track', 'nadir'] as const).map((mode) => (
+          <Button
+            key={mode}
+            variant={cameraMode === mode ? 'primary' : 'ghost'}
+            aria-pressed={cameraMode === mode}
+            onClick={() => useSelection.getState().setCameraMode(mode)}
+          >
+            {t(`inspector.cameraModes.${mode}`)}
+          </Button>
+        ))}
+      </div>
       <div className="sl-inspector__toggle-row">
         <span>{t('inspector.orbitPath')}</span>
         <Switch checked={showOrbit} onChange={toggleOrbit} label={t('inspector.orbitPath')} />

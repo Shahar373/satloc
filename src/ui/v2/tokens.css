@@ -20,7 +20,7 @@
   /* Text */
   --sl-text-primary: #e6ebf5;
   --sl-text-secondary: #97a3b8;
-  --sl-text-tertiary: #5d6a82;
+  --sl-text-tertiary: #8998b0;
   --sl-text-on-accent: #04202a;
 
   /* Accent — a controlled teal, used sparingly */
@@ -68,9 +68,9 @@
   --sl-radius-md: 6px;
 
   --sl-topbar-h: 48px;
-  --sl-rail-w: 60px;
+  --sl-rail-w: 92px;
   --sl-inspector-w: 360px;
-  --sl-dock-h: 220px;
+  --sl-dock-h: 200px;
 
   /* The breakpoint below which the sidebar/Inspector become on-demand overlays
      (Design Gate decision: "drawer behavior under 1200px"). */

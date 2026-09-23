@@ -48,6 +48,16 @@ export function evaluateImagingOpportunities(
   const opportunities = findImagingOpportunities(satrec, targetPoint, searchStart, days, { maxOffNadirDeg: 45 });
   const epoch = satrecEpochDate(satrec);
 
+  return validateImagingOpportunities(opportunities, profile, target, epoch);
+}
+
+/** Validate worker-produced geometry without repeating the expensive multi-day orbit search. */
+export function validateImagingOpportunities(
+  opportunities: ImagingOpportunity[],
+  profile: SatelliteProfile,
+  target: ImagingTarget,
+  epoch: Date,
+): EvaluatedOpportunity[] {
   return opportunities.map((opportunity) => {
     const findings: ValidationFinding[] = [];
     const taskId = `candidate-${opportunity.start.toISOString()}`;

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useViewerStore } from '../../state/viewer';
+import { useTraining } from '../../state/training';
+import type { WorkspaceId } from './RailV2';
 import { Icon } from './Icon';
 import { UpdateControlV2 } from './UpdateControlV2';
 
@@ -24,6 +26,7 @@ function useDisplayClock(): Date {
 const PALETTE_SHORTCUT = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
 
 export interface TopBarV2Props {
+  workspace: WorkspaceId;
   onOpenPalette: () => void;
   onOpenSettings: () => void;
   /** Opens the Rail as a drawer below the 1200px breakpoint (see shell.css's media query and
@@ -31,8 +34,10 @@ export interface TopBarV2Props {
   onOpenRailDrawer: () => void;
 }
 
-export function TopBarV2({ onOpenPalette, onOpenSettings, onOpenRailDrawer }: TopBarV2Props) {
-  const clock = useDisplayClock();
+export function TopBarV2({ workspace, onOpenPalette, onOpenSettings, onOpenRailDrawer }: TopBarV2Props) {
+  const exploreClock = useDisplayClock();
+  const trainingTime = useTraining((s) => s.simTime);
+  const clock = workspace === 'train' || workspace === 'debrief' ? trainingTime : exploreClock;
   const multiplier = useViewerStore((s) => s.multiplier);
   const { t, i18n } = useTranslation();
 
@@ -45,15 +50,18 @@ export function TopBarV2({ onOpenPalette, onOpenSettings, onOpenRailDrawer }: To
         <span className="sl-topbar__mark" aria-hidden="true" />
         SatLoc
       </div>
+      <span className="sl-topbar__workspace">{t(`rail.${workspace}`)}</span>
       <button type="button" className="sl-topbar__cmdk" onClick={onOpenPalette}>
         <Icon name="search" size={14} />
         <span>{t('topbar.searchPlaceholder')}</span>
         <kbd>{PALETTE_SHORTCUT}</kbd>
       </button>
-      <div className="sl-topbar__clock sl-mono sl-tabular">
-        <span className="sl-bidi-isolate">{formatUtc(clock)}</span>
-        {multiplier !== 1 && <span className="sl-topbar__rate"> · ×{multiplier}</span>}
-      </div>
+      {workspace !== 'plan' && (
+        <div className="sl-topbar__clock sl-mono sl-tabular" data-testid="workspace-clock">
+          <span className="sl-bidi-isolate">{formatUtc(clock)}</span>
+          {workspace === 'explore' && multiplier !== 1 && <span className="sl-topbar__rate"> · ×{multiplier}</span>}
+        </div>
+      )}
       <UpdateControlV2 />
       <button
         type="button"

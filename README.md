@@ -7,9 +7,24 @@ Installable app: desktop first (Tauri 2), Android next. Built on CesiumJS + sate
 
 - Design document (Hebrew): [docs/DESIGN.md](docs/DESIGN.md)
 
-Status: milestones M0-M6, M8 (imaging opportunities over targets) and M9 (3D model,
-own timeline, shortcuts) done and verified on Windows. Installed copies update themselves from GitHub Releases.
-Next: Hebrew UI, Android (M7).
+Status: v0.5.1 is the latest released baseline. Shell V2 provides Explore, an imaging draft,
+and the fictional Asteria-1 training scenario. The stabilization work in this branch preserves
+work across navigation and connects Train to its own Debrief. It is not a new release yet.
+
+Start here: [stability milestone and next steps (Hebrew)](docs/STABILITY.md).
+The next product milestone is executing an operator-authored capture/downlink plan. NOC features
+and Android follow that working desktop flow. A Plan draft does not drive Train yet.
+
+## Try the current workflow
+
+- **Explore:** choose a satellite, use time/rate/UTC-jump and camera controls, then switch workspaces.
+  The view and simulation time return with you.
+- **Plan:** add available opportunities to a chronological imaging draft. The draft stays while
+  the app is open. This is a preview, not an executable plan or a complete operational validator.
+- **Train:** start paused; press Play or Next event to run Scenario 01. Leaving the workspace or
+  hiding the app pauses the run. Return to resume, or explicitly Restart to discard it.
+- **Debrief:** inspect the events from that same run, including partial runs. A fresh session has
+  no events. Closing/reloading the app clears the current draft and training run.
 
 ## Releasing
 

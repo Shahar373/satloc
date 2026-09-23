@@ -63,6 +63,8 @@ test('the app boots under the Tauri Content Security Policy', async ({ page }) =
   await expect(page.getByTestId('globe')).toHaveAttribute('data-ready', 'true');
   await expect(page.getByText('SatLoc', { exact: true })).toBeVisible();
   await expect(page.locator('#boot')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  await expect(page.locator('.sl-plan__row').first()).toBeVisible();
   expect(violations).toEqual([]);
 });
 

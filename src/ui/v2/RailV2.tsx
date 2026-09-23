@@ -24,13 +24,7 @@ export interface RailV2Props {
   onCloseDrawer?: () => void;
 }
 
-/**
- * Compact icon rail (56px) that reveals workspace labels on hover/focus, adopted from Variant
- * B's discoverability in the Design Gate without committing to B's permanently-expanded 240px
- * sidebar (see docs/design/gate-01/DECISION.md for why that combination didn't hold up at
- * narrower widths). Below 1200px it becomes an on-demand drawer instead (same Design Gate
- * decision) — see shell.css's media query and AppV2's rail-toggle wiring.
- */
+/** Labeled workspace rail on desktop; a navigation drawer below 1200px. */
 export function RailV2({ workspace, onChange, drawerOpen = false, onCloseDrawer }: RailV2Props) {
   const { t } = useTranslation();
   return (

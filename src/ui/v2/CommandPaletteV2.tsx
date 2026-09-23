@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCatalog } from '../../state/catalog';
-import { useSelection } from '../../state/selection';
 import { Icon } from './Icon';
 
 export interface CommandPaletteV2Props {
   open: boolean;
   onClose: () => void;
+  onSelect: (id: number) => void;
 }
 
 /**
@@ -15,15 +15,14 @@ export interface CommandPaletteV2Props {
  * app) and jump-selects into `useSelection`. Opened by clicking the top bar's search button or
  * ⌘K/Ctrl+K (wired in `AppV2`, which owns the open/close state so both triggers share it).
  */
-export function CommandPaletteV2({ open, onClose }: CommandPaletteV2Props) {
+export function CommandPaletteV2({ open, onClose, onSelect }: CommandPaletteV2Props) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const search = useCatalog((s) => s.search);
-  const select = useSelection((s) => s.select);
+  const catalog = useCatalog();
 
-  const results = useMemo(() => (query.trim() ? search(query, 8) : []), [query, search]);
+  const results = useMemo(() => (query.trim() ? catalog.search(query, 8) : catalog.sets.slice(0, 8)), [query, catalog]);
 
   useEffect(() => {
     if (!open) return;
@@ -40,7 +39,7 @@ export function CommandPaletteV2({ open, onClose }: CommandPaletteV2Props) {
   if (!open) return null;
 
   const choose = (noradId: number) => {
-    select(noradId);
+    onSelect(noradId);
     onClose();
   };
 
@@ -50,7 +49,7 @@ export function CommandPaletteV2({ open, onClose }: CommandPaletteV2Props) {
       onClose();
     } else if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setActiveIndex((i) => Math.min(i + 1, results.length - 1));
+      setActiveIndex((i) => Math.max(0, Math.min(i + 1, results.length - 1)));
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       setActiveIndex((i) => Math.max(i - 1, 0));

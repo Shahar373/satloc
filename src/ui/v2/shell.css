@@ -1,12 +1,9 @@
-/* Shell V2 layout — the hybrid from docs/design/gate-01/DECISION.md. Below --sl-drawer-breakpoint
-   the Rail and Inspector become on-demand overlays (per the Design Gate's already-decided
-   responsive rule); that collapse behavior lands with the real Explore workspace PR, alongside
-   the Cesium canvas — this file establishes the >=1200px baseline grid only. */
+/* Shell V2: workspace-specific layout with navigation and Inspector drawers below 1200px. */
 
 .sl-shell {
   display: grid;
-  grid-template-columns: var(--sl-rail-w) 1fr var(--sl-inspector-w);
-  grid-template-rows: var(--sl-topbar-h) 1fr var(--sl-dock-h);
+  grid-template-columns: var(--sl-rail-w) minmax(0, 1fr) var(--sl-inspector-w);
+  grid-template-rows: var(--sl-topbar-h) minmax(0, 1fr) var(--sl-dock-h);
   grid-template-areas:
     'topbar topbar topbar'
     'rail main inspector'
@@ -1043,4 +1040,243 @@
   background: var(--sl-status-critical);
   border-color: var(--sl-status-critical);
   color: #fff;
+}
+
+/* Workspace stabilization: only Explore needs an Inspector and catalog dock. */
+.sl-shell[data-workspace='plan'],
+.sl-shell[data-workspace='train'],
+.sl-shell[data-workspace='debrief'] {
+  grid-template-columns: var(--sl-rail-w) minmax(0, 1fr);
+  grid-template-rows: var(--sl-topbar-h) minmax(0, 1fr);
+  grid-template-areas: 'topbar topbar' 'rail main';
+}
+.sl-shell__main {
+  min-width: 0;
+  min-height: 0;
+}
+.sl-topbar__workspace {
+  color: var(--sl-accent);
+  font-size: var(--sl-fs-13);
+}
+.sl-rail__item,
+.sl-rail__item:hover,
+.sl-rail__item:focus-visible {
+  width: 100%;
+  min-width: 0;
+  height: 68px;
+  padding: 8px 4px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  box-shadow: none;
+}
+.sl-rail__label {
+  opacity: 1;
+  font-size: var(--sl-fs-12);
+}
+.sl-plan,
+.sl-train,
+.sl-debrief {
+  padding: var(--sl-sp-6);
+}
+.sl-plan__disclaimer,
+.sl-train__disclaimer,
+.sl-debrief__disclaimer {
+  max-width: 100ch;
+}
+.sl-plan__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 390px);
+  gap: var(--sl-sp-5);
+  align-items: start;
+}
+.sl-plan__list-surface,
+.sl-plan__draft-surface {
+  min-width: 0;
+}
+.sl-plan__list-surface h2 {
+  margin: 0 0 12px;
+  font-size: var(--sl-fs-16);
+}
+.sl-plan__draft-surface {
+  position: sticky;
+  top: 0;
+  border-top: 2px solid var(--sl-accent-dim);
+}
+.sl-plan__draft-header {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.sl-plan__draft-surface .sl-plan__row {
+  flex-direction: column;
+  gap: 8px;
+}
+.sl-plan__draft-surface .sl-plan__row-status {
+  align-items: flex-start;
+  text-align: start;
+}
+.sl-plan__row-time {
+  font-size: var(--sl-fs-12);
+  overflow-wrap: anywhere;
+}
+.sl-plan__row-main,
+.sl-plan__row-status {
+  min-width: 0;
+}
+.sl-plan__row-status .sl-pill {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.sl-train__next {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.sl-train__controls {
+  flex-wrap: wrap;
+}
+.sl-train__next .sl-mono {
+  margin-top: 6px;
+  font-size: var(--sl-fs-13);
+}
+.sl-debrief__row {
+  flex-wrap: wrap;
+}
+.sl-debrief__row-state {
+  flex-wrap: wrap;
+}
+.sl-dock {
+  min-height: 0;
+}
+.sl-dock__title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sl-dock__table th {
+  color: var(--sl-text-tertiary);
+  font-size: var(--sl-fs-12);
+  text-align: start;
+  font-weight: 500;
+  padding: 4px 8px;
+}
+.sl-dock__row-name button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.sl-dock__notice {
+  color: var(--sl-status-warning);
+  margin: 6px 0;
+  font-size: var(--sl-fs-12);
+}
+.sl-explore-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--sl-border-subtle);
+}
+.sl-explore-controls .sl-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+}
+.sl-explore-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--sl-fs-12);
+  color: var(--sl-text-secondary);
+}
+.sl-explore-controls input,
+.sl-explore-controls select {
+  color-scheme: dark;
+  background: var(--sl-bg-inset);
+  color: var(--sl-text-primary);
+  border: 1px solid var(--sl-border-strong);
+  border-radius: 4px;
+  padding: 5px;
+  font: inherit;
+  direction: ltr;
+}
+.sl-inspector__camera {
+  display: flex;
+  gap: 4px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+.sl-inspector__camera .sl-button {
+  padding-inline: 10px;
+}
+@media (max-width: 1199px) {
+  .sl-shell[data-workspace='plan'],
+  .sl-shell[data-workspace='train'],
+  .sl-shell[data-workspace='debrief'] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'topbar' 'main';
+  }
+  .sl-rail__item,
+  .sl-rail__item:hover,
+  .sl-rail__item:focus-visible {
+    flex-direction: row;
+    justify-content: flex-start;
+    height: 48px;
+    padding-inline: 16px;
+    gap: 12px;
+  }
+  .sl-rail__label {
+    font-size: var(--sl-fs-14);
+  }
+  .sl-rail:not([data-open='true']),
+  .sl-inspector:not([data-open='true']) {
+    visibility: hidden;
+  }
+  .sl-plan__columns {
+    grid-template-columns: minmax(0, 1fr) 310px;
+  }
+}
+@media (max-width: 760px) {
+  .sl-topbar__clock,
+  .sl-topbar__workspace,
+  .sl-topbar__cmdk kbd {
+    display: none;
+  }
+  .sl-topbar {
+    padding-inline: 8px;
+  }
+  .sl-plan,
+  .sl-train,
+  .sl-debrief {
+    padding: 12px;
+  }
+  .sl-plan__columns {
+    display: flex;
+    flex-direction: column;
+  }
+  .sl-plan__draft-surface {
+    position: static;
+    order: -1;
+    width: 100%;
+  }
+  .sl-plan__list-surface {
+    width: 100%;
+  }
+  .sl-plan__row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .sl-plan__row-status {
+    text-align: start;
+    align-items: flex-start;
+  }
 }
