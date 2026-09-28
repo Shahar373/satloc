@@ -1,12 +1,12 @@
 {
-  "fetchedAt": "2026-09-27T09:18:48.707Z",
+  "fetchedAt": "2026-09-28T09:51:32.520Z",
   "records": [
     {
       "OBJECT_NAME": "EROS C3",
       "OBJECT_ID": "2022-179A",
       "EPOCH": "2026-09-27T01:28:56.768160",
       "MEAN_MOTION": 15.1148341,
-      "ECCENTRICITY": 0.000852,
+      "ECCENTRICITY": 0.00085201,
       "INCLINATION": 139.3351,
       "RA_OF_ASC_NODE": 227.0246,
       "ARG_OF_PERICENTER": 316.9112,
@@ -16,7 +16,7 @@
       "NORAD_CAT_ID": 54880,
       "ELEMENT_SET_NO": 999,
       "REV_AT_EPOCH": 20774,
-      "BSTAR": 0.00020912,
+      "BSTAR": 0.00020912272,
       "MEAN_MOTION_DOT": 0.00003855,
       "MEAN_MOTION_DDOT": 0
     }
