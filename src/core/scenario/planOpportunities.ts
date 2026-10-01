@@ -7,6 +7,7 @@ import type { TargetPoint } from '../imaging/geometry';
 import { elementSetAgeDays, satrecEpochDate } from '../tle/omm';
 import { checkElementsStale } from '../validation/elementsStale';
 import { checkImagingWindow } from '../validation/imagingWindow';
+import { checkIllumination } from '../validation/illumination';
 import { checkRollLimit } from '../validation/rollLimit';
 
 export interface EvaluatedOpportunity {
@@ -75,6 +76,13 @@ export function validateImagingOpportunities(
       simTime: opportunity.time,
     });
     if (windowFinding) findings.push(windowFinding);
+
+    const lightFinding = checkIllumination(profile, {
+      taskId,
+      targetId: target.id,
+      sunElevationDeg: opportunity.sunElevationDeg,
+    });
+    if (lightFinding) findings.push(lightFinding);
 
     const staleFinding = checkElementsStale({
       taskId,

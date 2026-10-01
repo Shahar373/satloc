@@ -7,24 +7,27 @@ Installable app: desktop first (Tauri 2), Android next. Built on CesiumJS + sate
 
 - Design document (Hebrew): [docs/DESIGN.md](docs/DESIGN.md)
 
-Status: v0.5.1 is the latest released baseline. Shell V2 provides Explore, an imaging draft,
-and the fictional Asteria-1 training scenario. The stabilization work in this branch preserves
-work across navigation and connects Train to its own Debrief. It is not a new release yet.
+Status: v0.5.1 is the latest released baseline. The unreleased desktop work now connects
+an operator-authored capture/downlink plan to Train and Debrief, alongside Explore and the
+guided fictional Asteria-1 scenario. This is a training model, not an operational flight system.
 
 Start here: [stability milestone and next steps (Hebrew)](docs/STABILITY.md).
-The next product milestone is executing an operator-authored capture/downlink plan. NOC features
-and Android follow that working desktop flow. A Plan draft does not drive Train yet.
+Durable save/resume and an installed Windows acceptance check come before expanding into NOC
+or Android. Drafts and runs currently survive navigation, but not closing/reloading the app.
 
 ## Try the current workflow
 
 - **Explore:** choose a satellite, use time/rate/UTC-jump and camera controls, then switch workspaces.
   The view and simulation time return with you.
-- **Plan:** add available opportunities to a chronological imaging draft. The draft stays while
-  the app is open. This is a preview, not an executable plan or a complete operational validator.
-- **Train:** start paused; press Play or Next event to run Scenario 01. Leaving the workspace or
-  hiding the app pauses the run. Return to resume, or explicitly Restart to discard it.
-- **Debrief:** inspect the events from that same run, including partial runs. A fresh session has
-  no events. Closing/reloading the app clears the current draft and training run.
+- **Plan:** select daylight PAN/MS captures, then later GS-Home/GS-North contacts. Each contact
+  downloads the available unassigned captures selected before it. Review storage, timing and
+  capacity checks; accept each older-orbit warning with a reason. Load the plan into Train.
+- **Train:** your exact plan starts paused. Press Play or Next event; leaving the workspace or
+  hiding the app pauses the run. Restart repeats its snapshot. Loading another plan requires
+  confirmation if a run already exists. Entering Train before loading a plan still starts the
+  guided Scenario 01.
+- **Debrief:** inspect that same run's events, including partial runs, with the recorded plan
+  decision and warning reasons. Changes to the draft do not change an already-loaded run.
 
 ## Releasing
 
