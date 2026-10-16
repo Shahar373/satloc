@@ -2,6 +2,19 @@
 
 Each section becomes the release notes of that version (see scripts/release-notes.mjs).
 
+## Unreleased
+
+- Plan → Train → Debrief: choose PAN/MS captures and real forecast contacts at GS-Home or GS-North,
+  validate the full sequence, and run an independent snapshot of those exact choices.
+- Block insufficient sunlight, overlapping task windows, missing/duplicate products, storage
+  overflow and inadequate contact capacity. Older-orbit warnings require an explicit reason;
+  editing the tasks invalidates previous waivers.
+- Record plan loading, command submissions and waiver decisions in the current run; show their
+  reasons in Debrief. Replacing a run requires confirmation; restarting repeats its selected plan.
+- Keep mixed PAN/MS storage and download accounting exact to a decimal byte at capacity boundaries.
+- Draft and run remain in memory; durable save/resume and installed Windows acceptance remain
+  follow-up work. No release version change.
+
 ## 0.5.1
 
 Fixes for two things reported from the installed 0.5.0 build: text that rendered too small for its panels, and no way to reach settings or check for updates.

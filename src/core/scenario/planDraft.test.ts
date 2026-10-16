@@ -106,6 +106,7 @@ describe('evaluatePlanDraft', () => {
     const opportunities = findImagingOpportunities(satrec, targetPoint, start, 30, { maxOffNadirDeg: 45 });
     const clean = opportunities.filter(
       (o) =>
+        o.sunElevationDeg >= ASTERIA_1_PROFILE.imaging.sunElevationConstraintDeg &&
         checkRollLimit(ASTERIA_1_PROFILE, {
           taskId: 't',
           targetId: target.id,

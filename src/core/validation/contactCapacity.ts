@@ -27,9 +27,11 @@ export function checkContactCapacity(
   profile: SatelliteProfile,
   candidate: ContactCapacityCandidate,
 ): ValidationFinding | null {
-  const neededGB = candidate.dataProducts.reduce((sum, product) => sum + product.sizeGB, 0);
+  const neededBytes = candidate.dataProducts.reduce((sum, product) => sum + Math.round(product.sizeGB * 1e9), 0);
+  const neededGB = neededBytes / 1e9;
   const capacityGB = downlinkGB(profile, candidate.durationS);
-  if (neededGB <= capacityGB) return null;
+  // Use the same decimal-byte precision as storage accounting, including mixed PAN/MS loads.
+  if (neededBytes <= Math.round(capacityGB * 1e9)) return null;
 
   const productIds = candidate.dataProducts.map((product) => product.id).join(', ');
   return {

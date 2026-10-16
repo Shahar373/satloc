@@ -4,6 +4,7 @@ import type { ImagingOpportunity } from '../imaging/opportunities';
 import { checkContactCapacity } from '../validation/contactCapacity';
 import { checkElementsStale } from '../validation/elementsStale';
 import { checkImagingWindow } from '../validation/imagingWindow';
+import { checkIllumination } from '../validation/illumination';
 import { checkRollLimit } from '../validation/rollLimit';
 import { checkStorageBudget } from '../validation/storageBudget';
 import { applyDomainEvent, initialTruthState } from '../truth/TruthState';
@@ -61,8 +62,8 @@ const deg2rad = (d: number) => (d * Math.PI) / 180;
  * downlink that can't clear its assigned products doesn't actually free anything either. A
  * `WaivableWarning` (e.g. `checkElementsStale`) does *not* block this: it's a confidence caveat
  * about the prediction, not a physical impossibility, so the capture/downlink still happens and
- * still needs to be shown alongside the warning — only a real committable-plan flow (not built yet)
- * needs to gate on whether an operator actually waived it.
+ * still needs to be shown alongside the warning — the executable-plan compiler
+ * gates on whether an operator actually waived it.
  *
  * A downlink candidate can only reference data products produced by an *earlier*, *accepted*
  * imaging candidate in this same draft (`DOWNLINK_PRODUCT_MISSING`, the causal-ordering check this
@@ -96,6 +97,13 @@ export function evaluatePlanDraft(
         simTime: candidate.opportunity.time,
       });
       if (windowFinding) findings.push(windowFinding);
+
+      const lightFinding = checkIllumination(profile, {
+        taskId: candidate.id,
+        targetId: candidate.targetId,
+        sunElevationDeg: candidate.opportunity.sunElevationDeg,
+      });
+      if (lightFinding) findings.push(lightFinding);
 
       const staleFinding = checkElementsStale({
         taskId: candidate.id,
