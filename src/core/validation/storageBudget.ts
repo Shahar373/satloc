@@ -20,7 +20,8 @@ export function checkStorageBudget(
 ): ValidationFinding | null {
   const usableGB = usableStorageGB(profile);
   const projectedGB = truth.storageUsedGB + candidate.sizeGB;
-  if (projectedGB <= usableGB) return null;
+  // Profile units are decimal GB. Compare bytes so e.g. 15 × 0.4 GB fits exactly in 6 GB.
+  if (Math.round(projectedGB * 1e9) <= Math.round(usableGB * 1e9)) return null;
 
   return {
     code: 'STORAGE_INSUFFICIENT',
